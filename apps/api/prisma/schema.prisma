@@ -1,0 +1,81 @@
+// MVP 범위: 대본 작가와 영상 제작자 중개
+// 배우·성우, 라이선스, 정산 모델은 이후 단계에서 추가한다.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  WRITER // 대본 작가
+  PRODUCER // 영상 제작자
+  ADMIN
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         Role
+  bio          String?
+  portfolioUrl String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  scripts   Script[]
+  proposals Proposal[]
+}
+
+enum ScriptStatus {
+  DRAFT // 작성 중, 비공개
+  OPEN // 공개, 제안 받는 중
+  MATCHED // 제작자와 매칭됨
+  CLOSED
+}
+
+model Script {
+  id        String       @id @default(uuid())
+  writerId  String
+  title     String
+  logline   String // 한 줄 소개
+  genre     String
+  content   String // 대본 본문 (MVP는 텍스트, 파일 업로드는 이후 단계)
+  summary   String? // AI 요약 (이후 단계)
+  status    ScriptStatus @default(DRAFT)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  writer    User       @relation(fields: [writerId], references: [id])
+  proposals Proposal[]
+
+  @@index([status, createdAt])
+}
+
+enum ProposalStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  WITHDRAWN
+}
+
+// 제작자가 대본에 보내는 제작 제안. 작가가 수락하면 매칭된다.
+model Proposal {
+  id         String         @id @default(uuid())
+  scriptId   String
+  producerId String
+  message    String
+  budget     Int? // 제안 금액 (원 단위 정수)
+  status     ProposalStatus @default(PENDING)
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  script   Script @relation(fields: [scriptId], references: [id])
+  producer User   @relation(fields: [producerId], references: [id])
+
+  @@unique([scriptId, producerId])
+}

@@ -1,0 +1,77 @@
+name: video-matching
+
+# api, web, install 서비스가 공유하는 Node 개발 컨테이너 설정
+x-node: &node
+  build:
+    context: .
+    dockerfile: docker/dev.Dockerfile
+  image: video-matching-dev
+  working_dir: /app
+  init: true
+  volumes:
+    - .:/app
+    # node_modules는 컨테이너 전용 볼륨에 둔다 (macOS용 패키지와 섞이지 않게)
+    - node_modules:/app/node_modules
+    - api_node_modules:/app/apps/api/node_modules
+    - web_node_modules:/app/apps/web/node_modules
+    - web_next:/app/apps/web/.next
+
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-vmp}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-vmp_local_only}
+      POSTGRES_DB: ${POSTGRES_DB:-vmp}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  # 시작할 때마다 의존성을 맞춘다. package.json이 바뀌었으면 새 패키지를 설치하고, 아니면 바로 끝난다.
+  install:
+    <<: *node
+    command: npm install --no-audit --no-fund
+
+  api:
+    <<: *node
+    command: sh -c "npm run db:deploy -w api && npm run dev -w api"
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-vmp}:${POSTGRES_PASSWORD:-vmp_local_only}@db:5432/${POSTGRES_DB:-vmp}
+      PORT: 4000
+      WEB_ORIGIN: http://localhost:${WEB_PORT:-3000}
+    ports:
+      - "${API_PORT:-4000}:4000"
+    depends_on:
+      install:
+        condition: service_completed_successfully
+      db:
+        condition: service_healthy
+
+  web:
+    <<: *node
+    command: npm run dev -w web
+    environment:
+      # 서버 컴포넌트(컨테이너 안)에서 API를 부를 때 쓰는 주소
+      API_INTERNAL_URL: http://api:4000
+      # 브라우저에서 API를 부를 때 쓰는 주소
+      NEXT_PUBLIC_API_URL: http://localhost:${API_PORT:-4000}
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    depends_on:
+      install:
+        condition: service_completed_successfully
+      api:
+        condition: service_started
+
+volumes:
+  db_data:
+  node_modules:
+  api_node_modules:
+  web_node_modules:
+  web_next:

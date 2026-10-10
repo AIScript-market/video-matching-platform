@@ -1,0 +1,22 @@
+{
+  "name": "video-matching-platform",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "up": "docker compose up --build",
+    "down": "docker compose down",
+    "logs": "docker compose logs -f api web",
+    "db:migrate": "docker compose exec api npm run db:migrate -w api --",
+    "lint": "npm run lint --workspaces"
+  },
+  "allowScripts": {
+    "@prisma/engines@7.10.0": true,
+    "prisma@7.10.0": true,
+    "unrs-resolver": false
+  }
+}
