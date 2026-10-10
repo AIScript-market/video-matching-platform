@@ -1,0 +1,60 @@
+import { describe, expect, it } from 'vitest';
+import { MockSummarizer } from './mock-summarizer.js';
+import { processSummarize } from './processor.js';
+import type { AiSummary, ScriptForSummary } from './summary.js';
+
+function fakeRepo(script: ScriptForSummary | null) {
+  const saved: AiSummary[] = [];
+  return {
+    saved,
+    repo: {
+      find: async () => script,
+      saveSummary: async (_id: string, s: AiSummary) => {
+        saved.push(s);
+      },
+    } as never,
+  };
+}
+
+const script: ScriptForSummary = {
+  id: 's1',
+  title: '부산행 마지막 열차',
+  logline: '폐역을 지키는 역무원이 마지막 열차의 비밀을 쫓는다.',
+  synopsis: '1998년 부산. 폐역을 지키는 역무원 정수는 매일 밤 오지 않는 열차를 기다린다. 어느 날 정말로 열차가 도착한다.',
+  genre: '미스터리',
+  fullText: 'S#1. 폐역 승강장 (밤)\n정수: 열차가 온다. 열차가 왔어.\n정수는 승강장 끝으로 달려간다. 총소리가 울린다.',
+};
+
+describe('processSummarize', () => {
+  it('요약을 만들어 모델·생성 시각과 함께 저장한다', async () => {
+    const { repo, saved } = fakeRepo(script);
+    const result = await processSummarize(
+      { scriptId: 's1' },
+      { scripts: repo, summarizer: new MockSummarizer(), now: () => new Date('2026-10-11T00:00:00Z') },
+    );
+    expect(result).toEqual({ status: 'done', model: 'mock' });
+    expect(saved).toHaveLength(1);
+    expect(saved[0].summary).toContain('1998년 부산');
+    expect(saved[0].tags[0]).toBe('미스터리');
+    expect(saved[0].contentRating).toBe('12');
+    expect(saved[0].generatedAt).toBe('2026-10-11T00:00:00.000Z');
+  });
+
+  it('대본이 없거나 본문이 비면 건너뛴다', async () => {
+    expect((await processSummarize({ scriptId: 'x' }, { scripts: fakeRepo(null).repo, summarizer: new MockSummarizer() })).status).toBe('skipped');
+    expect(
+      (await processSummarize({ scriptId: 's1' }, { scripts: fakeRepo({ ...script, fullText: ' ' }).repo, summarizer: new MockSummarizer() })).status,
+    ).toBe('skipped');
+  });
+
+  it('태그는 중복 제거·8개 이하로 정리된다', async () => {
+    const { repo, saved } = fakeRepo(script);
+    const summarizer = {
+      model: 'test',
+      summarize: async () => ({ summary: ' 요약 ', tags: ['#a', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i'], contentRating: 'ALL' as const }),
+    };
+    await processSummarize({ scriptId: 's1' }, { scripts: repo, summarizer });
+    expect(saved[0].summary).toBe('요약');
+    expect(saved[0].tags).toEqual(['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']);
+  });
+});
