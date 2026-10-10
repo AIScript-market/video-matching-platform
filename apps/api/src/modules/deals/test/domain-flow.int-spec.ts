@@ -228,4 +228,23 @@ run('도메인 흐름 (DB)', () => {
     await expect(scripts.publish(s.id, writer, {})).rejects.toThrow(ForbiddenException);
     await expect(scripts.update(s.id, writer, { rightsDeclared: false })).resolves.toBeDefined();
   });
+  it('동시에 수락·결정해도 딜은 하나, 결정은 한 번만 반영된다', async () => {
+    const s = await scripts.create(writer, {
+      title: '동시성 테스트', logline: 'l', synopsis: 's', genre: '액션', fullText: 'text', rightsDeclared: true,
+    });
+    await scripts.publish(s.id, writer, {});
+    const r = await access.request(s.id, producer, { ndaAccepted: true });
+    const decisions = await Promise.allSettled([access.approve(r.id, writer), access.reject(r.id, writer)]);
+    expect(decisions.filter((d) => d.status === 'fulfilled')).toHaveLength(1);
+    if ((await prisma.scriptAccessRequest.findUniqueOrThrow({ where: { id: r.id } })).status !== 'APPROVED') {
+      await prisma.scriptAccessRequest.update({ where: { id: r.id }, data: { status: 'APPROVED' } });
+    }
+
+    const n = await negotiations.start(s.id, producer);
+    const o = await offers.create(n.id, producer, { writerSharePct: 50, producerSharePct: 50, upfrontFeeKrw: 0, termMonths: 6, exclusive: false });
+    const results = await Promise.allSettled([offers.accept(o.id, writer), offers.accept(o.id, writer), offers.accept(o.id, writer)]);
+    expect(results.filter((x) => x.status === 'fulfilled')).toHaveLength(1);
+    expect(await prisma.deal.count({ where: { negotiationId: n.id } })).toBe(1);
+    expect(await prisma.license.count({ where: { deal: { negotiationId: n.id } } })).toBe(1);
+  });
 });
