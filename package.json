@@ -12,7 +12,8 @@
     "down": "docker compose down",
     "logs": "docker compose logs -f api web",
     "db:migrate": "docker compose exec api npm run db:migrate -w api --",
-    "lint": "npm run lint --workspaces"
+    "lint": "npm run lint --workspaces",
+    "build": "npm run build --workspaces"
   },
   "allowScripts": {
     "@prisma/engines@7.10.0": true,

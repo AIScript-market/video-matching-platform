@@ -1,0 +1,7 @@
+# 아래 경로를 바꾼 PR은 상대방 승인이 있어야 머지된다. 나머지는 CI만 통과하면 자동 머지된다.
+
+# DB 스키마와 마이그레이션: 동시에 고치면 충돌이 잦다
+/apps/api/prisma/ @zerohoon123 @varevstudio
+
+# CI·자동 머지 규칙 자체
+/.github/ @zerohoon123 @varevstudio
