@@ -18,7 +18,7 @@ const LIST_INCLUDE = {
   script: { select: { id: true, title: true } },
   writer: { select: { id: true, displayName: true } },
   producer: { select: { id: true, displayName: true } },
-  offers: { orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: 1 },
+  offers: { orderBy: { createdAt: 'desc' }, take: 1 },
   deal: { select: { id: true } },
 } as const;
 
@@ -83,7 +83,7 @@ export class NegotiationsService {
       where: { id },
       include: {
         ...LIST_INCLUDE,
-        offers: { orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] },
+        offers: { orderBy: { createdAt: 'asc' as const } },
       },
     });
     if (!n || !(isParticipant(n, user) || user.roles.includes('ADMIN'))) {
