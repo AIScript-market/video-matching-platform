@@ -1,4 +1,5 @@
 import { UnrecoverableError, Worker } from 'bullmq';
+import { Redis } from 'ioredis';
 import pg from 'pg';
 import { ClaudeSummarizer, RefusedError } from './claude-summarizer.js';
 import { ScriptRepository } from './db.js';
@@ -18,6 +19,8 @@ const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) throw new Error('DATABASE_URL이 필요합니다');
 const redisUrl = process.env.REDIS_URL ?? 'redis://localhost:6379';
 
+// BullMQ 6은 ioredis가 선택 의존성이고, ESM에서는 미리 만든 클라이언트를 넘겨야 한다
+const connection = new Redis(redisUrl, { maxRetriesPerRequest: null });
 const pool = new pg.Pool({ connectionString: databaseUrl });
 const scripts = new ScriptRepository(pool);
 const summarizer = createSummarizer();
@@ -36,7 +39,7 @@ const worker = new Worker<SummarizeJobData>(
       throw err;
     }
   },
-  { connection: { url: redisUrl }, concurrency: Number(process.env.WORKER_CONCURRENCY ?? 2) },
+  { connection, concurrency: Number(process.env.WORKER_CONCURRENCY ?? 2) },
 );
 
 worker.on('completed', (job, result) =>
@@ -50,6 +53,7 @@ console.log(`[worker] "${QUEUE_NAME}" 대기 중 (summarizer=${summarizer.model}
 async function shutdown() {
   await worker.close();
   await pool.end();
+  connection.disconnect();
   process.exit(0);
 }
 process.on('SIGTERM', shutdown);
