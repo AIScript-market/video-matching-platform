@@ -93,7 +93,7 @@ docker compose exec api npm install <패키지> -w web
 `main`에는 직접 push할 수 없다. 기능 브랜치에서 PR을 올리면 다음 순서로 진행된다.
 
 1. CI가 마이그레이션 적용, 스키마·마이그레이션 일치 확인, lint, 빌드를 실행한다.
-2. CI를 통과하면 **자동으로 squash merge** 되고 브랜치가 삭제된다.
+2. CI를 통과하면 **자동으로 squash merge** 된다. 머지된 브랜치는 15분 안에 자동으로 삭제된다.
 3. 단, 아래 경로를 바꾼 PR은 상대방이 Approve해야 머지된다 ([`.github/CODEOWNERS`](.github/CODEOWNERS)).
    - `apps/api/prisma/` (DB 스키마, 마이그레이션)
    - `.github/` (CI, 자동 머지 규칙)
