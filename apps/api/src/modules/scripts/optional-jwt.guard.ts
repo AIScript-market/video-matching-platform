@@ -8,13 +8,17 @@ import { JwtAuthGuard } from '../../common/auth';
  */
 @Injectable()
 export class OptionalJwtAuthGuard extends JwtAuthGuard {
-  override async canActivate(context: ExecutionContext): Promise<boolean> {
-    try {
-      const result = super.canActivate(context);
-      await (isObservable(result) ? lastValueFrom(result) : result);
-    } catch {
-      // 토큰이 없거나 잘못되었으면 비로그인으로 처리
-    }
-    return true;
+  // 기반 가드의 반환 타입(boolean | Promise | Observable)에 상관없이 동작하도록 any로 둔다
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  override canActivate(context: ExecutionContext): any {
+    return (async () => {
+      try {
+        const result = super.canActivate(context);
+        await (isObservable(result) ? lastValueFrom(result) : result);
+      } catch {
+        // 토큰이 없거나 잘못되었으면 비로그인으로 처리
+      }
+      return true;
+    })();
   }
 }
