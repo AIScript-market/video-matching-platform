@@ -55,3 +55,7 @@
 - `aiSummary` JSON 형태: `{ summary, tags[], contentRating: 'ALL'|'12'|'15'|'19', model, generatedAt }`.
 - `ANTHROPIC_API_KEY`가 있으면 Claude(`claude-opus-5-5`, 구조화 JSON 출력, 거절 시 서버측 대체 모델)로, 없으면 결정적 mock 요약기로 동작. `AI_SUMMARIZER=mock|claude`로 강제 가능.
 - 정책 거절(refusal)은 재시도하지 않고 실패 처리, 그 외 오류는 BullMQ가 3회까지 지수 백오프로 재시도.
+
+### 진행 상황
+- A의 foundation이 4시간 동안 origin에 없어서 계약 ERD 기반 임시 환경(작업 폴더 밖 scratchpad)에서 검증했다. 실제 연결은 b-done.md "연결 시 할 일" 참고.
+- 파트너 프롬프트와 파일 충돌을 피하려고 내 아침 보고는 `docs/morning-report.md`가 아니라 `docs/morning-report-b.md`에 썼다.
