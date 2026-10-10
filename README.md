@@ -88,10 +88,24 @@ docker compose exec api npm install <패키지> -w web
 
 새 기능은 `apps/api/src/<기능>/` 아래에 NestJS 모듈로 추가한다 (예: `scripts/`, `proposals/`).
 
+## PR과 자동 머지
+
+`main`에는 직접 push할 수 없다. 기능 브랜치에서 PR을 올리면 다음 순서로 진행된다.
+
+1. CI가 마이그레이션 적용, 스키마·마이그레이션 일치 확인, lint, 빌드를 실행한다.
+2. CI를 통과하면 **자동으로 squash merge** 되고 브랜치가 삭제된다.
+3. 단, 아래 경로를 바꾼 PR은 상대방이 Approve해야 머지된다 ([`.github/CODEOWNERS`](.github/CODEOWNERS)).
+   - `apps/api/prisma/` (DB 스키마, 마이그레이션)
+   - `.github/` (CI, 자동 머지 규칙)
+
+아직 작업 중이라 머지되면 안 되는 PR은 **Draft**로 올린다. Draft는 자동 머지가 켜지지 않고, "Ready for review"를 누르면 그때 켜진다.
+
+CI가 실패하면 PR 화면의 Checks 탭에서 원인을 보고 같은 브랜치에 고쳐서 push하면 된다. 통과하면 자동으로 머지된다.
+
 ## 협업 규칙
 
-1. `main`에 직접 push하지 않고, 짧은 기능 브랜치(1~3일)에서 PR을 올린다.
-2. PR은 상대방이 리뷰한 뒤 squash merge 한다.
+1. 기능 브랜치는 짧게(1~3일) 유지한다.
+2. 리뷰가 필수는 아니지만, 상대방 코드에 영향을 주는 변경은 PR 설명에 적어둔다.
 3. API를 바꿀 때는 요청·응답 형식을 PR 설명에 먼저 적고 합의한다.
 4. 이미 머지된 DB 마이그레이션 파일은 수정하지 않는다. 고칠 게 있으면 새 마이그레이션을 만든다.
 5. 비밀 키는 저장소에 커밋하지 않는다. `.env.example`만 커밋한다.

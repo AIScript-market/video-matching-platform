@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    # 브랜치 보호 규칙의 필수 검사 이름과 같아야 한다.
+    name: ci
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: vmp
+          POSTGRES_PASSWORD: vmp
+          POSTGRES_DB: vmp
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U vmp -d vmp"
+          --health-interval 3s
+          --health-timeout 3s
+          --health-retries 20
+    env:
+      DATABASE_URL: postgresql://vmp:vmp@localhost:5432/vmp
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: 마이그레이션 적용
+        run: npm run db:deploy -w api
+      - name: 스키마 변경에 마이그레이션이 빠지지 않았는지 확인
+        run: npm run db:check -w api
+      - run: npm run lint
+      - name: 빌드 (타입 검사 포함)
+        run: npm run build

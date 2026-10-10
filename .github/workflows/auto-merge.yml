@@ -1,0 +1,26 @@
+name: Auto-merge
+
+# 팀원이 올린 PR에 자동 머지를 켠다.
+# 실제 머지는 브랜치 보호 규칙(CI 통과, 스키마 변경 시 상대방 승인)을 만족한 뒤에 GitHub가 한다.
+# Draft PR은 건너뛰고, "Ready for review"로 바꾸면 그때 켜진다.
+
+on:
+  pull_request:
+    types: [opened, reopened, ready_for_review]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  enable:
+    if: >-
+      !github.event.pull_request.draft &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      contains(fromJSON('["zerohoon123", "varevstudio"]'), github.event.pull_request.user.login)
+    runs-on: ubuntu-latest
+    steps:
+      - run: gh pr merge --auto --squash "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
