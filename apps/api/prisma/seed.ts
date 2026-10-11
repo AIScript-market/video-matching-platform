@@ -78,15 +78,6 @@ const scripts = [
         '1998년 부산의 폐역을 지키는 역무원 정수 앞에 시간표에 없는 열차가 도착한다. 열차 안에서 25년 전 실종된 동생의 가방을 발견한 그는 과거의 사건을 다시 파헤치기 시작한다.',
       tags: ['미스터리', '실종', '1990년대 부산', '가족', '서스펜스'],
       contentRating: '12',
-      coverage: {
-        scores: { hook: 4, conflict: 4, characters: 3, pacing: 3, dialogue: 3 },
-        productionDifficulty: 2,
-        estimatedCast: 3,
-        estimatedLocations: 2,
-        strengths: ['첫 장면의 기적 소리로 바로 미스터리가 시작된다', '폐역 한 곳이 중심이라 촬영 장소가 적다'],
-        risks: ['동생 실종의 단서가 늦게 나오면 중반이 늘어질 수 있다'],
-        comparableTitles: [],
-      },
     },
   },
   {
@@ -104,15 +95,6 @@ const scripts = [
         '식당을 접고 옥탑방에서 지내는 셰프 미란이 이웃들과 밥을 나누며 다시 요리할 이유를 찾는 이야기. 각자의 사정을 가진 이웃들이 한 식탁에 모이면서 작은 공동체가 생겨난다.',
       tags: ['드라마', '음식', '이웃', '힐링', '서울'],
       contentRating: 'ALL',
-      coverage: {
-        scores: { hook: 3, conflict: 2, characters: 4, pacing: 3, dialogue: 4 },
-        productionDifficulty: 1,
-        estimatedCast: 5,
-        estimatedLocations: 1,
-        strengths: ['이웃 인물들이 각자 뚜렷하다', '옥상 한 곳에서 찍을 수 있다'],
-        risks: ['셰프가 무엇을 걸고 있는지 초반에 분명하지 않다'],
-        comparableTitles: [],
-      },
     },
   },
   {
@@ -130,15 +112,6 @@ const scripts = [
         '2041년, 통신이 끊긴 남극 기지에서 대원 한 명이 사라지고 남은 대원들이 서로를 의심하게 된다. 고립과 불신 속에서 이들은 외부와 연락할 마지막 방법을 찾아야 한다.',
       tags: ['SF', '고립', '남극', '스릴러', '근미래'],
       contentRating: '15',
-      coverage: {
-        scores: { hook: 4, conflict: 5, characters: 3, pacing: 4, dialogue: 3 },
-        productionDifficulty: 4,
-        estimatedCast: 6,
-        estimatedLocations: 4,
-        strengths: ['고립된 공간에서 의심이 쌓이는 구조가 분명하다'],
-        risks: ['남극 기지 세트와 설원 장면으로 제작비가 크다'],
-        comparableTitles: [],
-      },
     },
   },
 ];

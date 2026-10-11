@@ -4,8 +4,6 @@ import { useState } from "react";
 import { ErrorText } from "@/components/ui";
 import { api, dateTime, unwrap, type ScriptDetail } from "@/lib/api";
 
-type Coverage = NonNullable<NonNullable<ScriptDetail["aiSummary"]>["coverage"]>;
-
 const rating = (r: string) => (r === "ALL" ? "전체관람가" : `${r}세`);
 
 /**
@@ -47,7 +45,6 @@ export function AiSummaryCard({ script, onUpdated }: { script: ScriptDetail; onU
       {aiSummary ? (
         <div className="stack" style={{ opacity: aiSummaryPending ? 0.6 : 1 }}>
           <p style={{ margin: 0 }}>{aiSummary.summary}</p>
-          {aiSummary.coverage && <CoverageView coverage={aiSummary.coverage} isAuthor={viewer.isAuthor} />}
           <div className="tags">
             {aiSummary.tags.map((t) => (
               <span key={t} className="tag">
@@ -73,56 +70,5 @@ export function AiSummaryCard({ script, onUpdated }: { script: ScriptDetail; onU
       </dl>
       <ErrorText error={error} />
     </section>
-  );
-}
-
-const SCORE_LABEL: Record<keyof NonNullable<Coverage["scores"]>, string> = {
-  hook: "첫 장면 훅",
-  conflict: "갈등",
-  characters: "인물",
-  pacing: "전개",
-  dialogue: "대사",
-};
-
-/**
- * PD 관점 검토 의견 (AI). 점수는 영상 제작자에게만 오고(작가 본인에게는 오지 않음), 흥행 예측이 아니라 참고용이다.
- */
-function CoverageView({ coverage, isAuthor }: { coverage: Coverage; isAuthor: boolean }) {
-  const { scores } = coverage;
-  return (
-    <div className="stack" style={{ gap: 8, borderTop: "1px solid var(--border)", paddingTop: 10 }} aria-label="AI 검토 의견">
-      <div className="spread">
-        <strong className="small">AI 검토 의견</strong>
-        <span className="muted small">참고용 · 흥행 예측이 아닙니다</span>
-      </div>
-      {scores && (
-        <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 8 }}>
-          {(Object.keys(SCORE_LABEL) as (keyof typeof SCORE_LABEL)[]).map((k) => (
-            <div key={k} className="small">
-              <span className="muted">{SCORE_LABEL[k]}</span>{" "}
-              <span aria-label={`${scores[k]}점 / 5점`}>
-                {"●".repeat(scores[k])}
-                <span className="muted">{"○".repeat(5 - scores[k])}</span>
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
-      <p className="small" style={{ margin: 0 }}>
-        제작 난이도 {coverage.productionDifficulty}/5 · 주요 인물 약 {coverage.estimatedCast}명 · 촬영 장소 약 {coverage.estimatedLocations}곳
-      </p>
-      {coverage.strengths.length > 0 && (
-        <p className="small" style={{ margin: 0 }}>
-          <strong>강점</strong> {coverage.strengths.join(" · ")}
-        </p>
-      )}
-      {coverage.risks.length > 0 && (
-        <p className="small" style={{ margin: 0 }}>
-          <strong>고려할 점</strong> {coverage.risks.join(" · ")}
-        </p>
-      )}
-      {coverage.comparableTitles.length > 0 && <p className="small muted" style={{ margin: 0 }}>비슷한 작품: {coverage.comparableTitles.join(", ")}</p>}
-      {isAuthor && <p className="small muted" style={{ margin: 0 }}>점수는 영상 제작자에게만 보입니다. 작가에게는 의견만 보여 드립니다.</p>}
-    </div>
   );
 }

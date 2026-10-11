@@ -3,7 +3,6 @@ import type { AuthUser } from '../../core/auth/index.js';
 import type { WorkPerformanceSnapshot } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { projectMemberIds } from '../casting/casting.service.js';
-import type { CoverageDto } from '../scripts/dto/script.dto.js';
 import type { PerformanceSnapshotDto, RecordPerformanceDto, TrainingRowDto } from './performance.dto.js';
 
 /** AuthUser 또는 Viewer (역할은 문자열 목록) */
@@ -69,7 +68,7 @@ export class PerformanceService {
 
   /**
    * 관리자: 학습용 데이터. 작가가 분석·학습에 동의한 대본만, 대본 원문 없이
-   * 커버리지(특징)와 그 대본으로 만든 작품의 최근 성과(정답)를 묶는다.
+   * 메타데이터와 그 대본으로 만든 작품의 최근 성과(정답)를 묶는다. 벡터는 ML 서비스가 DB에서 직접 읽는다.
    */
   async trainingSet(): Promise<TrainingRowDto[]> {
     const scripts = await this.prisma.script.findMany({
@@ -103,14 +102,12 @@ export class PerformanceService {
       orderBy: { createdAt: 'asc' },
     });
     return scripts.map((s) => {
-      const summary = s.aiSummary as { contentRating?: string; coverage?: CoverageDto; model?: string } | null;
+      const summary = s.aiSummary as { contentRating?: string } | null;
       const works = s.negotiations.flatMap((n) => n.deal?.project?.works ?? []);
       return {
         scriptId: s.id,
         genre: s.genre,
         contentRating: summary?.contentRating ?? null,
-        coverage: summary?.coverage ?? null,
-        summaryModel: summary?.model ?? null,
         fullTextChars: s.fullText.length,
         works: works.map((w) => {
           const latest = w.performances[0] ?? null;

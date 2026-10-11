@@ -4758,99 +4758,6 @@
           "fullText"
         ]
       },
-      "CoverageScoresDto": {
-        "type": "object",
-        "properties": {
-          "hook": {
-            "type": "number",
-            "minimum": 1,
-            "maximum": 5,
-            "description": "첫 장면이 시청자를 붙잡는 힘"
-          },
-          "conflict": {
-            "type": "number",
-            "minimum": 1,
-            "maximum": 5,
-            "description": "갈등의 명확성"
-          },
-          "characters": {
-            "type": "number",
-            "minimum": 1,
-            "maximum": 5,
-            "description": "인물의 매력"
-          },
-          "pacing": {
-            "type": "number",
-            "minimum": 1,
-            "maximum": 5,
-            "description": "전개 속도"
-          },
-          "dialogue": {
-            "type": "number",
-            "minimum": 1,
-            "maximum": 5,
-            "description": "대사"
-          }
-        },
-        "required": [
-          "hook",
-          "conflict",
-          "characters",
-          "pacing",
-          "dialogue"
-        ]
-      },
-      "CoverageDto": {
-        "type": "object",
-        "properties": {
-          "scores": {
-            "description": "작가 본인·목록에서는 없음",
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/CoverageScoresDto"
-              }
-            ]
-          },
-          "productionDifficulty": {
-            "type": "number",
-            "minimum": 1,
-            "maximum": 5,
-            "description": "제작 난이도 (높을수록 어렵다)"
-          },
-          "estimatedCast": {
-            "type": "number"
-          },
-          "estimatedLocations": {
-            "type": "number"
-          },
-          "strengths": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "risks": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "comparableTitles": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          }
-        },
-        "required": [
-          "productionDifficulty",
-          "estimatedCast",
-          "estimatedLocations",
-          "strengths",
-          "risks",
-          "comparableTitles"
-        ]
-      },
       "AiSummaryDto": {
         "type": "object",
         "properties": {
@@ -4870,14 +4777,6 @@
               "12",
               "15",
               "19"
-            ]
-          },
-          "coverage": {
-            "description": "2026-10 이후 만든 요약에만 있다",
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/CoverageDto"
-              }
             ]
           },
           "model": {
@@ -7518,19 +7417,6 @@
               "19"
             ]
           },
-          "coverage": {
-            "nullable": true,
-            "type": "object",
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/CoverageDto"
-              }
-            ]
-          },
-          "summaryModel": {
-            "type": "string",
-            "nullable": true
-          },
           "fullTextChars": {
             "type": "number"
           },
@@ -7545,8 +7431,6 @@
           "scriptId",
           "genre",
           "contentRating",
-          "coverage",
-          "summaryModel",
           "fullTextChars",
           "works"
         ]

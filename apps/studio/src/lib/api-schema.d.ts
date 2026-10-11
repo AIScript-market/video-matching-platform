@@ -1748,36 +1748,11 @@ export interface components {
             /** @description 흥행 판단 모델의 분석·학습에 이 대본을 써도 된다는 동의 (선택). 언제든 철회할 수 있다 */
             trainingConsent?: boolean;
         };
-        CoverageScoresDto: {
-            /** @description 첫 장면이 시청자를 붙잡는 힘 */
-            hook: number;
-            /** @description 갈등의 명확성 */
-            conflict: number;
-            /** @description 인물의 매력 */
-            characters: number;
-            /** @description 전개 속도 */
-            pacing: number;
-            /** @description 대사 */
-            dialogue: number;
-        };
-        CoverageDto: {
-            /** @description 작가 본인·목록에서는 없음 */
-            scores?: components["schemas"]["CoverageScoresDto"];
-            /** @description 제작 난이도 (높을수록 어렵다) */
-            productionDifficulty: number;
-            estimatedCast: number;
-            estimatedLocations: number;
-            strengths: string[];
-            risks: string[];
-            comparableTitles: string[];
-        };
         AiSummaryDto: {
             summary: string;
             tags: string[];
             /** @enum {string} */
             contentRating: "ALL" | "12" | "15" | "19";
-            /** @description 2026-10 이후 만든 요약에만 있다 */
-            coverage?: components["schemas"]["CoverageDto"];
             model: string;
             /** Format: date-time */
             generatedAt: string;
@@ -2546,8 +2521,6 @@ export interface components {
             genre: string;
             /** @enum {string|null} */
             contentRating: "ALL" | "12" | "15" | "19" | null;
-            coverage: components["schemas"]["CoverageDto"] | null;
-            summaryModel: string | null;
             fullTextChars: number;
             works: components["schemas"]["TrainingWorkDto"][];
         };

@@ -1,7 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsDate, IsInt, IsOptional, Max, Min } from 'class-validator';
-import { CoverageDto } from '../scripts/dto/script.dto.js';
 
 const INT_MAX = 2_000_000_000;
 
@@ -42,13 +41,11 @@ export class TrainingWorkDto {
   @ApiProperty({ description: '공개 후 경과 일수 (최근 기록 기준)' }) daysSincePublish!: number | null;
 }
 
-/** 학습용 한 행: 대본의 특징(커버리지)과 그 대본으로 만든 작품의 성과. 대본 원문은 넣지 않는다 */
+/** 학습용 한 행: 대본의 메타데이터와 그 대본으로 만든 작품의 성과. 대본 원문은 넣지 않는다 */
 export class TrainingRowDto {
   @ApiProperty() scriptId!: string;
   @ApiProperty() genre!: string;
   @ApiProperty({ nullable: true, enum: ['ALL', '12', '15', '19'] }) contentRating!: string | null;
-  @ApiProperty({ type: CoverageDto, nullable: true }) coverage!: CoverageDto | null;
-  @ApiProperty({ nullable: true, type: String }) summaryModel!: string | null;
   @ApiProperty() fullTextChars!: number;
   @ApiProperty({ type: [TrainingWorkDto] }) works!: TrainingWorkDto[];
 }

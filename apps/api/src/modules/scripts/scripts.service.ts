@@ -74,17 +74,6 @@ function withPending<T extends SummaryState>(row: T): T & { aiSummaryPending: bo
   return { ...row, aiSummaryPending: isSummaryPending(row) };
 }
 
-/**
- * 커버리지 점수는 작가 본인과 목록에서는 뺀다. 작가가 점수에 맞춰 쓰는 것을 막고,
- * 목록 카드에서 숫자로 줄 세우지 않기 위해서다 (docs/hit-model.md).
- */
-export function redactCoverage<T extends { aiSummary: unknown }>(row: T, showScores: boolean): T {
-  const summary = row.aiSummary as { coverage?: { scores?: unknown } } | null;
-  if (showScores || !summary?.coverage?.scores) return row;
-  const { scores: _scores, ...coverage } = summary.coverage;
-  return { ...row, aiSummary: { ...summary, coverage } };
-}
-
 /** 응답에서 작가 상태(내부용)를 뺀다 */
 function publicShape<T extends { author: { id: string; displayName: string; status: string } }>(row: T) {
   const { status: _status, ...author } = row.author;
@@ -151,7 +140,7 @@ export class ScriptsService {
       take: take + 1,
       ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}),
     });
-    const items = rows.slice(0, take).map((r) => publicShape(withPending(redactCoverage(r, false)))) as unknown as ScriptSummaryDto[];
+    const items = rows.slice(0, take).map((r) => publicShape(withPending(r))) as unknown as ScriptSummaryDto[];
     return { items, nextCursor: rows.length > take ? items[items.length - 1].id : null };
   }
 
@@ -193,10 +182,8 @@ export class ScriptsService {
     if (full && !isAuthor) await this.logView(id, viewer!.id);
 
     const { authorId: _authorId, ...rest } = script;
-    // 점수는 로그인한 다른 사람(영상 제작자, 관리자)에게만 보인다
-    const showScores = Boolean(viewer) && !isAuthor;
     return {
-      ...publicShape(withPending(redactCoverage(rest, showScores))),
+      ...publicShape(withPending(rest)),
       fullText: full ? texts.fullText : null,
       previewText: preview ? (texts.previewText ?? null) : null,
       previewAvailable: Boolean(texts.previewText),

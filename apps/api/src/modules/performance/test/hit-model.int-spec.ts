@@ -1,5 +1,5 @@
 /**
- * 흥행 판단 모델 1단계 통합 테스트 (실제 PostgreSQL 필요): 학습 동의, 커버리지 점수 숨김,
+ * 흥행 판단 모델 1단계 통합 테스트 (실제 PostgreSQL 필요): 학습 동의,
  * 작품 성과 기록 권한, 학습용 데이터(동의한 대본만, 원문 없음).
  */
 import { ConflictException, NotFoundException } from '@nestjs/common';
@@ -11,16 +11,6 @@ import { WalletService } from '../../wallet/wallet.service.js';
 import { PerformanceService } from '../performance.service.js';
 
 const run = process.env.DATABASE_URL ? describe : describe.skip;
-
-const COVERAGE = {
-  scores: { hook: 4, conflict: 3, characters: 4, pacing: 3, dialogue: 3 },
-  productionDifficulty: 2,
-  estimatedCast: 3,
-  estimatedLocations: 2,
-  strengths: ['첫 장면에서 바로 사건이 시작된다'],
-  risks: [],
-  comparableTitles: [],
-};
 
 run('흥행 모델 1단계 (DB)', () => {
   const suffix = Date.now().toString(36);
@@ -45,7 +35,7 @@ run('흥행 모델 1단계 (DB)', () => {
       data: {
         authorId: writer.id, title: '성과 대본', logline: 'l', synopsis: 's', genre: '드라마', fullText: 'S#1. 집 (밤)\n본문',
         status: 'PUBLISHED', rightsDeclared: true, trainingConsent,
-        aiSummary: { summary: '요약', tags: [], contentRating: 'ALL', coverage: COVERAGE, model: 'test', generatedAt: new Date().toISOString() },
+        aiSummary: { summary: '요약', tags: [], contentRating: 'ALL', model: 'test', generatedAt: new Date().toISOString() },
       },
     });
     const n = await prisma.negotiation.create({ data: { scriptId: script.id, writerId: writer.id, producerId: producer.id, status: 'AGREED' } });
@@ -87,21 +77,6 @@ run('흥행 모델 1단계 (DB)', () => {
     expect((await prisma.script.findUniqueOrThrow({ where: { id: created.id } })).trainingConsentAt).toBeNull();
   });
 
-  it('커버리지 점수는 다른 사람에게만 보이고, 작가 본인·비로그인·목록에서는 빠진다', async () => {
-    const writer = await makeUser('writer');
-    const producer = await makeUser('producer');
-    const { script } = await publishedWork(writer, producer, false);
-
-    const forProducer = await scripts.get(script.id, producer);
-    expect(forProducer.aiSummary?.coverage?.scores).toEqual(COVERAGE.scores);
-    const forAuthor = await scripts.get(script.id, writer);
-    expect(forAuthor.aiSummary?.coverage?.scores).toBeUndefined();
-    expect(forAuthor.aiSummary?.coverage?.strengths).toEqual(COVERAGE.strengths); // 의견은 작가도 본다
-    expect((await scripts.get(script.id, null)).aiSummary?.coverage?.scores).toBeUndefined();
-    const listed = (await scripts.list({ mine: true }, writer)).items.find((s) => s.id === script.id);
-    expect(listed?.aiSummary?.coverage?.scores).toBeUndefined();
-  });
-
   it('성과는 기획사·관리자가 공개한 작품에만 기록하고, 외부인은 못 본다', async () => {
     const writer = await makeUser('writer');
     const producer = await makeUser('producer');
@@ -120,7 +95,7 @@ run('흥행 모델 1단계 (DB)', () => {
     await expect(performance.record(producer, draft.id, { capturedAt: new Date(), views: 1 })).rejects.toBeInstanceOf(ConflictException);
   });
 
-  it('학습용 데이터에는 동의한 대본만, 원문 없이 커버리지와 최근 성과만 들어간다', async () => {
+  it('학습용 데이터에는 동의한 대본만, 원문 없이 메타데이터와 최근 성과만 들어간다', async () => {
     const writer = await makeUser('writer');
     const producer = await makeUser('producer');
     const consented = await publishedWork(writer, producer, true);
@@ -130,7 +105,7 @@ run('흥행 모델 1단계 (DB)', () => {
     const rows = await performance.trainingSet();
     expect(rows.some((r) => r.scriptId === refused.script.id)).toBe(false);
     const row = rows.find((r) => r.scriptId === consented.script.id)!;
-    expect(row).toMatchObject({ genre: '드라마', contentRating: 'ALL', coverage: COVERAGE, summaryModel: 'test' });
+    expect(row).toMatchObject({ genre: '드라마', contentRating: 'ALL' });
     expect(row.works).toEqual([expect.objectContaining({ workId: consented.work.id, daysSincePublish: 10 })]);
     expect(row.works[0]!.latest?.views).toBe(3_000);
     expect(JSON.stringify(row)).not.toContain('본문');
