@@ -119,6 +119,7 @@ class HitService:
         genres = [l.genre for l in labeled]
         metrics = evaluate_time_split(pooled, feats, y, genres, embedder=self.embedder.name, feature_names=FEATURE_NAMES)
         model = fit_model(pooled, feats, y, embedder=self.embedder.name, feature_names=FEATURE_NAMES)
+        metrics["finalLambda"] = model.meta["lambda"]
 
         trained_at = now or datetime.now(UTC)
         version = trained_at.strftime("hit-%Y%m%d-%H%M%S")

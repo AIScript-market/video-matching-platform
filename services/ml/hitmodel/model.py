@@ -4,6 +4,7 @@
 1. 대본 벡터를 학습 데이터의 주성분 몇 개로 줄인다 (차원이 표본보다 훨씬 크면 과적합한다).
 2. 구조 특징을 붙이고 표준화한다.
 3. L2 로지스틱 회귀를 부트스트랩으로 여러 번 학습한다. 예측의 평균이 확률, 퍼짐이 불확실성이다.
+   벌점 세기(λ)는 학습 데이터 안의 교차 검증(로그 손실)으로 고른다. 표본이 작을수록 강한 벌점이 맞는 경우가 많다.
 
 평가는 시간 순서로 나눈다. 앞 80%로 학습하고 뒤 20%를 맞힌다 (미래 데이터로 과거를 맞히지 않게).
 비교 기준은 "장르별 성공률"이다. 이 기준보다 못하면 모델을 활성화하지 않는다.
@@ -16,7 +17,9 @@ from pathlib import Path
 
 import numpy as np
 
-ALGORITHM = "pca-logreg-l2-bootstrap-v1"
+ALGORITHM = "pca-logreg-l2cv-bootstrap-v1"
+LAMBDAS = (1.0, 3.0, 10.0, 30.0, 100.0, 300.0)
+DEFAULT_LAMBDA = 30.0
 
 
 def sigmoid(z: np.ndarray) -> np.ndarray:
@@ -109,10 +112,13 @@ def fit_model(
     embedder: str,
     feature_names: list[str],
     bootstrap: int = 50,
-    lam: float = 1.0,
+    lam: float | None = None,
     seed: int = 0,
 ) -> HitModel:
+    """lam이 없으면 choose_lambda로 고른다"""
     n = len(y)
+    if lam is None:
+        lam = choose_lambda(pooled, features, y, embedder=embedder, feature_names=feature_names, seed=seed)
     vec_mean = pooled.mean(axis=0)
     centered = pooled - vec_mean
     # 주성분 수: 표본 5개당 하나, 최대 16개
@@ -134,7 +140,35 @@ def fit_model(
         if y[idx].min() == y[idx].max():
             continue  # 한쪽 정답만 뽑히면 학습할 수 없다
         weights.append(fit_logistic(xs[idx], y[idx], lam))
-    return HitModel(embedder, feature_names, components, vec_mean, x_mean, x_std, np.stack(weights))
+    return HitModel(embedder, feature_names, components, vec_mean, x_mean, x_std, np.stack(weights), meta={"lambda": lam})
+
+
+def log_loss(p: np.ndarray, y: np.ndarray) -> float:
+    p = np.clip(p, 1e-6, 1 - 1e-6)
+    return float(-np.mean(y * np.log(p) + (1 - y) * np.log(1 - p)))
+
+
+def choose_lambda(
+    pooled: np.ndarray, features: np.ndarray, y: np.ndarray, *, embedder: str, feature_names: list[str], folds: int = 5, seed: int = 0
+) -> float:
+    """k겹 교차 검증 로그 손실이 가장 작은 벌점 세기. 표본이 너무 적으면 기본값"""
+    n = len(y)
+    if n < 20 or y.sum() < folds or (1 - y).sum() < folds:
+        return DEFAULT_LAMBDA
+    fold_of = np.empty(n, dtype=int)
+    fold_of[np.random.default_rng(seed).permutation(n)] = np.arange(n) % folds
+    best, best_loss = DEFAULT_LAMBDA, np.inf
+    for lam in LAMBDAS:
+        losses = []
+        for f in range(folds):
+            train, test = fold_of != f, fold_of == f
+            if y[train].min() == y[train].max():
+                continue
+            m = fit_model(pooled[train], features[train], y[train], embedder=embedder, feature_names=feature_names, bootstrap=1, lam=lam)
+            losses.append(log_loss(m.predict(pooled[test], features[test])[0], y[test]))
+        if losses and np.mean(losses) < best_loss:
+            best, best_loss = lam, float(np.mean(losses))
+    return best
 
 
 def genre_rates(genres: list[str], y: np.ndarray, prior: float) -> dict[str, float]:
@@ -167,6 +201,7 @@ def evaluate_time_split(
         return metrics
 
     model = fit_model(pooled[train], features[train], y_train, embedder=embedder, feature_names=feature_names, bootstrap=20)
+    metrics["lambda"] = model.meta["lambda"]
     prob, _, _ = model.predict(pooled[test], features[test])
     top = max(1, int(round(len(prob) * 0.2)))
     picked = np.argsort(-prob)[:top]
