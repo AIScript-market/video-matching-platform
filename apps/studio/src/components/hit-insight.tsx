@@ -18,7 +18,15 @@ export function ReadinessMeter({ trainingPairs, requiredPairs }: { trainingPairs
   return (
     <div className="stack" style={{ gap: 4 }}>
       <div className="small">
-        모델 학습 전 · 학습 데이터 <strong>{trainingPairs}</strong>/{requiredPairs}편
+        {trainingPairs < requiredPairs ? (
+          <>
+            모델 학습 전 · 학습 데이터 <strong>{trainingPairs}</strong>/{requiredPairs}편
+          </>
+        ) : (
+          <>
+            학습 데이터 <strong>{trainingPairs}</strong>편 (학습 기준 {requiredPairs}편 충족)
+          </>
+        )}
       </div>
       <div className="meter" role="progressbar" aria-valuemin={0} aria-valuemax={requiredPairs} aria-valuenow={trainingPairs}>
         <span style={{ width: `${ratio * 100}%` }} />
@@ -37,6 +45,9 @@ export function ProbabilityBar({ probability, low, high }: { probability: number
   );
 }
 
+/** 성과 백분위(0~1) → "상위 12%" / "하위 30%" */
+const rankLabel = (percentile: number) => (percentile >= 0.5 ? `성과 상위 ${pct(1 - percentile)}` : `성과 하위 ${pct(percentile)}`);
+
 export function SimilarWorks({ items }: { items: SimilarWork[] }) {
   if (items.length === 0) return null;
   return (
@@ -49,7 +60,7 @@ export function SimilarWorks({ items }: { items: SimilarWork[] }) {
           </span>
           <span className="row" style={{ flexWrap: "nowrap" }}>
             <span className="muted">유사도 {pct(Math.max(n.similarity, 0))}</span>
-            {n.hit ? <span className="badge ok">성공작</span> : <span className="badge plain">상위 {pct(1 - n.percentile)}</span>}
+            {n.hit ? <span className="badge ok">성공작</span> : <span className="badge plain">{rankLabel(n.percentile)}</span>}
           </span>
         </li>
       ))}
