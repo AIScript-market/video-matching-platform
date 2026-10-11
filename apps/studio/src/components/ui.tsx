@@ -30,23 +30,21 @@ export function StatusBadge({ status }: { status: string }) {
 }
 
 export const ROLE_LABEL: Record<Role, string> = {
-  WRITER: "대본 제공자",
-  PRODUCER: "영상 제작자",
+  WRITER: "일반",
+  PRODUCER: "일반",
   ADMIN: "관리자",
 };
 
-/** 역할 배지 목록. 역할이 없으면 "일반" */
+/** 계정 종류 배지: 관리자 / 일반 */
 export function RoleBadges({ roles }: { roles: Role[] }) {
-  if (roles.length === 0) return <span className="badge plain">일반</span>;
-  return (
-    <>
-      {roles.map((r) => (
-        <span key={r} className={`badge${r === "ADMIN" ? " bad" : ""}`}>
-          {ROLE_LABEL[r]}
-        </span>
-      ))}
-    </>
-  );
+  return roles.includes("ADMIN") ? <span className="badge bad">관리자</span> : <span className="badge plain">일반</span>;
+}
+
+/** 계정 상태 배지 */
+export function UserStatusBadge({ status }: { status: string }) {
+  if (status === "SUSPENDED") return <span className="badge bad">정지</span>;
+  if (status === "WITHDRAWN") return <span className="badge plain">탈퇴</span>;
+  return <span className="badge ok">정상</span>;
 }
 
 /** 로그인(과 역할)이 필요한 화면을 감싼다 */
@@ -71,19 +69,38 @@ export function RequireAuth({ role, children }: { role?: Role; children: React.R
     return (
       <div className="card stack">
         <p>
-          이 화면은 <strong>{ROLE_LABEL[role]}</strong> 권한이 필요합니다.
+          이 화면은 <strong>{ROLE_LABEL[role]}</strong> 계정만 쓸 수 있습니다.
         </p>
-        {role !== "ADMIN" && (
-          <div className="row">
-            <Link href="/account" className="button">
-              {ROLE_LABEL[role]} 권한 신청하기
-            </Link>
-            <span className="small muted">관리자가 승인하면 바로 사용할 수 있습니다.</span>
-          </div>
-        )}
       </div>
     );
   return <>{children}</>;
+}
+
+/** 대본 제공·영상 제작 화면: 로그인 + 프로필·이메일 공개가 필요하다 */
+export function RequireCreator({ children }: { children: React.ReactNode }) {
+  const { user } = useSession();
+  return (
+    <RequireAuth>
+      {user && !user.creatorReady ? <CreatorNotice /> : children}
+    </RequireAuth>
+  );
+}
+
+export function CreatorNotice() {
+  const { user } = useSession();
+  if (user?.roles.includes("ADMIN")) return <p className="muted">관리자 계정은 대본 제공·영상 제작을 하지 않습니다.</p>;
+  return (
+    <div className="card stack">
+      <p>
+        대본 제공과 영상 제작을 하려면 <strong>프로필 소개를 쓰고, 프로필과 이메일을 공개</strong>해야 합니다. 상대방이 누구와 거래하는지 알 수 있게 하기 위해서입니다.
+      </p>
+      <div className="row">
+        <Link href="/account#profile" className="button">
+          프로필 공개하러 가기
+        </Link>
+      </div>
+    </div>
+  );
 }
 
 export function Modal({
@@ -105,10 +122,23 @@ export function Modal({
   );
 }
 
+/** 오류 문장. 코인 부족·프로필 미공개면 해결할 곳으로 가는 링크를 함께 보여준다 */
 export function ErrorText({ error }: { error: string | null }) {
-  return error ? (
+  if (!error) return null;
+  const link = error.includes("코인이 부족")
+    ? { href: "/account#coins", label: "코인 충전하기" }
+    : error.includes("프로필") && error.includes("공개")
+      ? { href: "/account#profile", label: "프로필 공개하기" }
+      : null;
+  return (
     <p className="error" role="alert">
       {error}
+      {link && (
+        <>
+          {" "}
+          <Link href={link.href}>{link.label} →</Link>
+        </>
+      )}
     </p>
-  ) : null;
+  );
 }

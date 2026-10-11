@@ -15,14 +15,13 @@ export interface DevAccount {
 }
 
 export const DEV_ACCOUNTS: DevAccount[] = [
-  { key: "admin", label: "관리자", role: "관리자", email: "admin@vmp.dev", password: "admin1234!", note: "권한 신청 승인, 활동 로그, 장부", landing: "/admin" },
-  { key: "writer1", label: "김작가", role: "대본 제공자", email: "writer1@vmp.dev", password: "writer1234!", note: "공개 대본 2편", landing: "/dashboard" },
-  { key: "writer2", label: "이작가", role: "대본 제공자", email: "writer2@vmp.dev", password: "writer1234!", note: "공개 대본 1편", landing: "/dashboard" },
-  { key: "producer1", label: "박제작", role: "영상 제작자", email: "producer1@vmp.dev", password: "producer1234!", note: "열람 요청·검토 메시지·제안", landing: "/scripts" },
-  { key: "producer2", label: "최제작", role: "영상 제작자", email: "producer2@vmp.dev", password: "producer1234!", note: "열람 요청·검토 메시지·제안", landing: "/scripts" },
-  { key: "member1", label: "정일반", role: "일반", email: "member1@vmp.dev", password: "member1234!", note: "권한 없음 — 권한 신청 가능", landing: "/account" },
-  { key: "applicant1", label: "한신청", role: "일반 (신청 대기)", email: "applicant1@vmp.dev", password: "member1234!", note: "대본 제공자 권한 승인 대기", landing: "/account" },
-  { key: "applicant2", label: "윤신청", role: "일반 (신청 대기)", email: "applicant2@vmp.dev", password: "member1234!", note: "영상 제작자 권한 승인 대기", landing: "/account" },
+  { key: "admin", label: "관리자", role: "관리자", email: "admin@vmp.dev", password: "admin1234!", note: "계정 정지, 코인 지급, 활동 로그, 장부", landing: "/admin" },
+  { key: "writer1", label: "김작가", role: "일반 (공개)", email: "writer1@vmp.dev", password: "writer1234!", note: "공개 대본 2편 · 100코인", landing: "/dashboard" },
+  { key: "writer2", label: "이작가", role: "일반 (공개)", email: "writer2@vmp.dev", password: "writer1234!", note: "공개 대본 1편 · 100코인", landing: "/dashboard" },
+  { key: "producer1", label: "박제작", role: "일반 (공개)", email: "producer1@vmp.dev", password: "producer1234!", note: "열람 요청·미리보기·메시지 · 100코인", landing: "/scripts" },
+  { key: "producer2", label: "최제작", role: "일반 (공개)", email: "producer2@vmp.dev", password: "producer1234!", note: "열람 요청·미리보기·메시지 · 100코인", landing: "/scripts" },
+  { key: "member1", label: "정일반", role: "일반 (비공개)", email: "member1@vmp.dev", password: "member1234!", note: "프로필 비공개 — 공개 전에는 창작 활동 불가 · 10코인", landing: "/account" },
+  { key: "suspended1", label: "강정지", role: "정지된 계정", email: "suspended1@vmp.dev", password: "member1234!", note: "로그인 불가, 같은 이메일 재가입 불가", landing: "/scripts" },
 ];
 
 /** 현재 접속 주소의 포트를 유지한 채 계정 전용 하위 주소를 만든다 */

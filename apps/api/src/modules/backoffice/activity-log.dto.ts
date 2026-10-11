@@ -28,6 +28,7 @@ export class LogUserDto {
   @ApiProperty() displayName!: string;
   @ApiProperty() email!: string;
   @ApiProperty({ enum: ['WRITER', 'PRODUCER', 'ADMIN'], isArray: true }) roles!: Array<'WRITER' | 'PRODUCER' | 'ADMIN'>;
+  @ApiProperty({ enum: ['ACTIVE', 'SUSPENDED', 'WITHDRAWN'] }) status!: 'ACTIVE' | 'SUSPENDED' | 'WITHDRAWN';
 }
 
 export class LogScriptDto {
@@ -78,5 +79,24 @@ export class ViewLogPageDto {
 
 export class UploadLogPageDto {
   @ApiProperty({ type: [UploadLogDto] }) items!: UploadLogDto[];
+  @ApiProperty({ nullable: true, type: String }) nextCursor!: string | null;
+}
+
+export class CoinLogDto {
+  @ApiProperty() id!: string;
+  @ApiProperty({ format: 'date-time' }) createdAt!: Date;
+  @ApiProperty({ enum: ['SIGNUP_BONUS', 'PURCHASE', 'SPEND', 'ADMIN_ADJUST'] })
+  type!: 'SIGNUP_BONUS' | 'PURCHASE' | 'SPEND' | 'ADMIN_ADJUST';
+  @ApiProperty() amount!: number;
+  @ApiProperty() balanceAfter!: number;
+  @ApiProperty({ enum: ['MESSAGE', 'PREVIEW_UNLOCK', 'SCRIPT_UPLOAD'], nullable: true })
+  use!: 'MESSAGE' | 'PREVIEW_UNLOCK' | 'SCRIPT_UPLOAD' | null;
+  @ApiProperty({ nullable: true, type: Number }) priceKrw!: number | null;
+  @ApiProperty({ nullable: true, type: String }) memo!: string | null;
+  @ApiProperty({ type: LogUserDto }) user!: LogUserDto;
+}
+
+export class CoinLogPageDto {
+  @ApiProperty({ type: [CoinLogDto] }) items!: CoinLogDto[];
   @ApiProperty({ nullable: true, type: String }) nextCursor!: string | null;
 }

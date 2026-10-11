@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { ErrorText, Modal, StatusBadge } from "@/components/ui";
+import { CreatorNotice, ErrorText, Modal, StatusBadge } from "@/components/ui";
 import { api, dateTime, unwrap, type ScriptDetail } from "@/lib/api";
 import { ReviewMessage } from "@/components/review-message";
 import { AiSummaryCard } from "@/components/ai-summary-card";
@@ -12,7 +12,7 @@ import { useSession } from "@/lib/session";
 export default function ScriptDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const { user, has } = useSession();
+  const { user, refresh } = useSession();
   const [script, setScript] = useState<ScriptDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [ndaOpen, setNdaOpen] = useState(false);
@@ -54,6 +54,19 @@ export default function ScriptDetailPage() {
     }
   }
 
+  async function unlockPreview() {
+    setBusy(true);
+    setError(null);
+    try {
+      setScript(await unwrap(api.POST("/scripts/{id}/preview/unlock", { params: { path: { id } } })));
+      await refresh();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function startNegotiation() {
     setBusy(true);
     try {
@@ -67,7 +80,8 @@ export default function ScriptDetailPage() {
 
   if (!script) return error ? <ErrorText error={error} /> : <p className="muted">불러오는 중…</p>;
   const { viewer } = script;
-  const isProducer = has("PRODUCER") && !viewer.isAuthor;
+  // 대본 제공·영상 제작은 프로필·이메일을 공개한 일반 계정이 한다
+  const canAct = Boolean(user && !viewer.isAuthor && user.creatorReady);
 
   return (
     <div className="two-col">
@@ -79,7 +93,8 @@ export default function ScriptDetailPage() {
         </div>
         <h1>{script.title}</h1>
         <p className="muted">
-          by {script.author.displayName} · <span className="small">최근 수정 {dateTime(script.contentUpdatedAt)}</span>
+          by <Link href={`/users/${script.author.id}`}>{script.author.displayName}</Link> ·{" "}
+          <span className="small">최근 수정 {dateTime(script.contentUpdatedAt)}</span>
         </p>
         <p style={{ fontSize: "1.1rem" }}>{script.logline}</p>
 
@@ -101,17 +116,34 @@ export default function ScriptDetailPage() {
           )}
         </section>
 
+        {script.previewAvailable && script.previewText === null && !viewer.isAuthor && (
+          <section className="card stack" aria-label="미리보기 대본">
+            <h2>미리보기 대본</h2>
+            <p className="small muted">작가가 공개한 일부분이 있습니다. 코인으로 열람권을 사면 계속 볼 수 있습니다.</p>
+            {canAct ? (
+              <button onClick={unlockPreview} disabled={busy}>
+                미리보기 열람 (3코인)
+              </button>
+            ) : user ? (
+              <CreatorNotice />
+            ) : (
+              <Link href="/login" className="button secondary">
+                로그인하고 미리보기 보기
+              </Link>
+            )}
+          </section>
+        )}
         {script.previewText !== null && script.fullText === null && (
           <section className="card stack" aria-label="미리보기 대본">
             <h2>미리보기 대본</h2>
-            <p className="small muted">작가가 제작자에게 공개한 일부분입니다. 전문은 열람 승인 후에 볼 수 있습니다.</p>
+            <p className="small muted">작가가 공개한 일부분입니다. 전문은 열람 승인 후에 볼 수 있습니다.</p>
             <pre className="pre" style={{ fontFamily: "inherit", margin: 0 }}>
               {script.previewText}
             </pre>
           </section>
         )}
         {script.previewText !== null && viewer.isAuthor && (
-          <p className="small muted">미리보기 대본이 있습니다. 열람 승인 전 영상 제작자에게 보입니다.</p>
+          <p className="small muted">미리보기 대본이 있습니다. 다른 사용자가 코인으로 열람권을 사면 볼 수 있습니다.</p>
         )}
       </article>
 
@@ -126,18 +158,13 @@ export default function ScriptDetailPage() {
             </>
           ) : !user ? (
             <>
-              <p>제작자로 로그인하면 전문 열람을 요청할 수 있습니다.</p>
+              <p>로그인하면 전문 열람을 요청할 수 있습니다.</p>
               <Link href="/login" className="button">
                 로그인
               </Link>
             </>
-          ) : !isProducer ? (
-            <>
-              <p className="muted">전문 열람 요청은 영상 제작자 권한이 필요합니다.</p>
-              <Link href="/account" className="button secondary">
-                제작자 권한 신청
-              </Link>
-            </>
+          ) : !canAct ? (
+            <CreatorNotice />
           ) : viewer.accessRequestStatus === null ? (
             <>
               <p>전문을 보려면 비밀유지(NDA)에 동의하고 작가에게 열람을 요청하세요.</p>
@@ -162,7 +189,7 @@ export default function ScriptDetailPage() {
             </>
           )}
         </div>
-        {isProducer && viewer.canReadFullText && <ReviewMessage scriptId={script.id} writerName={script.author.displayName} />}
+        {canAct && viewer.canReadFullText && <ReviewMessage scriptId={script.id} writerName={script.author.displayName} />}
         <div>
           <ErrorText error={error} />
         </div>

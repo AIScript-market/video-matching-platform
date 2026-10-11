@@ -1,15 +1,19 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { ErrorText, RequireAuth, ROLE_LABEL, RoleBadges, StatusBadge } from "@/components/ui";
-import { api, dateTime, unwrap, type RequestableRole, type RoleRequest } from "@/lib/api";
+import { ErrorText, RequireAuth, RoleBadges } from "@/components/ui";
+import { api, dateTime, unwrap, won, type CoinTransaction, type Schemas, type Wallet } from "@/lib/api";
 import { useSession } from "@/lib/session";
 
-const REQUESTABLE: Array<{ role: RequestableRole; desc: string }> = [
-  { role: "WRITER", desc: "대본을 올리고 공개하며, 제작자의 열람 요청과 제안을 받습니다." },
-  { role: "PRODUCER", desc: "NDA 동의 후 대본 전문을 열람하고 작가에게 제작을 제안합니다." },
-];
+const TX_LABEL: Record<CoinTransaction["type"], string> = {
+  SIGNUP_BONUS: "가입 보너스",
+  PURCHASE: "구매",
+  SPEND: "사용",
+  ADMIN_ADJUST: "관리자 조정",
+};
+const USE_LABEL: Record<string, string> = { MESSAGE: "메시지", PREVIEW_UNLOCK: "미리보기 열람", SCRIPT_UPLOAD: "대본 업로드" };
 
 export default function AccountPage() {
   return (
@@ -20,130 +24,236 @@ export default function AccountPage() {
 }
 
 function Account() {
+  const { user } = useSession();
+  if (!user) return null;
+  const isAdmin = user.roles.includes("ADMIN");
+  return (
+    <div className="stack">
+      <div className="spread">
+        <h1>내 계정</h1>
+        <div className="row">
+          <RoleBadges roles={user.roles} />
+          <span className="small muted">{user.email}</span>
+        </div>
+      </div>
+      {!isAdmin && <ProfileSection />}
+      {!isAdmin && <CoinSection />}
+      {!isAdmin && <WithdrawSection />}
+      {isAdmin && <p className="muted">관리자 계정입니다. 관리자 화면에서 계정 정지·코인 지급·로그를 관리합니다.</p>}
+    </div>
+  );
+}
+
+function ProfileSection() {
   const { user, refresh } = useSession();
-  const [requests, setRequests] = useState<RoleRequest[]>([]);
-  const [message, setMessage] = useState("");
+  const [form, setForm] = useState({
+    displayName: user!.displayName,
+    bio: user!.bio ?? "",
+    profilePublic: user!.profilePublic,
+    emailPublic: user!.emailPublic,
+  });
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setNotice(null);
+    try {
+      await unwrap(api.PATCH("/me/profile", { body: form }));
+      await refresh();
+      setNotice("저장했습니다.");
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }
+
+  return (
+    <form id="profile" className="card stack" onSubmit={save} aria-label="프로필">
+      <div className="spread">
+        <h2 style={{ margin: 0 }}>프로필</h2>
+        {user!.creatorReady ? (
+          <span className="badge ok">대본 제공·영상 제작 가능</span>
+        ) : (
+          <span className="badge warn">프로필·이메일 공개 필요</span>
+        )}
+      </div>
+      <p className="small muted">
+        대본을 올리거나 제작을 제안하려면 <strong>소개를 쓰고 프로필과 이메일을 공개</strong>해야 합니다. 공개 프로필에는 이름, 소개, 이메일, 공개한 대본이 보입니다.
+      </p>
+      <label>
+        이름(활동명)
+        <input required maxLength={40} value={form.displayName} onChange={(e) => setForm({ ...form, displayName: e.target.value })} />
+      </label>
+      <label>
+        소개
+        <textarea
+          maxLength={1000}
+          placeholder="경력, 작품, 관심 장르 등"
+          value={form.bio}
+          onChange={(e) => setForm({ ...form, bio: e.target.value })}
+        />
+      </label>
+      <label className="check">
+        <input type="checkbox" checked={form.profilePublic} onChange={(e) => setForm({ ...form, profilePublic: e.target.checked })} />
+        <span>프로필 공개</span>
+      </label>
+      <label className="check">
+        <input type="checkbox" checked={form.emailPublic} onChange={(e) => setForm({ ...form, emailPublic: e.target.checked })} />
+        <span>
+          이메일 공개 <span className="muted small">({user!.email})</span>
+        </span>
+      </label>
+      <ErrorText error={error} />
+      {notice && <p className="notice small">{notice}</p>}
+      <div className="row">
+        <button type="submit">프로필 저장</button>
+        {user!.profilePublic && (
+          <Link href={`/users/${user!.id}`} className="button secondary">
+            내 공개 프로필 보기
+          </Link>
+        )}
+      </div>
+    </form>
+  );
+}
+
+function CoinSection() {
+  const { refresh } = useSession();
+  const [wallet, setWallet] = useState<Wallet | null>(null);
+  const [history, setHistory] = useState<CoinTransaction[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
   const load = useCallback(
     () =>
-      Promise.all([unwrap(api.GET("/role-requests/mine")), refresh()])
-        .then(([reqs]) => setRequests(reqs))
+      Promise.all([unwrap(api.GET("/coins")), unwrap(api.GET("/coins/transactions"))])
+        .then(([w, h]) => {
+          setWallet(w);
+          setHistory(h.items);
+        })
         .catch((err: Error) => setError(err.message)),
-    [refresh],
+    [],
   );
 
   useEffect(() => {
     void load();
   }, [load]);
 
-  async function apply(role: RequestableRole) {
+  async function buy(packageId: string, label: string) {
     setError(null);
     setNotice(null);
     try {
-      await unwrap(api.POST("/role-requests", { body: { role, ...(message.trim() ? { message: message.trim() } : {}) } }));
-      setMessage("");
-      setNotice(`${ROLE_LABEL[role]} 권한을 신청했습니다. 관리자가 승인하면 바로 사용할 수 있습니다.`);
-      await load();
+      await unwrap(api.POST("/coins/purchase", { body: { packageId: packageId as Schemas["PurchaseCoinsDto"]["packageId"] } }));
+      setNotice(`${label}을(를) 충전했습니다.`);
+      await Promise.all([load(), refresh()]);
     } catch (err) {
       setError((err as Error).message);
     }
   }
 
-  if (!user) return null;
-  const pendingRoles = new Set(requests.filter((r) => r.status === "PENDING").map((r) => r.role));
+  return (
+    <section id="coins" className="card stack" aria-label="코인">
+      <div className="spread">
+        <h2 style={{ margin: 0 }}>코인</h2>
+        <strong data-testid="wallet-balance">🪙 {wallet?.balance ?? "-"}코인</strong>
+      </div>
+      {wallet && (
+        <>
+          <p className="small muted">
+            메시지 {wallet.prices.MESSAGE}코인 · 미리보기 열람 {wallet.prices.PREVIEW_UNLOCK}코인(대본당 한 번) · 대본 파일 업로드 {wallet.prices.SCRIPT_UPLOAD}코인
+          </p>
+          <div className="grid">
+            {wallet.packages.map((p) => (
+              <div key={p.id} className="card stack">
+                <strong>{p.label}</strong>
+                <span className="muted">{won(p.priceKrw)}</span>
+                <button onClick={() => buy(p.id, p.label)}>구매</button>
+              </div>
+            ))}
+          </div>
+          {wallet.testPayments && (
+            <p className="small muted">※ 지금은 실제 결제가 연결되어 있지 않아 테스트 결제로 바로 충전됩니다.</p>
+          )}
+        </>
+      )}
+      <ErrorText error={error} />
+      {notice && <p className="notice small">{notice}</p>}
+      <h3>사용·충전 내역</h3>
+      {history.length === 0 ? (
+        <p className="muted small">내역이 없습니다.</p>
+      ) : (
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>시각</th>
+                <th>구분</th>
+                <th className="num">코인</th>
+                <th className="num">잔액</th>
+                <th>메모</th>
+              </tr>
+            </thead>
+            <tbody>
+              {history.map((t) => (
+                <tr key={t.id}>
+                  <td className="small">{dateTime(t.createdAt)}</td>
+                  <td>
+                    {TX_LABEL[t.type]}
+                    {t.use && <span className="muted small"> · {USE_LABEL[t.use]}</span>}
+                  </td>
+                  <td className="num" style={{ color: t.amount < 0 ? "var(--danger)" : "var(--success)" }}>
+                    {t.amount > 0 ? `+${t.amount}` : t.amount}
+                  </td>
+                  <td className="num">{t.balanceAfter}</td>
+                  <td className="small">{t.memo}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function WithdrawSection() {
+  const router = useRouter();
+  const { refresh } = useSession();
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function withdraw(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    try {
+      await unwrap(api.DELETE("/me", { body: { password } }));
+      await refresh();
+      router.push("/scripts");
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }
 
   return (
-    <div className="stack">
-      <h1>내 계정</h1>
-
-      <section className="card stack">
-        <div className="spread">
-          <div>
-            <strong>{user.displayName}</strong> <span className="muted small">{user.email}</span>
-          </div>
-          <div className="row">
-            <RoleBadges roles={user.roles} />
-          </div>
-        </div>
-        {user.roles.length === 0 && (
-          <p className="notice small">
-            지금은 <strong>일반 계정</strong>입니다. 공개 대본을 둘러볼 수 있고, 대본을 올리거나 제작을 제안하려면 아래에서 권한을 신청하세요.
-          </p>
-        )}
-        <div className="row small">
-          {user.roles.includes("WRITER") && <Link href="/dashboard">제공자 대시보드로 →</Link>}
-          {user.roles.includes("PRODUCER") && <Link href="/scripts">대본 탐색하고 열람 요청하기 →</Link>}
-          {user.roles.includes("ADMIN") && <Link href="/admin">관리자 화면으로 →</Link>}
-        </div>
-      </section>
-
-      <section className="card stack" aria-label="권한 신청">
-        <h2>권한 신청</h2>
-        <label>
-          관리자에게 남길 말 (선택)
-          <input maxLength={500} placeholder="경력, 포트폴리오 링크 등" value={message} onChange={(e) => setMessage(e.target.value)} />
-        </label>
-        <div className="grid">
-          {REQUESTABLE.map(({ role, desc }) => {
-            const has = user.roles.includes(role);
-            const pending = pendingRoles.has(role);
-            return (
-              <div key={role} className="card stack">
-                <h3>{ROLE_LABEL[role]}</h3>
-                <p className="small muted">{desc}</p>
-                {has ? (
-                  <span className="badge ok">보유 중</span>
-                ) : pending ? (
-                  <span className="badge warn">승인 대기 중</span>
-                ) : (
-                  <button onClick={() => apply(role)}>{ROLE_LABEL[role]} 권한 신청</button>
-                )}
-              </div>
-            );
-          })}
-        </div>
-        <ErrorText error={error} />
-        {notice && <p className="notice">{notice}</p>}
-      </section>
-
-      <section className="card stack">
-        <div className="spread">
-          <h2>신청 내역</h2>
-          <button className="ghost" onClick={() => load()}>
-            새로고침
-          </button>
-        </div>
-        {requests.length === 0 ? (
-          <p className="muted small">신청 내역이 없습니다.</p>
-        ) : (
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>권한</th>
-                  <th>신청일</th>
-                  <th>상태</th>
-                  <th>처리일</th>
-                </tr>
-              </thead>
-              <tbody>
-                {requests.map((r) => (
-                  <tr key={r.id}>
-                    <td>{ROLE_LABEL[r.role]}</td>
-                    <td className="small">{dateTime(r.createdAt)}</td>
-                    <td>
-                      <StatusBadge status={r.status} />
-                    </td>
-                    <td className="small">{r.decidedAt ? dateTime(r.decidedAt) : "-"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
-    </div>
+    <form className="card stack" onSubmit={withdraw} aria-label="회원 탈퇴">
+      <h2 style={{ margin: 0 }}>회원 탈퇴</h2>
+      <p className="small muted">
+        탈퇴하면 공개한 대본이 내려가고, 진행 중인 협상이 종료되며, 남은 코인은 사라집니다. 같은 이메일로 다시 가입할 수 있습니다.
+      </p>
+      <label>
+        비밀번호 확인
+        <input type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+      </label>
+      <label className="check">
+        <input type="checkbox" checked={confirm} onChange={(e) => setConfirm(e.target.checked)} />
+        <span>위 내용을 확인했고 탈퇴합니다</span>
+      </label>
+      <ErrorText error={error} />
+      <button type="submit" className="danger" disabled={!confirm || !password}>
+        탈퇴하기
+      </button>
+    </form>
   );
 }

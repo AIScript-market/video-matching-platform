@@ -1,6 +1,7 @@
 import { Global, Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { JwtAuthGuard } from './jwt-auth.guard.js';
+import { CreatorGuard } from './creator.guard.js';
 import { RolesGuard } from './roles.js';
 
 export const TOKEN_TTL_SECONDS = 60 * 60 * 24 * 7;
@@ -17,7 +18,7 @@ function jwtSecret(): string {
   imports: [
     JwtModule.register({ secret: jwtSecret(), signOptions: { expiresIn: TOKEN_TTL_SECONDS } }),
   ],
-  providers: [JwtAuthGuard, RolesGuard],
-  exports: [JwtModule, JwtAuthGuard, RolesGuard],
+  providers: [JwtAuthGuard, RolesGuard, CreatorGuard],
+  exports: [JwtModule, JwtAuthGuard, RolesGuard, CreatorGuard],
 })
 export class CoreAuthModule {}

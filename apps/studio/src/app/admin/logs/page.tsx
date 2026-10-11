@@ -2,19 +2,21 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { ErrorText, RequireAuth, RoleBadges, StatusBadge } from "@/components/ui";
+import { ErrorText, RequireAuth, RoleBadges, StatusBadge, UserStatusBadge } from "@/components/ui";
 import { api, dateTime, unwrap, type Schemas } from "@/lib/api";
 
-type Tab = "messages" | "views" | "uploads";
+type Tab = "messages" | "views" | "uploads" | "coins";
 type MessageLog = Schemas["MessageLogDto"];
 type ViewLog = Schemas["ViewLogDto"];
 type UploadLog = Schemas["UploadLogDto"];
+type CoinLog = Schemas["CoinLogDto"];
 type LogUser = Schemas["LogUserDto"];
 
 const TABS: Array<{ id: Tab; label: string }> = [
   { id: "messages", label: "메시지" },
   { id: "views", label: "전문 열람" },
   { id: "uploads", label: "대본 업로드" },
+  { id: "coins", label: "코인" },
 ];
 
 export default function AdminLogsPage() {
@@ -29,14 +31,15 @@ function fetchPage(tab: Tab, q: string, cursor?: string) {
   const query = { ...(q ? { q } : {}), ...(cursor ? { cursor } : {}), take: 50 };
   if (tab === "messages") return unwrap(api.GET("/admin/logs/messages", { params: { query } }));
   if (tab === "views") return unwrap(api.GET("/admin/logs/views", { params: { query } }));
-  return unwrap(api.GET("/admin/logs/uploads", { params: { query } }));
+  if (tab === "uploads") return unwrap(api.GET("/admin/logs/uploads", { params: { query } }));
+  return unwrap(api.GET("/admin/logs/coins", { params: { query } }));
 }
 
 function Logs() {
   const [tab, setTab] = useState<Tab>("messages");
   const [input, setInput] = useState("");
   const [q, setQ] = useState("");
-  const [items, setItems] = useState<Array<MessageLog | ViewLog | UploadLog> | null>(null);
+  const [items, setItems] = useState<Array<MessageLog | ViewLog | UploadLog | CoinLog> | null>(null);
   const [cursor, setCursor] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -64,7 +67,7 @@ function Logs() {
           관리자 홈
         </Link>
       </div>
-      <p className="small muted">제작자와 대본 제공자 사이의 메시지, 대본 전문 열람, 대본 파일 업로드 기록입니다. 최신순.</p>
+      <p className="small muted">메시지, 대본 전문 열람, 대본 파일 업로드, 코인 충전·사용 기록입니다. 최신순.</p>
 
       <div className="spread">
         <div className="chips" role="tablist" aria-label="로그 종류">
@@ -108,6 +111,7 @@ function Logs() {
             {tab === "messages" && <MessageTable rows={items as MessageLog[]} />}
             {tab === "views" && <ViewTable rows={items as ViewLog[]} />}
             {tab === "uploads" && <UploadTable rows={items as UploadLog[]} />}
+            {tab === "coins" && <CoinTable rows={items as CoinLog[]} />}
           </div>
         )}
         {cursor && (
@@ -123,7 +127,7 @@ function Logs() {
 function Who({ user }: { user: LogUser }) {
   return (
     <div>
-      {user.displayName} <RoleBadges roles={user.roles} />
+      {user.displayName} <RoleBadges roles={user.roles} /> {user.status !== "ACTIVE" && <UserStatusBadge status={user.status} />}
       <div className="small muted">{user.email}</div>
     </div>
   );
@@ -200,6 +204,7 @@ function UploadTable({ rows }: { rows: UploadLog[] }) {
           <th>시각</th>
           <th>대본</th>
           <th>올린 사람</th>
+          <th>종류</th>
           <th>파일</th>
           <th className="num">크기</th>
           <th className="num">본문 글자 수</th>
@@ -213,9 +218,49 @@ function UploadTable({ rows }: { rows: UploadLog[] }) {
             <td>
               <Who user={u.uploader} />
             </td>
+            <td className="small">{u.kind === "PREVIEW" ? "미리보기" : "전문"}</td>
             <td className="small">{u.filename}</td>
             <td className="num small">{(u.sizeBytes / 1024).toFixed(1)}KB</td>
             <td className="num small">{u.charCount.toLocaleString("ko-KR")}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+const COIN_TYPE: Record<CoinLog["type"], string> = { SIGNUP_BONUS: "가입 보너스", PURCHASE: "구매", SPEND: "사용", ADMIN_ADJUST: "관리자 조정" };
+const COIN_USE: Record<string, string> = { MESSAGE: "메시지", PREVIEW_UNLOCK: "미리보기 열람", SCRIPT_UPLOAD: "대본 업로드" };
+
+function CoinTable({ rows }: { rows: CoinLog[] }) {
+  return (
+    <table>
+      <thead>
+        <tr>
+          <th>시각</th>
+          <th>사용자</th>
+          <th>구분</th>
+          <th className="num">코인</th>
+          <th className="num">잔액</th>
+          <th className="num">결제 금액</th>
+          <th>메모</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((c) => (
+          <tr key={c.id}>
+            <td className="small">{dateTime(c.createdAt)}</td>
+            <td>
+              <Who user={c.user} />
+            </td>
+            <td>
+              {COIN_TYPE[c.type]}
+              {c.use && <span className="small muted"> · {COIN_USE[c.use]}</span>}
+            </td>
+            <td className="num">{c.amount > 0 ? `+${c.amount}` : c.amount}</td>
+            <td className="num">{c.balanceAfter}</td>
+            <td className="num small">{c.priceKrw ? `${c.priceKrw.toLocaleString("ko-KR")}원` : "-"}</td>
+            <td className="small">{c.memo}</td>
           </tr>
         ))}
       </tbody>

@@ -1,6 +1,6 @@
 import { Body, Controller, Get, HttpCode, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { CurrentUser, JwtAuthGuard, Roles, RolesGuard } from '../../core/auth/index.js';
+import { CreatorGuard, CurrentUser, JwtAuthGuard } from '../../core/auth/index.js';
 import type { Viewer } from '../access/access-rules.js';
 import {
   AcceptOfferResultDto,
@@ -19,7 +19,7 @@ import { OffersService } from './offers.service.js';
 
 @ApiTags('negotiations')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard)
 @Controller()
 export class NegotiationsController {
   constructor(
@@ -28,16 +28,16 @@ export class NegotiationsController {
   ) {}
 
   @Post('scripts/:id/negotiations')
-  @Roles('PRODUCER')
-  @ApiOperation({ summary: '협상 시작 (열람 승인된 제작자). 이미 있으면 기존 협상을 반환' })
+  @UseGuards(CreatorGuard)
+  @ApiOperation({ summary: '협상 시작 (열람 승인을 받은 사람). 이미 있으면 기존 협상을 반환' })
   @ApiOkResponse({ type: NegotiationDetailDto })
   start(@Param('id') scriptId: string, @CurrentUser() user: Viewer) {
     return this.negotiations.start(scriptId, user);
   }
 
   @Post('scripts/:id/contact')
-  @Roles('PRODUCER')
-  @ApiOperation({ summary: '대본 검토 후 작가에게 메시지 보내기 (전문을 열람한 제작자). 협상 대화로 이어진다' })
+  @UseGuards(CreatorGuard)
+  @ApiOperation({ summary: '대본 검토 후 작가에게 메시지 보내기 (전문을 열람한 사람, 코인 사용). 협상 대화로 이어진다' })
   @ApiOkResponse({ type: ContactResultDto })
   contact(@Param('id') scriptId: string, @CurrentUser() user: Viewer, @Body() dto: ContactWriterDto) {
     return this.negotiations.contactWriter(scriptId, user, dto.body);
@@ -65,13 +65,15 @@ export class NegotiationsController {
   }
 
   @Post('negotiations/:id/messages')
-  @ApiOperation({ summary: '메시지 보내기' })
+  @UseGuards(CreatorGuard)
+  @ApiOperation({ summary: '메시지 보내기 (코인 사용)' })
   @ApiOkResponse({ type: MessageDto })
   postMessage(@Param('id') id: string, @CurrentUser() user: Viewer, @Body() dto: CreateMessageDto) {
     return this.negotiations.postMessage(id, user, dto);
   }
 
   @Post('negotiations/:id/offers')
+  @UseGuards(CreatorGuard)
   @ApiOperation({ summary: '조건 제안 / 역제안. 기존 PROPOSED 제안은 COUNTERED 또는 WITHDRAWN 처리' })
   @ApiOkResponse({ type: OfferDto })
   createOffer(@Param('id') id: string, @CurrentUser() user: Viewer, @Body() dto: CreateOfferDto) {
@@ -79,6 +81,7 @@ export class NegotiationsController {
   }
 
   @Post('offers/:id/accept')
+  @UseGuards(CreatorGuard)
   @HttpCode(200)
   @ApiOperation({ summary: '제안 수락 → 딜·라이선스 생성 (매칭)' })
   @ApiOkResponse({ type: AcceptOfferResultDto })
@@ -87,6 +90,7 @@ export class NegotiationsController {
   }
 
   @Post('offers/:id/reject')
+  @UseGuards(CreatorGuard)
   @HttpCode(200)
   @ApiOperation({ summary: '제안 거절' })
   @ApiOkResponse({ type: OfferDto })
@@ -95,6 +99,7 @@ export class NegotiationsController {
   }
 
   @Post('offers/:id/withdraw')
+  @UseGuards(CreatorGuard)
   @HttpCode(200)
   @ApiOperation({ summary: '내 제안 철회' })
   @ApiOkResponse({ type: OfferDto })

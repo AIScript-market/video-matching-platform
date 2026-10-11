@@ -20,7 +20,7 @@ export default function NegotiationRoomPage() {
 
 function NegotiationRoom() {
   const { id } = useParams<{ id: string }>();
-  const { user } = useSession();
+  const { user, refresh } = useSession();
   const [negotiation, setNegotiation] = useState<NegotiationDetail | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState("");
@@ -69,7 +69,7 @@ function NegotiationRoom() {
     try {
       await unwrap(api.POST("/negotiations/{id}/messages", { params: { path: { id } }, body: { body: draft } }));
       setDraft("");
-      await pollMessages();
+      await Promise.all([pollMessages(), refresh()]);
     } catch (err) {
       setError((err as Error).message);
     }
@@ -103,7 +103,8 @@ function NegotiationRoom() {
         <div>
           <h1>{negotiation.script.title}</h1>
           <p className="muted small">
-            작가 {negotiation.writer.displayName} · 제작자 {negotiation.producer.displayName} ({iAmWriter ? "나는 작가" : "나는 제작자"})
+            작가 <Link href={`/users/${negotiation.writer.id}`}>{negotiation.writer.displayName}</Link> · 제작자{" "}
+            <Link href={`/users/${negotiation.producer.id}`}>{negotiation.producer.displayName}</Link> ({iAmWriter ? "나는 작가" : "나는 제작자"})
           </p>
         </div>
         <div className="row">
@@ -143,7 +144,9 @@ function NegotiationRoom() {
                 onChange={(e) => setDraft(e.target.value)}
                 style={{ flex: 1 }}
               />
-              <button type="submit">보내기</button>
+              <button type="submit" aria-label="보내기">
+                보내기 <span className="small">(1코인)</span>
+              </button>
             </form>
           )}
         </section>

@@ -24,18 +24,23 @@ export function Nav() {
         </Link>
         <nav className="nav-links">
           {link("/scripts", "대본 탐색")}
-          {has("WRITER") && link("/dashboard", "제공자 대시보드")}
+          {user && !has("ADMIN") && link("/dashboard", "내 대본")}
           {user && link("/negotiations", "협상")}
           {user && link("/deals", "내 딜")}
           {has("ADMIN") && link("/admin", "관리자")}
           {has("ADMIN") && link("/admin/logs", "활동 로그")}
-          {user && link("/account", user.roles.length === 0 ? "권한 신청" : "내 계정")}
+          {user && link("/account", "내 계정")}
           {DEV_ACCOUNTS_ENABLED && link("/dev/accounts", "계정 전환(개발)")}
         </nav>
         {user ? (
           <div className="row small">
             <span className="muted">{user.displayName}</span>
             <RoleBadges roles={user.roles} />
+            {!has("ADMIN") && (
+              <Link href="/account#coins" className="badge" title="보유 코인" data-testid="coin-balance">
+                🪙 {user.coinBalance}
+              </Link>
+            )}
             <button
               className="ghost"
               onClick={async () => {

@@ -6,6 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { WalletService } from '../wallet/wallet.service.js';
 import type { Viewer } from '../access/access-rules.js';
 import type {
   ContactResultDto,
@@ -34,7 +35,10 @@ export function isParticipant(n: NegotiationRow, user: Viewer) {
 
 @Injectable()
 export class NegotiationsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly wallet: WalletService,
+  ) {}
 
   /**
    * 제작자가 협상을 시작한다. 열람 승인(APPROVED)을 받은 공개 대본만 가능.
@@ -166,6 +170,11 @@ export class NegotiationsService {
     if (n.status === 'CLOSED') throw new ConflictException('종료된 협상에는 메시지를 보낼 수 없습니다');
     const body = dto.body.trim();
     if (!body) throw new BadRequestException('메시지 내용이 비어 있습니다');
-    return this.prisma.message.create({ data: { negotiationId: id, senderId: user.id, body } });
+    // 메시지는 코인을 쓴다. 코인이 부족하면 메시지도 만들지 않는다
+    return this.prisma.$transaction(async (tx) => {
+      const message = await tx.message.create({ data: { negotiationId: id, senderId: user.id, body } });
+      await this.wallet.spend(tx, user.id, 'MESSAGE', message.id);
+      return message;
+    });
   }
 }

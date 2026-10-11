@@ -119,29 +119,47 @@
         "tags": [
           "auth"
         ]
-      }
-    },
-    "/role-requests": {
-      "post": {
-        "operationId": "MembershipController_request",
+      },
+      "delete": {
+        "operationId": "ProfilesController_withdraw",
         "parameters": [],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CreateRoleRequestDto"
+                "$ref": "#/components/schemas/WithdrawDto"
               }
             }
           }
         },
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "회원 탈퇴 (비밀번호 확인). 같은 이메일로 다시 가입할 수 있다",
+        "tags": [
+          "profiles"
+        ]
+      }
+    },
+    "/coins": {
+      "get": {
+        "operationId": "WalletController_get",
+        "parameters": [],
         "responses": {
           "200": {
             "description": "",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RoleRequestDto"
+                  "$ref": "#/components/schemas/WalletDto"
                 }
               }
             }
@@ -152,16 +170,173 @@
             "bearer": []
           }
         ],
-        "summary": "권한 신청 (대본 제공자 WRITER / 영상 제작자 PRODUCER). 관리자가 승인하면 역할이 생긴다",
+        "summary": "내 코인 잔액, 가격표, 구매 패키지",
         "tags": [
-          "role-requests"
+          "coins"
         ]
       }
     },
-    "/role-requests/mine": {
+    "/coins/transactions": {
       "get": {
-        "operationId": "MembershipController_mine",
+        "operationId": "WalletController_history",
+        "parameters": [
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CoinTransactionPageDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "내 코인 사용·충전 내역 (최신순)",
+        "tags": [
+          "coins"
+        ]
+      }
+    },
+    "/coins/purchase": {
+      "post": {
+        "operationId": "WalletController_purchase",
         "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PurchaseCoinsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WalletDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "코인 구매 (지금은 테스트 결제로 바로 충전)",
+        "tags": [
+          "coins"
+        ]
+      }
+    },
+    "/users/{id}": {
+      "get": {
+        "operationId": "ProfilesController_get",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicProfileDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "공개 프로필 (공개한 계정만. 이메일은 공개한 경우에만)",
+        "tags": [
+          "profiles"
+        ]
+      }
+    },
+    "/me/profile": {
+      "patch": {
+        "operationId": "ProfilesController_update",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProfileDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "내 프로필 수정 (이름, 소개, 프로필·이메일 공개)",
+        "tags": [
+          "profiles"
+        ]
+      }
+    },
+    "/admin/users": {
+      "get": {
+        "operationId": "BackofficeController_users",
+        "parameters": [
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ACTIVE",
+                "SUSPENDED",
+                "WITHDRAWN"
+              ]
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "이름·이메일 검색",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "",
@@ -170,7 +345,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/RoleRequestDto"
+                    "$ref": "#/components/schemas/AdminUserDto"
                   }
                 }
               }
@@ -182,9 +357,101 @@
             "bearer": []
           }
         ],
-        "summary": "내 권한 신청 내역",
+        "summary": "사용자 목록 (관리자). 상태·검색 필터",
         "tags": [
-          "role-requests"
+          "admin"
+        ]
+      }
+    },
+    "/admin/users/{id}/status": {
+      "patch": {
+        "operationId": "BackofficeController_setStatus",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetUserStatusDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminUserDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "일반 계정 정지·해제 (관리자). 정지된 이메일로는 다시 가입할 수 없다",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/users/{id}/coins": {
+      "post": {
+        "operationId": "BackofficeController_adjustCoins",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdjustCoinsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WalletDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "코인 지급(+)·회수(-) (관리자)",
+        "tags": [
+          "admin"
         ]
       }
     },
@@ -239,7 +506,7 @@
             "bearer": []
           }
         ],
-        "summary": "메시지 로그 (제작자·작가 간 모든 메시지, 최신순)",
+        "summary": "메시지 로그 (최신순)",
         "tags": [
           "admin"
         ]
@@ -359,21 +626,37 @@
         ]
       }
     },
-    "/admin/role-requests": {
+    "/admin/logs/coins": {
       "get": {
-        "operationId": "BackofficeController_roleRequests",
+        "operationId": "BackofficeController_coinLogs",
         "parameters": [
           {
-            "name": "status",
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "대본 제목, 사용자 이름·이메일 검색",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "이전 응답의 nextCursor",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "take",
             "required": false,
             "in": "query",
             "schema": {
-              "type": "string",
-              "enum": [
-                "PENDING",
-                "APPROVED",
-                "REJECTED"
-              ]
+              "minimum": 1,
+              "maximum": 200,
+              "default": 50,
+              "type": "number"
             }
           }
         ],
@@ -383,10 +666,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/RoleRequestDto"
-                  }
+                  "$ref": "#/components/schemas/CoinLogPageDto"
                 }
               }
             }
@@ -397,109 +677,7 @@
             "bearer": []
           }
         ],
-        "summary": "권한 신청 목록 (관리자). status 생략 시 전체",
-        "tags": [
-          "admin"
-        ]
-      }
-    },
-    "/admin/role-requests/{id}/approve": {
-      "post": {
-        "operationId": "BackofficeController_approveRole",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RoleRequestDto"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "권한 신청 승인 → 사용자에게 역할 부여 (관리자)",
-        "tags": [
-          "admin"
-        ]
-      }
-    },
-    "/admin/role-requests/{id}/reject": {
-      "post": {
-        "operationId": "BackofficeController_rejectRole",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RoleRequestDto"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "권한 신청 거절 (관리자)",
-        "tags": [
-          "admin"
-        ]
-      }
-    },
-    "/admin/users": {
-      "get": {
-        "operationId": "BackofficeController_users",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/AdminUserDto"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "사용자 목록 (관리자)",
+        "summary": "코인 충전·사용 로그 (최신순)",
         "tags": [
           "admin"
         ]
@@ -726,7 +904,7 @@
             "bearer": []
           }
         ],
-        "summary": "파일로 새 대본 초안 만들기 (.txt, .md, .fountain, .docx, .pdf, 최대 5MB)",
+        "summary": "파일로 새 대본 초안 만들기 (코인 사용, .txt, .md, .fountain, .docx, .pdf, 최대 5MB)",
         "tags": [
           "scripts"
         ]
@@ -781,7 +959,7 @@
             "bearer": []
           }
         ],
-        "summary": "대본 전문을 업로드한 파일 내용으로 바꾸기 (작가 본인)",
+        "summary": "대본 전문을 업로드한 파일 내용으로 바꾸기 (작가 본인, 코인 사용)",
         "tags": [
           "scripts"
         ]
@@ -836,7 +1014,7 @@
             "bearer": []
           }
         ],
-        "summary": "미리보기 대본을 파일로 올리기 (작가 본인). 열람 승인 전 제작자에게 보인다",
+        "summary": "미리보기 대본을 파일로 올리기 (작가 본인, 코인 사용)",
         "tags": [
           "scripts"
         ]
@@ -873,6 +1051,42 @@
           }
         ],
         "summary": "AI 요약 다시 만들기 (작가 본인). 내용이 바뀌면 자동으로도 다시 만든다",
+        "tags": [
+          "scripts"
+        ]
+      }
+    },
+    "/scripts/{id}/preview/unlock": {
+      "post": {
+        "operationId": "ScriptsController_unlockPreview",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScriptDetailDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "미리보기 열람권 구매 (코인). 이미 샀으면 다시 차감하지 않는다",
         "tags": [
           "scripts"
         ]
@@ -1039,7 +1253,7 @@
             "bearer": []
           }
         ],
-        "summary": "전문 열람 요청 (제작자, NDA 동의 필수)",
+        "summary": "전문 열람 요청 (프로필·이메일 공개 필요, NDA 동의 필수)",
         "tags": [
           "access"
         ]
@@ -1132,7 +1346,7 @@
             "bearer": []
           }
         ],
-        "summary": "열람 요청 승인 (대본 작가)",
+        "summary": "열람 요청 승인 (대본 작성자)",
         "tags": [
           "access"
         ]
@@ -1168,7 +1382,7 @@
             "bearer": []
           }
         ],
-        "summary": "열람 요청 거절 (대본 작가)",
+        "summary": "열람 요청 거절 (대본 작성자)",
         "tags": [
           "access"
         ]
@@ -1204,7 +1418,7 @@
             "bearer": []
           }
         ],
-        "summary": "협상 시작 (열람 승인된 제작자). 이미 있으면 기존 협상을 반환",
+        "summary": "협상 시작 (열람 승인을 받은 사람). 이미 있으면 기존 협상을 반환",
         "tags": [
           "negotiations"
         ]
@@ -1250,7 +1464,7 @@
             "bearer": []
           }
         ],
-        "summary": "대본 검토 후 작가에게 메시지 보내기 (전문을 열람한 제작자). 협상 대화로 이어진다",
+        "summary": "대본 검토 후 작가에게 메시지 보내기 (전문을 열람한 사람, 코인 사용). 협상 대화로 이어진다",
         "tags": [
           "negotiations"
         ]
@@ -1408,7 +1622,7 @@
             "bearer": []
           }
         ],
-        "summary": "메시지 보내기",
+        "summary": "메시지 보내기 (코인 사용)",
         "tags": [
           "negotiations"
         ]
@@ -1752,17 +1966,6 @@
           "displayName": {
             "type": "string",
             "maxLength": 40
-          },
-          "requestedRoles": {
-            "type": "array",
-            "description": "가입과 함께 관리자에게 신청할 권한 (WRITER 대본 제공자 / PRODUCER 영상 제작자, 둘 다 가능). 가입 직후에는 역할이 없는 일반 계정이고, 관리자가 승인하면 역할이 생긴다",
-            "items": {
-              "type": "string",
-              "enum": [
-                "WRITER",
-                "PRODUCER"
-              ]
-            }
           }
         },
         "required": [
@@ -1785,7 +1988,7 @@
           },
           "roles": {
             "type": "array",
-            "description": "빈 배열이면 일반 계정",
+            "description": "빈 배열이면 일반 계정, ADMIN이면 관리자",
             "items": {
               "type": "string",
               "enum": [
@@ -1798,6 +2001,23 @@
           "createdAt": {
             "format": "date-time",
             "type": "string"
+          },
+          "bio": {
+            "type": "string",
+            "nullable": true
+          },
+          "profilePublic": {
+            "type": "boolean"
+          },
+          "emailPublic": {
+            "type": "boolean"
+          },
+          "creatorReady": {
+            "type": "boolean",
+            "description": "대본 제공·영상 제작 가능 (소개 작성 + 프로필·이메일 공개)"
+          },
+          "coinBalance": {
+            "type": "number"
           }
         },
         "required": [
@@ -1805,7 +2025,12 @@
           "email",
           "displayName",
           "roles",
-          "createdAt"
+          "createdAt",
+          "bio",
+          "profilePublic",
+          "emailPublic",
+          "creatorReady",
+          "coinBalance"
         ]
       },
       "AuthResultDto": {
@@ -1839,28 +2064,280 @@
           "password"
         ]
       },
-      "CreateRoleRequestDto": {
+      "CoinPricesDto": {
         "type": "object",
         "properties": {
-          "role": {
-            "type": "string",
-            "enum": [
-              "WRITER",
-              "PRODUCER"
-            ],
-            "description": "WRITER = 대본 제공자, PRODUCER = 영상 제작자"
+          "MESSAGE": {
+            "type": "number"
           },
-          "message": {
-            "type": "string",
-            "maxLength": 500,
-            "description": "관리자에게 남길 말 (경력, 포트폴리오 등)"
+          "PREVIEW_UNLOCK": {
+            "type": "number"
+          },
+          "SCRIPT_UPLOAD": {
+            "type": "number"
           }
         },
         "required": [
-          "role"
+          "MESSAGE",
+          "PREVIEW_UNLOCK",
+          "SCRIPT_UPLOAD"
         ]
       },
-      "RequesterDto": {
+      "CoinPackageDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "coins": {
+            "type": "number"
+          },
+          "priceKrw": {
+            "type": "number"
+          },
+          "label": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "coins",
+          "priceKrw",
+          "label"
+        ]
+      },
+      "WalletDto": {
+        "type": "object",
+        "properties": {
+          "balance": {
+            "type": "number"
+          },
+          "prices": {
+            "$ref": "#/components/schemas/CoinPricesDto"
+          },
+          "packages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CoinPackageDto"
+            }
+          },
+          "testPayments": {
+            "type": "boolean",
+            "description": "테스트 결제 여부 (실제 결제 미연동)"
+          }
+        },
+        "required": [
+          "balance",
+          "prices",
+          "packages",
+          "testPayments"
+        ]
+      },
+      "CoinTransactionDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "SIGNUP_BONUS",
+              "PURCHASE",
+              "SPEND",
+              "ADMIN_ADJUST"
+            ]
+          },
+          "amount": {
+            "type": "number",
+            "description": "+ 충전 / - 사용"
+          },
+          "balanceAfter": {
+            "type": "number"
+          },
+          "use": {
+            "type": "string",
+            "enum": [
+              "MESSAGE",
+              "PREVIEW_UNLOCK",
+              "SCRIPT_UPLOAD"
+            ],
+            "nullable": true
+          },
+          "refId": {
+            "type": "string",
+            "nullable": true
+          },
+          "priceKrw": {
+            "type": "number",
+            "nullable": true
+          },
+          "memo": {
+            "type": "string",
+            "nullable": true
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "amount",
+          "balanceAfter",
+          "use",
+          "refId",
+          "priceKrw",
+          "memo",
+          "createdAt"
+        ]
+      },
+      "CoinTransactionPageDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CoinTransactionDto"
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ]
+      },
+      "PurchaseCoinsDto": {
+        "type": "object",
+        "properties": {
+          "packageId": {
+            "type": "string",
+            "enum": [
+              "coins_10",
+              "coins_55",
+              "coins_120"
+            ]
+          }
+        },
+        "required": [
+          "packageId"
+        ]
+      },
+      "ProfileScriptDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "genre": {
+            "type": "string"
+          },
+          "logline": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "genre",
+          "logline"
+        ]
+      },
+      "PublicProfileDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "bio": {
+            "type": "string",
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "nullable": true,
+            "description": "이메일 공개 시에만"
+          },
+          "profilePublic": {
+            "type": "boolean"
+          },
+          "emailPublic": {
+            "type": "boolean"
+          },
+          "creatorReady": {
+            "type": "boolean",
+            "description": "대본 제공·영상 제작 가능 (프로필·이메일 공개)"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "scripts": {
+            "description": "공개 대본",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProfileScriptDto"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "displayName",
+          "bio",
+          "email",
+          "profilePublic",
+          "emailPublic",
+          "creatorReady",
+          "createdAt",
+          "scripts"
+        ]
+      },
+      "UpdateProfileDto": {
+        "type": "object",
+        "properties": {
+          "displayName": {
+            "type": "string",
+            "maxLength": 40
+          },
+          "bio": {
+            "type": "string",
+            "maxLength": 1000,
+            "description": "공개 프로필 소개 (경력, 작품, 관심 장르 등)"
+          },
+          "profilePublic": {
+            "type": "boolean",
+            "description": "프로필 공개. 공개하려면 소개가 있어야 한다"
+          },
+          "emailPublic": {
+            "type": "boolean",
+            "description": "공개 프로필에 이메일 표시"
+          }
+        }
+      },
+      "WithdrawDto": {
+        "type": "object",
+        "properties": {
+          "password": {
+            "type": "string",
+            "description": "본인 확인용 비밀번호"
+          }
+        },
+        "required": [
+          "password"
+        ]
+      },
+      "AdminUserDto": {
         "type": "object",
         "properties": {
           "id": {
@@ -1882,65 +2359,94 @@
                 "ADMIN"
               ]
             }
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "SUSPENDED",
+              "WITHDRAWN"
+            ]
+          },
+          "suspendedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "suspendReason": {
+            "type": "string",
+            "nullable": true
+          },
+          "profilePublic": {
+            "type": "boolean"
+          },
+          "emailPublic": {
+            "type": "boolean"
+          },
+          "coinBalance": {
+            "type": "number"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "scriptCount": {
+            "type": "number",
+            "description": "작성한 대본 수"
           }
         },
         "required": [
           "id",
           "email",
           "displayName",
-          "roles"
+          "roles",
+          "status",
+          "suspendedAt",
+          "suspendReason",
+          "profilePublic",
+          "emailPublic",
+          "coinBalance",
+          "createdAt",
+          "scriptCount"
         ]
       },
-      "RoleRequestDto": {
+      "SetUserStatusDto": {
         "type": "object",
         "properties": {
-          "id": {
-            "type": "string"
-          },
-          "userId": {
-            "type": "string"
-          },
-          "role": {
-            "type": "string",
-            "enum": [
-              "WRITER",
-              "PRODUCER"
-            ]
-          },
-          "message": {
-            "type": "string",
-            "nullable": true
-          },
           "status": {
             "type": "string",
             "enum": [
-              "PENDING",
-              "APPROVED",
-              "REJECTED"
-            ]
+              "ACTIVE",
+              "SUSPENDED"
+            ],
+            "description": "SUSPENDED = 정지, ACTIVE = 정지 해제"
           },
-          "createdAt": {
-            "format": "date-time",
-            "type": "string"
-          },
-          "decidedAt": {
+          "reason": {
             "type": "string",
-            "format": "date-time",
-            "nullable": true
-          },
-          "user": {
-            "$ref": "#/components/schemas/RequesterDto"
+            "maxLength": 200,
+            "description": "정지 사유 (정지할 때)"
           }
         },
         "required": [
-          "id",
-          "userId",
-          "role",
-          "message",
-          "status",
-          "createdAt",
-          "decidedAt",
-          "user"
+          "status"
+        ]
+      },
+      "AdjustCoinsDto": {
+        "type": "object",
+        "properties": {
+          "amount": {
+            "type": "number",
+            "description": "지급(+) 또는 회수(-) 코인. 잔액이 음수가 될 수 없다",
+            "minimum": -100000,
+            "maximum": 100000
+          },
+          "memo": {
+            "type": "string",
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "amount"
         ]
       },
       "LogScriptDto": {
@@ -1980,13 +2486,22 @@
                 "ADMIN"
               ]
             }
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "SUSPENDED",
+              "WITHDRAWN"
+            ]
           }
         },
         "required": [
           "id",
           "displayName",
           "email",
-          "roles"
+          "roles",
+          "status"
         ]
       },
       "MessageLogDto": {
@@ -2169,45 +2684,81 @@
           "nextCursor"
         ]
       },
-      "AdminUserDto": {
+      "CoinLogDto": {
         "type": "object",
         "properties": {
           "id": {
             "type": "string"
           },
-          "email": {
-            "type": "string"
-          },
-          "displayName": {
-            "type": "string"
-          },
-          "roles": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "enum": [
-                "WRITER",
-                "PRODUCER",
-                "ADMIN"
-              ]
-            }
-          },
           "createdAt": {
             "format": "date-time",
             "type": "string"
           },
-          "scriptCount": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "SIGNUP_BONUS",
+              "PURCHASE",
+              "SPEND",
+              "ADMIN_ADJUST"
+            ]
+          },
+          "amount": {
+            "type": "number"
+          },
+          "balanceAfter": {
+            "type": "number"
+          },
+          "use": {
+            "type": "string",
+            "enum": [
+              "MESSAGE",
+              "PREVIEW_UNLOCK",
+              "SCRIPT_UPLOAD"
+            ],
+            "nullable": true
+          },
+          "priceKrw": {
             "type": "number",
-            "description": "작성한 대본 수"
+            "nullable": true
+          },
+          "memo": {
+            "type": "string",
+            "nullable": true
+          },
+          "user": {
+            "$ref": "#/components/schemas/LogUserDto"
           }
         },
         "required": [
           "id",
-          "email",
-          "displayName",
-          "roles",
           "createdAt",
-          "scriptCount"
+          "type",
+          "amount",
+          "balanceAfter",
+          "use",
+          "priceKrw",
+          "memo",
+          "user"
+        ]
+      },
+      "CoinLogPageDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CoinLogDto"
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
         ]
       },
       "AdminScriptDto": {
@@ -2382,13 +2933,18 @@
           },
           "canReadPreview": {
             "type": "boolean"
+          },
+          "previewUnlocked": {
+            "type": "boolean",
+            "description": "코인으로 미리보기 열람권을 샀는지"
           }
         },
         "required": [
           "isAuthor",
           "accessRequestStatus",
           "canReadFullText",
-          "canReadPreview"
+          "canReadPreview",
+          "previewUnlocked"
         ]
       },
       "ScriptDetailDto": {
@@ -2468,7 +3024,11 @@
           "previewText": {
             "type": "string",
             "nullable": true,
-            "description": "미리보기 대본. 없거나 볼 권한이 없으면 null"
+            "description": "미리보기 대본. 없거나 볼 권한(작가 본인·열람권)이 없으면 null"
+          },
+          "previewAvailable": {
+            "type": "boolean",
+            "description": "이 대본에 미리보기가 있는지 (열람권 구매 전에도 알 수 있음)"
           },
           "viewer": {
             "$ref": "#/components/schemas/ViewerAccessDto"
@@ -2492,6 +3052,7 @@
           "rightsDeclaredAt",
           "fullText",
           "previewText",
+          "previewAvailable",
           "viewer"
         ]
       },

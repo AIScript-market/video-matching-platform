@@ -1,16 +1,17 @@
 import { Body, Controller, Get, HttpCode, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser, JwtAuthGuard, Roles, RolesGuard, type AuthUser } from '../../core/auth/index.js';
-import { ListRoleRequestsQueryDto, RoleRequestDto } from '../membership/membership.dto.js';
-import { MembershipService } from '../membership/membership.service.js';
+import { AdjustCoinsDto, WalletDto } from '../wallet/wallet.dto.js';
+import { WalletService } from '../wallet/wallet.service.js';
 import {
   ActivityLogQueryDto,
+  CoinLogPageDto,
   MessageLogPageDto,
   UploadLogPageDto,
   ViewLogPageDto,
 } from './activity-log.dto.js';
 import { ActivityLogService } from './activity-log.service.js';
-import { AdminScriptDto, AdminUserDto, HideScriptDto } from './backoffice.dto.js';
+import { AdminScriptDto, AdminUserDto, HideScriptDto, ListUsersQueryDto, SetUserStatusDto } from './backoffice.dto.js';
 import { BackofficeService } from './backoffice.service.js';
 
 @ApiTags('admin')
@@ -21,12 +22,35 @@ import { BackofficeService } from './backoffice.service.js';
 export class BackofficeController {
   constructor(
     private readonly backoffice: BackofficeService,
-    private readonly membership: MembershipService,
+    private readonly wallet: WalletService,
     private readonly logs: ActivityLogService,
   ) {}
 
+  @Get('users')
+  @ApiOperation({ summary: '사용자 목록 (관리자). 상태·검색 필터' })
+  @ApiOkResponse({ type: [AdminUserDto] })
+  users(@Query() query: ListUsersQueryDto) {
+    return this.backoffice.users(query);
+  }
+
+  @Patch('users/:id/status')
+  @ApiOperation({ summary: '일반 계정 정지·해제 (관리자). 정지된 이메일로는 다시 가입할 수 없다' })
+  @ApiOkResponse({ type: AdminUserDto })
+  setStatus(@CurrentUser() admin: AuthUser, @Param('id') id: string, @Body() dto: SetUserStatusDto) {
+    return this.backoffice.setStatus(admin, id, dto);
+  }
+
+  @Post('users/:id/coins')
+  @HttpCode(200)
+  @ApiOperation({ summary: '코인 지급(+)·회수(-) (관리자)' })
+  @ApiOkResponse({ type: WalletDto })
+  async adjustCoins(@Param('id') id: string, @Body() dto: AdjustCoinsDto) {
+    await this.wallet.adjust(id, dto.amount, dto.memo);
+    return this.wallet.wallet(id);
+  }
+
   @Get('logs/messages')
-  @ApiOperation({ summary: '메시지 로그 (제작자·작가 간 모든 메시지, 최신순)' })
+  @ApiOperation({ summary: '메시지 로그 (최신순)' })
   @ApiOkResponse({ type: MessageLogPageDto })
   messageLogs(@Query() query: ActivityLogQueryDto) {
     return this.logs.messages(query);
@@ -46,34 +70,11 @@ export class BackofficeController {
     return this.logs.uploads(query);
   }
 
-  @Get('role-requests')
-  @ApiOperation({ summary: '권한 신청 목록 (관리자). status 생략 시 전체' })
-  @ApiOkResponse({ type: [RoleRequestDto] })
-  roleRequests(@Query() query: ListRoleRequestsQueryDto) {
-    return this.membership.list(query.status);
-  }
-
-  @Post('role-requests/:id/approve')
-  @HttpCode(200)
-  @ApiOperation({ summary: '권한 신청 승인 → 사용자에게 역할 부여 (관리자)' })
-  @ApiOkResponse({ type: RoleRequestDto })
-  approveRole(@Param('id') id: string, @CurrentUser() admin: AuthUser) {
-    return this.membership.approve(id, admin);
-  }
-
-  @Post('role-requests/:id/reject')
-  @HttpCode(200)
-  @ApiOperation({ summary: '권한 신청 거절 (관리자)' })
-  @ApiOkResponse({ type: RoleRequestDto })
-  rejectRole(@Param('id') id: string, @CurrentUser() admin: AuthUser) {
-    return this.membership.reject(id, admin);
-  }
-
-  @Get('users')
-  @ApiOperation({ summary: '사용자 목록 (관리자)' })
-  @ApiOkResponse({ type: [AdminUserDto] })
-  users() {
-    return this.backoffice.users();
+  @Get('logs/coins')
+  @ApiOperation({ summary: '코인 충전·사용 로그 (최신순)' })
+  @ApiOkResponse({ type: CoinLogPageDto })
+  coinLogs(@Query() query: ActivityLogQueryDto) {
+    return this.logs.coins(query);
   }
 
   @Get('scripts')

@@ -2,12 +2,13 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type {
   ActivityLogQueryDto,
+  CoinLogPageDto,
   MessageLogPageDto,
   UploadLogPageDto,
   ViewLogPageDto,
 } from './activity-log.dto.js';
 
-const USER = { select: { id: true, displayName: true, email: true, roles: true } } as const;
+const USER = { select: { id: true, displayName: true, email: true, roles: true, status: true } } as const;
 const SCRIPT = { select: { id: true, title: true } } as const;
 
 const contains = (q: string) => ({ contains: q, mode: 'insensitive' as const });
@@ -84,6 +85,20 @@ export class ActivityLogService {
       ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}),
     });
     const items = rows.slice(0, take).map(({ scriptId: _s, uploaderId: _u, ...r }) => r);
+    return { items, nextCursor: rows.length > take ? items[items.length - 1].id : null };
+  }
+
+  async coins(query: ActivityLogQueryDto): Promise<CoinLogPageDto> {
+    const take = query.take ?? 50;
+    const q = query.q?.trim();
+    const rows = await this.prisma.coinTransaction.findMany({
+      where: q ? { OR: [{ user: userMatches(q) }, { memo: contains(q) }] } : {},
+      include: { user: USER },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: take + 1,
+      ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}),
+    });
+    const items = rows.slice(0, take).map(({ userId: _u, refId: _r, ...r }) => r);
     return { items, nextCursor: rows.length > take ? items[items.length - 1].id : null };
   }
 }

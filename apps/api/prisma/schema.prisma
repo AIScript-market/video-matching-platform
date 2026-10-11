@@ -10,10 +10,31 @@ datasource db {
   provider = "postgresql"
 }
 
+// 계정 종류는 일반(roles = [])과 관리자(ADMIN) 두 가지. WRITER·PRODUCER는 이전 계약 호환용으로만 남아 있고 쓰지 않는다
 enum Role {
   WRITER
   PRODUCER
   ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED // 관리자가 정지. 이 이메일로는 다시 가입할 수 없다
+  WITHDRAWN // 탈퇴. 이메일을 비워 두어 같은 이메일로 다시 가입할 수 있다
+}
+
+enum CoinTxType {
+  SIGNUP_BONUS
+  PURCHASE
+  SPEND
+  ADMIN_ADJUST
+}
+
+// 코인을 쓰는 곳
+enum CoinUse {
+  MESSAGE
+  PREVIEW_UNLOCK
+  SCRIPT_UPLOAD
 }
 
 enum ScriptStatus {
@@ -55,13 +76,6 @@ enum LicenseStatus {
   TERMINATED
 }
 
-// 일반 계정(역할 없음)이 관리자에게 신청하는 권한. WRITER(대본 제공자) 또는 PRODUCER만
-enum RoleRequestStatus {
-  PENDING
-  APPROVED
-  REJECTED
-}
-
 enum LedgerEntryType {
   REVENUE
   PAYOUT
@@ -77,6 +91,16 @@ model User {
   roles        Role[]
   createdAt    DateTime @default(now())
 
+  /// 공개 프로필 소개. 대본 제공·영상 제작을 하려면 프로필과 이메일을 공개해야 한다
+  bio           String?
+  profilePublic Boolean    @default(false)
+  emailPublic   Boolean    @default(false)
+  status        UserStatus @default(ACTIVE)
+  suspendedAt   DateTime?
+  suspendReason String?
+  withdrawnAt   DateTime?
+  coinBalance   Int        @default(0)
+
   scripts              Script[]
   accessRequests       ScriptAccessRequest[]
   accessLogs           ScriptAccessLog[]
@@ -87,8 +111,8 @@ model User {
   licenses             License[]
   ledgerEntries        LedgerEntry[]
   scriptUploads        ScriptUpload[]
-  roleRequests         RoleRequest[]         @relation("RoleRequester")
-  decidedRoleRequests  RoleRequest[]         @relation("RoleDecider")
+  coinTransactions     CoinTransaction[]
+  previewUnlocks       ScriptPreviewUnlock[]
 }
 
 model Script {
@@ -118,6 +142,7 @@ model Script {
   negotiations   Negotiation[]
   licenses       License[]
   uploads        ScriptUpload[]
+  previewUnlocks ScriptPreviewUnlock[]
 }
 
 model ScriptAccessRequest {
@@ -225,21 +250,6 @@ model LedgerEntry {
   createdBy   User            @relation(fields: [createdById], references: [id])
 }
 
-model RoleRequest {
-  id          String            @id @default(cuid())
-  userId      String
-  user        User              @relation("RoleRequester", fields: [userId], references: [id])
-  role        Role
-  message     String?
-  status      RoleRequestStatus @default(PENDING)
-  createdAt   DateTime          @default(now())
-  decidedAt   DateTime?
-  decidedById String?
-  decidedBy   User?             @relation("RoleDecider", fields: [decidedById], references: [id])
-
-  @@index([status, createdAt])
-  @@index([userId])
-}
 
 enum UploadKind {
   FULL // 대본 전문
@@ -261,4 +271,36 @@ model ScriptUpload {
   createdAt  DateTime   @default(now())
 
   @@index([createdAt])
+}
+
+// 코인 거래 원장. amount는 + 충전 / - 사용, balanceAfter는 거래 직후 잔액
+model CoinTransaction {
+  id           String     @id @default(cuid())
+  userId       String
+  user         User       @relation(fields: [userId], references: [id])
+  type         CoinTxType
+  amount       Int
+  balanceAfter Int
+  use          CoinUse?
+  /// 사용처 대상 id (메시지·대본 등)
+  refId        String?
+  /// 구매 시 결제 금액 (원)
+  priceKrw     Int?
+  memo         String?
+  createdAt    DateTime   @default(now())
+
+  @@index([userId, createdAt])
+  @@index([createdAt])
+}
+
+// 미리보기 대본 열람권 (코인으로 한 번 사면 계속 볼 수 있다)
+model ScriptPreviewUnlock {
+  id        String   @id @default(cuid())
+  scriptId  String
+  script    Script   @relation(fields: [scriptId], references: [id])
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([scriptId, userId])
 }

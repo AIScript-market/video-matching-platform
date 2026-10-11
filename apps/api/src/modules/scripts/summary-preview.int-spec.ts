@@ -3,6 +3,7 @@ import { HttpException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { Viewer } from '../access/access-rules.js';
 import type { AiJobsQueue } from './ai-jobs.queue.js';
+import { WalletService } from '../wallet/wallet.service.js';
 import { isSummaryPending, ScriptsService } from './scripts.service.js';
 
 const run = process.env.DATABASE_URL ? describe : describe.skip;
@@ -42,7 +43,7 @@ run('AI 요약·미리보기 (DB)', () => {
 
   async function makeUser(name: string, roles: Array<'WRITER' | 'PRODUCER'>): Promise<Viewer> {
     const u = await prisma.user.create({
-      data: { email: `${name}-${suffix}@test.local`, passwordHash: 'x', displayName: name, roles },
+      data: { email: `${name}-${suffix}@test.local`, passwordHash: 'x', displayName: name, roles, coinBalance: 5 },
     });
     userIds.push(u.id);
     return { id: u.id, roles };
@@ -63,13 +64,15 @@ run('AI 요약·미리보기 (DB)', () => {
         return queueOk;
       },
     } as AiJobsQueue;
-    scripts = new ScriptsService(prisma, queue);
+    scripts = new ScriptsService(prisma, queue, new WalletService(prisma));
     writer = await makeUser('sp-writer', ['WRITER']);
     producer = await makeUser('sp-producer', ['PRODUCER']);
     member = await makeUser('sp-member', []);
   });
 
   afterAll(async () => {
+    await prisma.scriptPreviewUnlock.deleteMany({ where: { userId: { in: userIds } } });
+    await prisma.coinTransaction.deleteMany({ where: { userId: { in: userIds } } });
     await prisma.script.deleteMany({ where: { authorId: { in: userIds } } });
     await prisma.user.deleteMany({ where: { id: { in: userIds } } });
     await prisma.$disconnect();
@@ -106,6 +109,8 @@ run('AI 요약·미리보기 (DB)', () => {
     // 생성 중에 바로 새로고침하면 429, 끝난 뒤에는 가능
     await expect(scripts.refreshSummary(s.id, writer)).rejects.toThrow(HttpException);
     await fakeWorker(s.id);
+    // 같은 밀리초면 요청이 요약보다 나중이 아니므로, 실제처럼 시간이 조금 흐른 뒤 새로고침한다
+    await new Promise((r) => setTimeout(r, 5));
     const refreshed = await scripts.refreshSummary(s.id, writer);
     expect(refreshed.aiSummaryPending).toBe(true);
     await expect(scripts.refreshSummary(s.id, producer)).rejects.toThrow();
@@ -122,32 +127,58 @@ run('AI 요약·미리보기 (DB)', () => {
     queueOk = true;
   });
 
-  it('미리보기는 작가와 공개 대본을 보는 영상 제작자에게만 보인다', async () => {
+  it('미리보기는 작가 본인과 코인으로 열람권을 산 사람에게만 보인다', async () => {
     const s = await scripts.create(writer, {
       title: '미리보기', logline: 'l', synopsis: 's', genre: '드라마', fullText: '전문 전체', rightsDeclared: true,
       previewText: '  S#1. 일부분\r\n',
     });
     expect(s.previewText).toBe('S#1. 일부분');
-    // 공개 전에는 작가만
     await expect(scripts.get(s.id, producer)).rejects.toThrow(NotFoundException);
     await scripts.publish(s.id, writer, {});
 
-    const asProducer = await scripts.get(s.id, producer);
-    expect(asProducer.previewText).toBe('S#1. 일부분');
-    expect(asProducer.fullText).toBeNull();
-    expect(asProducer.viewer.canReadPreview).toBe(true);
+    // 열람권 전: 미리보기가 있다는 것만 안다
+    const before = await scripts.get(s.id, producer);
+    expect(before).toMatchObject({ previewText: null, previewAvailable: true, fullText: null });
+    expect(before.viewer.previewUnlocked).toBe(false);
 
-    const asMember = await scripts.get(s.id, member);
-    expect(asMember.previewText).toBeNull();
+    // 3코인으로 열람권 구매 (보유 5) → 다시 눌러도 한 번만 차감
+    const unlocked = await scripts.unlockPreview(s.id, producer);
+    expect(unlocked.previewText).toBe('S#1. 일부분');
+    await scripts.unlockPreview(s.id, producer);
+    expect((await prisma.user.findUniqueOrThrow({ where: { id: producer.id } })).coinBalance).toBe(2);
+    const spends = await prisma.coinTransaction.findMany({ where: { userId: producer.id, use: 'PREVIEW_UNLOCK' } });
+    expect(spends).toHaveLength(1);
+    expect(spends[0]).toMatchObject({ amount: -3, balanceAfter: 2, refId: s.id });
+
+    // 코인이 모자라면 402, 열람권도 생기지 않는다
+    const other = await scripts.create(writer, {
+      title: '미리보기2', logline: 'l', synopsis: 's', genre: '드라마', fullText: 'x', rightsDeclared: true, previewText: 'p',
+    });
+    await scripts.publish(other.id, writer, {});
+    await expect(scripts.unlockPreview(other.id, producer)).rejects.toMatchObject({ status: 402 });
+    expect((await scripts.get(other.id, producer)).previewText).toBeNull();
+
+    // 일반·비로그인에게도 열람권 없이는 안 보인다
+    expect((await scripts.get(s.id, member)).previewText).toBeNull();
     expect((await scripts.get(s.id, null)).previewText).toBeNull();
 
-    // 미리보기만 바꾸면 수정 시각은 갱신되지만 요약은 다시 만들지 않는다
-    const before = queued.length;
-    const updated = await scripts.update(s.id, writer, { previewText: 'S#2. 다른 부분' });
-    expect(updated.previewText).toBe('S#2. 다른 부분');
-    expect(queued.length).toBe(before);
-    // 빈 문자열이면 미리보기 없음
-    expect((await scripts.update(s.id, writer, { previewText: '' })).previewText).toBeNull();
-    expect((await scripts.get(s.id, producer)).previewText).toBeNull();
+    // 미리보기만 바꾸면 요약은 다시 만들지 않는다. 빈 문자열이면 미리보기 없음
+    const n = queued.length;
+    expect((await scripts.update(s.id, writer, { previewText: 'S#2. 다른 부분' })).previewText).toBe('S#2. 다른 부분');
+    expect(queued.length).toBe(n);
+    expect((await scripts.update(s.id, writer, { previewText: '' })).previewAvailable).toBe(false);
+  });
+
+  it('정지된 작가의 대본은 목록·상세에서 빠진다', async () => {
+    const s = await scripts.create(writer, {
+      title: `정지 테스트 ${suffix}`, logline: 'l', synopsis: 's', genre: '드라마', fullText: 'x', rightsDeclared: true,
+    });
+    await scripts.publish(s.id, writer, {});
+    expect((await scripts.list({ q: `정지 테스트 ${suffix}` }, null)).items).toHaveLength(1);
+    await prisma.user.update({ where: { id: writer.id }, data: { status: 'SUSPENDED' } });
+    expect((await scripts.list({ q: `정지 테스트 ${suffix}` }, null)).items).toHaveLength(0);
+    await expect(scripts.get(s.id, producer)).rejects.toThrow(NotFoundException);
+    expect((await scripts.get(s.id, { id: 'admin', roles: ['ADMIN'] })).title).toBe(`정지 테스트 ${suffix}`);
+    await prisma.user.update({ where: { id: writer.id }, data: { status: 'ACTIVE' } });
   });
 });

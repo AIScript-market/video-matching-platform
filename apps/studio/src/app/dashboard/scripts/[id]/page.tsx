@@ -4,14 +4,14 @@ import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { AiSummaryCard } from "@/components/ai-summary-card";
 import { ScriptForm } from "@/components/script-form";
-import { ErrorText, RequireAuth } from "@/components/ui";
+import { ErrorText, RequireCreator } from "@/components/ui";
 import { api, unwrap, type ScriptDetail } from "@/lib/api";
 
 export default function EditScriptPage() {
   return (
-    <RequireAuth role="WRITER">
+    <RequireCreator>
       <EditScript />
-    </RequireAuth>
+    </RequireCreator>
   );
 }
 

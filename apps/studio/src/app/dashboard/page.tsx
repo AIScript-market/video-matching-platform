@@ -2,15 +2,15 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { ErrorText, RequireAuth, StatusBadge } from "@/components/ui";
+import { ErrorText, RequireCreator, StatusBadge } from "@/components/ui";
 import { api, dateTime, unwrap, type AccessRequest, type Negotiation, type ScriptSummary } from "@/lib/api";
 import { useSession } from "@/lib/session";
 
 export default function DashboardPage() {
   return (
-    <RequireAuth role="WRITER">
+    <RequireCreator>
       <Dashboard />
-    </RequireAuth>
+    </RequireCreator>
   );
 }
 
@@ -65,7 +65,7 @@ function Dashboard() {
   return (
     <div className="stack">
       <div className="spread">
-        <h1>대본 제공자 대시보드</h1>
+        <h1>내 대본</h1>
         <Link href="/dashboard/scripts/new" className="button">
           + 새 대본
         </Link>

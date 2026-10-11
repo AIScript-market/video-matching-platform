@@ -1,13 +1,13 @@
 // 개발용 시드. 여러 번 실행해도 같은 결과가 되도록 upsert한다.
-// 역할별 임시 계정 (아이디와 비밀번호가 역할마다 다르다):
-//   관리자        admin@vmp.dev         / admin1234!
-//   대본 제공자   writer1@vmp.dev, writer2@vmp.dev       / writer1234!
-//   영상 제작자   producer1@vmp.dev, producer2@vmp.dev   / producer1234!
-//   일반          member1@vmp.dev       / member1234!
-//   일반(신청 대기) applicant1@vmp.dev (대본 제공자 신청), applicant2@vmp.dev (제작자 신청) / member1234!
+// 계정 종류는 일반·관리자 두 가지. 대본 제공·영상 제작은 프로필과 이메일을 공개한 일반 계정이 한다.
+//   관리자                admin@vmp.dev       / admin1234!
+//   일반 (공개, 대본 제공) writer1@vmp.dev, writer2@vmp.dev     / writer1234!
+//   일반 (공개, 영상 제작) producer1@vmp.dev, producer2@vmp.dev / producer1234!
+//   일반 (비공개)          member1@vmp.dev     / member1234!
+//   정지된 계정            suspended1@vmp.dev  / member1234!  (로그인·같은 이메일 재가입 불가)
 import { hash } from '@node-rs/argon2';
 import { PrismaPg } from '@prisma/adapter-pg';
-import { PrismaClient, type Role } from '../src/generated/prisma/client.js';
+import { PrismaClient, type Role, type UserStatus } from '../src/generated/prisma/client.js';
 
 const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
@@ -18,36 +18,43 @@ type SeedUser = {
   displayName: string;
   roles: Role[];
   password: string;
-  /** 일반 계정이 관리자에게 신청해 둔 권한 (승인 대기) */
-  pendingRequest?: { role: Role; message: string };
+  bio?: string;
+  /** 프로필·이메일 공개 */
+  public?: boolean;
+  coins: number;
+  status?: UserStatus;
+  suspendReason?: string;
 };
 
 const SEED_USERS: SeedUser[] = [
-  { email: 'admin@vmp.dev', displayName: '관리자', roles: ['ADMIN'], password: 'admin1234!' },
-  { email: 'writer1@vmp.dev', displayName: '김작가', roles: ['WRITER'], password: 'writer1234!' },
-  { email: 'writer2@vmp.dev', displayName: '이작가', roles: ['WRITER'], password: 'writer1234!' },
-  { email: 'producer1@vmp.dev', displayName: '박제작', roles: ['PRODUCER'], password: 'producer1234!' },
-  { email: 'producer2@vmp.dev', displayName: '최제작', roles: ['PRODUCER'], password: 'producer1234!' },
-  { email: 'member1@vmp.dev', displayName: '정일반', roles: [], password: 'member1234!' },
+  { email: 'admin@vmp.dev', displayName: '관리자', roles: ['ADMIN'], password: 'admin1234!', coins: 0 },
   {
-    email: 'applicant1@vmp.dev',
-    displayName: '한신청',
-    roles: [],
-    password: 'member1234!',
-    pendingRequest: { role: 'WRITER', message: '단편 시나리오 공모전 수상 경력이 있습니다.' },
+    email: 'writer1@vmp.dev', displayName: '김작가', roles: [], password: 'writer1234!', public: true, coins: 100,
+    bio: '미스터리·드라마 작가. 단편영화 시나리오 공모전 2회 수상.',
   },
   {
-    email: 'applicant2@vmp.dev',
-    displayName: '윤신청',
-    roles: [],
-    password: 'member1234!',
-    pendingRequest: { role: 'PRODUCER', message: '독립영화 제작사 PD입니다.' },
+    email: 'writer2@vmp.dev', displayName: '이작가', roles: [], password: 'writer1234!', public: true, coins: 100,
+    bio: 'SF와 스릴러를 씁니다. 웹드라마 2편 집필.',
+  },
+  {
+    email: 'producer1@vmp.dev', displayName: '박제작', roles: [], password: 'producer1234!', public: true, coins: 100,
+    bio: '독립영화 제작사 PD. 장편 3편 제작.',
+  },
+  {
+    email: 'producer2@vmp.dev', displayName: '최제작', roles: [], password: 'producer1234!', public: true, coins: 100,
+    bio: 'OTT 숏폼 드라마 프로듀서.',
+  },
+  { email: 'member1@vmp.dev', displayName: '정일반', roles: [], password: 'member1234!', coins: 10 },
+  {
+    email: 'suspended1@vmp.dev', displayName: '강정지', roles: [], password: 'member1234!', coins: 0,
+    status: 'SUSPENDED', suspendReason: '타인의 대본을 무단으로 올림',
   },
 ];
 
 const scripts = [
   {
     id: 'seed_script_last_train',
+    previewText: 'S#1. 폐역 승강장 (밤, 비)\n\n녹슨 안내판 아래, 정수(50대)가 랜턴을 들고 서 있다.\n\n정수\n(혼잣말) 오늘도 안 오네.',
     author: 'writer1@vmp.dev',
     title: '마지막 열차',
     genre: '미스터리',
@@ -101,18 +108,30 @@ const scripts = [
 
 async function main() {
   const ids = new Map<string, string>();
-  for (const { password, pendingRequest, ...u } of SEED_USERS) {
+  for (const { password, coins, public: isPublic, ...u } of SEED_USERS) {
     const passwordHash = await hash(password);
-    const user = await prisma.user.upsert({
-      where: { email: u.email },
-      update: { displayName: u.displayName, roles: u.roles, passwordHash },
-      create: { ...u, passwordHash },
-    });
-    ids.set(u.email, user.id);
-    if (pendingRequest) {
-      const exists = await prisma.roleRequest.findFirst({ where: { userId: user.id, role: pendingRequest.role } });
-      if (!exists) await prisma.roleRequest.create({ data: { userId: user.id, ...pendingRequest } });
+    const profile = {
+      displayName: u.displayName,
+      roles: u.roles,
+      bio: u.bio ?? null,
+      profilePublic: Boolean(isPublic),
+      emailPublic: Boolean(isPublic),
+      status: u.status ?? 'ACTIVE',
+      suspendReason: u.suspendReason ?? null,
+      suspendedAt: u.status === 'SUSPENDED' ? new Date() : null,
+      passwordHash,
+    };
+    const existing = await prisma.user.findUnique({ where: { email: u.email }, select: { id: true } });
+    const user = existing
+      ? await prisma.user.update({ where: { id: existing.id }, data: profile })
+      : await prisma.user.create({ data: { email: u.email, ...profile, coinBalance: coins } });
+    // 코인은 처음 만들 때만 지급 (다시 시드해도 사용 내역을 덮어쓰지 않게)
+    if (!existing && coins > 0) {
+      await prisma.coinTransaction.create({
+        data: { userId: user.id, type: 'ADMIN_ADJUST', amount: coins, balanceAfter: coins, memo: '시드 지급' },
+      });
     }
+    ids.set(u.email, user.id);
   }
 
   const now = new Date();

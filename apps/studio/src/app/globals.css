@@ -106,8 +106,10 @@ input[type="checkbox"], input[type="radio"] { width: auto; }
 .nav { background: var(--surface); border-bottom: 1px solid var(--border); }
 .nav-inner { max-width: 1040px; margin: 0 auto; padding: 10px 16px; display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
 .nav-brand { font-weight: 800; color: var(--text); }
-.nav-links { display: flex; gap: 14px; flex-wrap: wrap; flex: 1; }
-.nav-links a { color: var(--muted); font-weight: 600; }
+/* 공간이 모자라면 메뉴 줄 전체가 다음 줄로 내려가고, 메뉴 글자는 줄바꿈하지 않는다 */
+.nav-links { display: flex; gap: 6px 14px; flex-wrap: wrap; flex: 1 1 360px; min-width: 0; }
+.nav-links a { color: var(--muted); font-weight: 600; white-space: nowrap; }
+.nav-inner > .row { flex-wrap: nowrap; white-space: nowrap; }
 .nav-links a.active { color: var(--text); }
 
 .chips { display: flex; gap: 6px; flex-wrap: wrap; }
