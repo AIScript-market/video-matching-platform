@@ -55,6 +55,13 @@ enum LicenseStatus {
   TERMINATED
 }
 
+// 일반 계정(역할 없음)이 관리자에게 신청하는 권한. WRITER(대본 제공자) 또는 PRODUCER만
+enum RoleRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 enum LedgerEntryType {
   REVENUE
   PAYOUT
@@ -79,6 +86,8 @@ model User {
   offers               Offer[]
   licenses             License[]
   ledgerEntries        LedgerEntry[]
+  roleRequests         RoleRequest[]         @relation("RoleRequester")
+  decidedRoleRequests  RoleRequest[]         @relation("RoleDecider")
 }
 
 model Script {
@@ -206,4 +215,20 @@ model LedgerEntry {
   occurredAt  DateTime
   createdById String
   createdBy   User            @relation(fields: [createdById], references: [id])
+}
+
+model RoleRequest {
+  id          String            @id @default(cuid())
+  userId      String
+  user        User              @relation("RoleRequester", fields: [userId], references: [id])
+  role        Role
+  message     String?
+  status      RoleRequestStatus @default(PENDING)
+  createdAt   DateTime          @default(now())
+  decidedAt   DateTime?
+  decidedById String?
+  decidedBy   User?             @relation("RoleDecider", fields: [decidedById], references: [id])
+
+  @@index([status, createdAt])
+  @@index([userId])
 }

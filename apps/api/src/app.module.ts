@@ -5,6 +5,7 @@ import { AccessModule } from './modules/access/access.module.js';
 import { BackofficeModule } from './modules/backoffice/backoffice.module.js';
 import { DealsModule } from './modules/deals/deals.module.js';
 import { IdentityModule } from './modules/identity/identity.module.js';
+import { MembershipModule } from './modules/membership/membership.module.js';
 import { LedgerModule } from './modules/ledger/ledger.module.js';
 import { NegotiationsModule } from './modules/negotiations/negotiations.module.js';
 import { ScriptsModule } from './modules/scripts/scripts.module.js';
@@ -16,6 +17,7 @@ import { PrismaModule } from './prisma/prisma.module.js';
     CoreAuthModule,
     HealthModule,
     IdentityModule,
+    MembershipModule,
     BackofficeModule,
     ScriptsModule,
     AccessModule,

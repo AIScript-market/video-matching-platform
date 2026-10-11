@@ -121,6 +121,189 @@
         ]
       }
     },
+    "/role-requests": {
+      "post": {
+        "operationId": "MembershipController_request",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateRoleRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoleRequestDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "권한 신청 (대본 제공자 WRITER / 영상 제작자 PRODUCER). 관리자가 승인하면 역할이 생긴다",
+        "tags": [
+          "role-requests"
+        ]
+      }
+    },
+    "/role-requests/mine": {
+      "get": {
+        "operationId": "MembershipController_mine",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RoleRequestDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "내 권한 신청 내역",
+        "tags": [
+          "role-requests"
+        ]
+      }
+    },
+    "/admin/role-requests": {
+      "get": {
+        "operationId": "BackofficeController_roleRequests",
+        "parameters": [
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "PENDING",
+                "APPROVED",
+                "REJECTED"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RoleRequestDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "권한 신청 목록 (관리자). status 생략 시 전체",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/role-requests/{id}/approve": {
+      "post": {
+        "operationId": "BackofficeController_approveRole",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoleRequestDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "권한 신청 승인 → 사용자에게 역할 부여 (관리자)",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/role-requests/{id}/reject": {
+      "post": {
+        "operationId": "BackofficeController_rejectRole",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoleRequestDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "권한 신청 거절 (관리자)",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/admin/users": {
       "get": {
         "operationId": "BackofficeController_users",
@@ -1161,9 +1344,9 @@
             "type": "string",
             "maxLength": 40
           },
-          "roles": {
+          "requestedRoles": {
             "type": "array",
-            "description": "작가·제작자 중 하나 이상 (둘 다 가능). ADMIN은 가입으로 얻을 수 없다",
+            "description": "가입과 함께 관리자에게 신청할 권한 (WRITER 대본 제공자 / PRODUCER 영상 제작자, 둘 다 가능). 가입 직후에는 역할이 없는 일반 계정이고, 관리자가 승인하면 역할이 생긴다",
             "items": {
               "type": "string",
               "enum": [
@@ -1176,8 +1359,7 @@
         "required": [
           "email",
           "password",
-          "displayName",
-          "roles"
+          "displayName"
         ]
       },
       "MeDto": {
@@ -1194,6 +1376,7 @@
           },
           "roles": {
             "type": "array",
+            "description": "빈 배열이면 일반 계정",
             "items": {
               "type": "string",
               "enum": [
@@ -1245,6 +1428,110 @@
         "required": [
           "email",
           "password"
+        ]
+      },
+      "CreateRoleRequestDto": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "WRITER",
+              "PRODUCER"
+            ],
+            "description": "WRITER = 대본 제공자, PRODUCER = 영상 제작자"
+          },
+          "message": {
+            "type": "string",
+            "maxLength": 500,
+            "description": "관리자에게 남길 말 (경력, 포트폴리오 등)"
+          }
+        },
+        "required": [
+          "role"
+        ]
+      },
+      "RequesterDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "roles": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "WRITER",
+                "PRODUCER",
+                "ADMIN"
+              ]
+            }
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "displayName",
+          "roles"
+        ]
+      },
+      "RoleRequestDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "WRITER",
+              "PRODUCER"
+            ]
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "APPROVED",
+              "REJECTED"
+            ]
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "decidedAt": {
+            "type": "object",
+            "format": "date-time",
+            "nullable": true
+          },
+          "user": {
+            "$ref": "#/components/schemas/RequesterDto"
+          }
+        },
+        "required": [
+          "id",
+          "userId",
+          "role",
+          "message",
+          "status",
+          "createdAt",
+          "decidedAt",
+          "user"
         ]
       },
       "AdminUserDto": {

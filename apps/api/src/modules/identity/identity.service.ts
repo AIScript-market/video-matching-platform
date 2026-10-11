@@ -2,6 +2,7 @@ import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/co
 import { JwtService } from '@nestjs/jwt';
 import { hash, verify } from '@node-rs/argon2';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { MembershipService } from '../membership/membership.service.js';
 import type { AuthResultDto, LoginDto, MeDto, SignupDto } from './identity.dto.js';
 
 const ME_SELECT = { id: true, email: true, displayName: true, roles: true, createdAt: true } as const;
@@ -15,6 +16,7 @@ export class IdentityService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
+    private readonly membership: MembershipService,
   ) {}
 
   async signup(dto: SignupDto): Promise<AuthResultDto> {
@@ -25,10 +27,13 @@ export class IdentityService {
         email: dto.email,
         passwordHash: await hash(dto.password),
         displayName: dto.displayName,
-        roles: [...new Set(dto.roles)],
+        roles: [], // 일반 계정으로 시작
       },
       select: ME_SELECT,
     });
+    for (const role of new Set(dto.requestedRoles ?? [])) {
+      await this.membership.create(user.id, role, '가입 시 신청');
+    }
     return { user, accessToken: await this.sign(user.id) };
   }
 

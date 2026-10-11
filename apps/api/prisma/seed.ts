@@ -1,5 +1,10 @@
 // 개발용 시드. 여러 번 실행해도 같은 결과가 되도록 upsert한다.
-// 로그인 비밀번호: SEED_PASSWORD (기본 password1234)
+// 역할별 임시 계정 (아이디와 비밀번호가 역할마다 다르다):
+//   관리자        admin@vmp.dev         / admin1234!
+//   대본 제공자   writer1@vmp.dev, writer2@vmp.dev       / writer1234!
+//   영상 제작자   producer1@vmp.dev, producer2@vmp.dev   / producer1234!
+//   일반          member1@vmp.dev       / member1234!
+//   일반(신청 대기) applicant1@vmp.dev (대본 제공자 신청), applicant2@vmp.dev (제작자 신청) / member1234!
 import { hash } from '@node-rs/argon2';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient, type Role } from '../src/generated/prisma/client.js';
@@ -8,18 +13,42 @@ const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
 });
 
-const users: Array<{ email: string; displayName: string; roles: Role[] }> = [
-  { email: 'writer1@example.com', displayName: '김작가', roles: ['WRITER'] },
-  { email: 'writer2@example.com', displayName: '이작가', roles: ['WRITER', 'PRODUCER'] },
-  { email: 'producer1@example.com', displayName: '박제작', roles: ['PRODUCER'] },
-  { email: 'producer2@example.com', displayName: '최제작', roles: ['PRODUCER'] },
-  { email: 'admin@example.com', displayName: '관리자', roles: ['ADMIN'] },
+type SeedUser = {
+  email: string;
+  displayName: string;
+  roles: Role[];
+  password: string;
+  /** 일반 계정이 관리자에게 신청해 둔 권한 (승인 대기) */
+  pendingRequest?: { role: Role; message: string };
+};
+
+const SEED_USERS: SeedUser[] = [
+  { email: 'admin@vmp.dev', displayName: '관리자', roles: ['ADMIN'], password: 'admin1234!' },
+  { email: 'writer1@vmp.dev', displayName: '김작가', roles: ['WRITER'], password: 'writer1234!' },
+  { email: 'writer2@vmp.dev', displayName: '이작가', roles: ['WRITER'], password: 'writer1234!' },
+  { email: 'producer1@vmp.dev', displayName: '박제작', roles: ['PRODUCER'], password: 'producer1234!' },
+  { email: 'producer2@vmp.dev', displayName: '최제작', roles: ['PRODUCER'], password: 'producer1234!' },
+  { email: 'member1@vmp.dev', displayName: '정일반', roles: [], password: 'member1234!' },
+  {
+    email: 'applicant1@vmp.dev',
+    displayName: '한신청',
+    roles: [],
+    password: 'member1234!',
+    pendingRequest: { role: 'WRITER', message: '단편 시나리오 공모전 수상 경력이 있습니다.' },
+  },
+  {
+    email: 'applicant2@vmp.dev',
+    displayName: '윤신청',
+    roles: [],
+    password: 'member1234!',
+    pendingRequest: { role: 'PRODUCER', message: '독립영화 제작사 PD입니다.' },
+  },
 ];
 
 const scripts = [
   {
     id: 'seed_script_last_train',
-    author: 'writer1@example.com',
+    author: 'writer1@vmp.dev',
     title: '마지막 열차',
     genre: '미스터리',
     logline: '폐역을 지키는 역무원이 25년 만에 도착한 열차의 비밀을 쫓는다.',
@@ -36,7 +65,7 @@ const scripts = [
   },
   {
     id: 'seed_script_rooftop_kitchen',
-    author: 'writer1@example.com',
+    author: 'writer1@vmp.dev',
     title: '옥상 위 부엌',
     genre: '드라마',
     logline: '폐업 직전의 셰프가 옥탑방 이웃들에게 밥을 해주며 다시 요리를 시작한다.',
@@ -53,7 +82,7 @@ const scripts = [
   },
   {
     id: 'seed_script_signal_lost',
-    author: 'writer2@example.com',
+    author: 'writer2@vmp.dev',
     title: '신호 두절',
     genre: 'SF',
     logline: '통신이 끊긴 남극 기지에서 대원들이 서로를 의심하기 시작한다.',
@@ -71,15 +100,19 @@ const scripts = [
 ];
 
 async function main() {
-  const passwordHash = await hash(process.env.SEED_PASSWORD ?? 'password1234');
   const ids = new Map<string, string>();
-  for (const u of users) {
+  for (const { password, pendingRequest, ...u } of SEED_USERS) {
+    const passwordHash = await hash(password);
     const user = await prisma.user.upsert({
       where: { email: u.email },
-      update: { displayName: u.displayName, roles: u.roles },
+      update: { displayName: u.displayName, roles: u.roles, passwordHash },
       create: { ...u, passwordHash },
     });
     ids.set(u.email, user.id);
+    if (pendingRequest) {
+      const exists = await prisma.roleRequest.findFirst({ where: { userId: user.id, role: pendingRequest.role } });
+      if (!exists) await prisma.roleRequest.create({ data: { userId: user.id, ...pendingRequest } });
+    }
   }
 
   const now = new Date();
@@ -94,7 +127,7 @@ async function main() {
     };
     await prisma.script.upsert({ where: { id: s.id }, update: data, create: data });
   }
-  console.log(`시드 완료: 사용자 ${users.length}명, 공개 대본 ${scripts.length}편`);
+  console.log(`시드 완료: 사용자 ${SEED_USERS.length}명, 공개 대본 ${scripts.length}편`);
 }
 
 try {

@@ -1,10 +1,10 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   ArrayMaxSize,
-  ArrayMinSize,
   ArrayUnique,
   IsEmail,
   IsIn,
+  IsOptional,
   IsString,
   Length,
   MaxLength,
@@ -32,16 +32,18 @@ export class SignupDto {
   @Length(1, 40)
   displayName!: string;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     enum: SIGNUP_ROLES,
     isArray: true,
-    description: '작가·제작자 중 하나 이상 (둘 다 가능). ADMIN은 가입으로 얻을 수 없다',
+    description:
+      '가입과 함께 관리자에게 신청할 권한 (WRITER 대본 제공자 / PRODUCER 영상 제작자, 둘 다 가능). ' +
+      '가입 직후에는 역할이 없는 일반 계정이고, 관리자가 승인하면 역할이 생긴다',
   })
-  @ArrayMinSize(1, { message: '역할을 하나 이상 선택하세요' })
+  @IsOptional()
   @ArrayMaxSize(2)
   @ArrayUnique()
   @IsIn(SIGNUP_ROLES, { each: true })
-  roles!: Array<(typeof SIGNUP_ROLES)[number]>;
+  requestedRoles?: Array<(typeof SIGNUP_ROLES)[number]>;
 }
 
 export class LoginDto {
@@ -60,7 +62,8 @@ export class MeDto {
   @ApiProperty() id!: string;
   @ApiProperty() email!: string;
   @ApiProperty() displayName!: string;
-  @ApiProperty({ enum: ALL_ROLES, isArray: true }) roles!: Array<(typeof ALL_ROLES)[number]>;
+  @ApiProperty({ enum: ALL_ROLES, isArray: true, description: '빈 배열이면 일반 계정' })
+  roles!: Array<(typeof ALL_ROLES)[number]>;
   @ApiProperty({ format: 'date-time' }) createdAt!: Date;
 }
 

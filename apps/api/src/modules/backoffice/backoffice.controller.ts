@@ -1,6 +1,8 @@
-import { Body, Controller, Get, Param, Patch, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { JwtAuthGuard, Roles, RolesGuard } from '../../core/auth/index.js';
+import { CurrentUser, JwtAuthGuard, Roles, RolesGuard, type AuthUser } from '../../core/auth/index.js';
+import { ListRoleRequestsQueryDto, RoleRequestDto } from '../membership/membership.dto.js';
+import { MembershipService } from '../membership/membership.service.js';
 import { AdminScriptDto, AdminUserDto, HideScriptDto } from './backoffice.dto.js';
 import { BackofficeService } from './backoffice.service.js';
 
@@ -10,7 +12,33 @@ import { BackofficeService } from './backoffice.service.js';
 @Roles('ADMIN')
 @Controller('admin')
 export class BackofficeController {
-  constructor(private readonly backoffice: BackofficeService) {}
+  constructor(
+    private readonly backoffice: BackofficeService,
+    private readonly membership: MembershipService,
+  ) {}
+
+  @Get('role-requests')
+  @ApiOperation({ summary: '권한 신청 목록 (관리자). status 생략 시 전체' })
+  @ApiOkResponse({ type: [RoleRequestDto] })
+  roleRequests(@Query() query: ListRoleRequestsQueryDto) {
+    return this.membership.list(query.status);
+  }
+
+  @Post('role-requests/:id/approve')
+  @HttpCode(200)
+  @ApiOperation({ summary: '권한 신청 승인 → 사용자에게 역할 부여 (관리자)' })
+  @ApiOkResponse({ type: RoleRequestDto })
+  approveRole(@Param('id') id: string, @CurrentUser() admin: AuthUser) {
+    return this.membership.approve(id, admin);
+  }
+
+  @Post('role-requests/:id/reject')
+  @HttpCode(200)
+  @ApiOperation({ summary: '권한 신청 거절 (관리자)' })
+  @ApiOkResponse({ type: RoleRequestDto })
+  rejectRole(@Param('id') id: string, @CurrentUser() admin: AuthUser) {
+    return this.membership.reject(id, admin);
+  }
 
   @Get('users')
   @ApiOperation({ summary: '사용자 목록 (관리자)' })
