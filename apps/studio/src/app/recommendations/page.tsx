@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { pct, ReadinessMeter, SimilarWorks } from "@/components/hit-insight";
+import { isUncertain, pct, ReadinessMeter, SimilarWorks } from "@/components/hit-insight";
 import { ErrorText, RequireAuth } from "@/components/ui";
 import { api, unwrap, type Schemas } from "@/lib/api";
 
@@ -65,7 +65,10 @@ function Recommendations() {
                     <span className="badge">{s.genre}</span>
                   </span>
                   {data.mode === "MODEL" && s.probability !== undefined ? (
-                    <strong title={s.low !== undefined && s.high !== undefined ? `범위 ${pct(s.low)} ~ ${pct(s.high)}` : undefined}>{pct(s.probability)}</strong>
+                    <span className="row" style={{ flexWrap: "nowrap" }}>
+                      {isUncertain(s.low, s.high) && <span className="badge warn">불확실</span>}
+                      <strong title={s.low !== undefined && s.high !== undefined ? `범위 ${pct(s.low)} ~ ${pct(s.high)}` : undefined}>{pct(s.probability)}</strong>
+                    </span>
                   ) : data.mode === "NEIGHBORS" && s.score !== null ? (
                     <span className="small muted">신호 {s.score.toFixed(2)}</span>
                   ) : null}

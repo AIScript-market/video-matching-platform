@@ -9,6 +9,9 @@ export type SimilarWork = Schemas["SimilarWorkDto"];
 
 export const pct = (p: number) => `${Math.round(p * 100)}%`;
 
+/** 범위가 이만큼 넓으면 학습 데이터와 많이 다른 대본이라 숫자를 믿기 어렵다 */
+export const isUncertain = (low?: number, high?: number) => low !== undefined && high !== undefined && high - low >= 0.4;
+
 /** 학습 데이터가 모델 학습 기준까지 얼마나 쌓였는지 */
 export function ReadinessMeter({ trainingPairs, requiredPairs }: { trainingPairs: number; requiredPairs: number }) {
   const ratio = Math.min(1, trainingPairs / Math.max(requiredPairs, 1));
@@ -92,6 +95,11 @@ export function HitInsightCard({ scriptId }: { scriptId: string }) {
               <div className="small muted">
                 범위 {pct(insight.low)} ~ {pct(insight.high)}
               </div>
+            )}
+            {isUncertain(insight.low, insight.high) && (
+              <p className="notice small" style={{ margin: "6px 0 0" }}>
+                범위가 넓습니다. 학습한 작품들과 많이 다른 대본이라 이 숫자는 참고만 하세요.
+              </p>
             )}
           </div>
           <ProbabilityBar probability={insight.probability} low={insight.low} high={insight.high} />
