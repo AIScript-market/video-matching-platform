@@ -5,6 +5,7 @@ import { useState } from "react";
 import { ScriptFileUpload } from "@/components/file-upload";
 import { ErrorText, StatusBadge } from "@/components/ui";
 import { api, unwrap, uploadScriptFile, type ScriptDetail } from "@/lib/api";
+import { useSession } from "@/lib/session";
 
 const EMPTY = { title: "", logline: "", synopsis: "", genre: "드라마", fullText: "", previewText: "" };
 const PREVIEW_MAX = 50_000;
@@ -15,6 +16,7 @@ const PREVIEW_MAX = 50_000;
  */
 export function ScriptForm({ script, onSaved }: { script?: ScriptDetail; onSaved?: (s: ScriptDetail) => void }) {
   const router = useRouter();
+  const { refresh } = useSession();
   const [form, setForm] = useState(
     script
       ? {
@@ -125,12 +127,13 @@ export function ScriptForm({ script, onSaved }: { script?: ScriptDetail; onSaved
         </div>
         {script && (
           <ScriptFileUpload
-            label="파일로 본문 바꾸기"
+            label="파일로 본문 바꾸기 (5코인)"
             upload={(file) => uploadScriptFile(`/scripts/${script.id}/upload`, file)}
             onDone={(updated) => {
               setForm((f) => ({ ...f, fullText: updated.fullText ?? "" }));
               setNotice("파일 내용으로 본문을 바꿨습니다. AI 요약도 다시 만듭니다.");
               onSaved?.(updated);
+              void refresh();
             }}
           />
         )}
@@ -139,8 +142,7 @@ export function ScriptForm({ script, onSaved }: { script?: ScriptDetail; onSaved
       <div className="card stack" aria-label="미리보기 대본 편집">
         <h2 style={{ margin: 0 }}>미리보기 대본 (선택)</h2>
         <p className="small muted">
-          전문 대신 <strong>영상 제작자에게 먼저 보여줄 일부분</strong>입니다. 공개된 대본에서 열람 승인 전 제작자에게 보이고, 일반 계정과
-          비로그인 방문자에게는 보이지 않습니다. 비워 두면 미리보기가 없습니다.
+          전문 대신 <strong>먼저 보여줄 일부분</strong>입니다. 대본을 공개하면 다른 사용자가 코인(3코인)으로 열람권을 사서 볼 수 있습니다. 비워 두면 미리보기가 없습니다.
         </p>
         <label>
           미리보기 본문
@@ -165,12 +167,13 @@ export function ScriptForm({ script, onSaved }: { script?: ScriptDetail; onSaved
         </div>
         {script && (
           <ScriptFileUpload
-            label="미리보기 파일 올리기"
+            label="미리보기 파일 올리기 (5코인)"
             upload={(file) => uploadScriptFile(`/scripts/${script.id}/preview/upload`, file)}
             onDone={(updated) => {
               setForm((f) => ({ ...f, previewText: updated.previewText ?? "" }));
               setNotice("파일 내용으로 미리보기 대본을 바꿨습니다.");
               onSaved?.(updated);
+              void refresh();
             }}
           />
         )}

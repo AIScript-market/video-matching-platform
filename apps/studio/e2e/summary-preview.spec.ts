@@ -1,15 +1,13 @@
 import { expect, test } from "@playwright/test";
-import { approveAllFor, login, SEED, signup, suffix as makeSuffix } from "./helpers";
+import { coinBadge, creator, login, SEED, suffix as makeSuffix } from "./helpers";
 
-test("대본을 고칠 때마다 AI 요약이 새로 만들어지고, 미리보기는 제작자에게만 보인다", async ({ browser, request }) => {
+test("대본을 고칠 때마다 AI 요약이 새로 만들어지고, 미리보기는 코인으로 열람권을 산 사람만 본다", async ({ browser }) => {
   const id = makeSuffix();
   const title = `미리보기 테스트 ${id}`;
   const writerEmail = `pvwriter-${id}@e2e.test`;
   const producerEmail = `pvproducer-${id}@e2e.test`;
-  const writer = await signup(browser, { name: "미리보기작가", email: writerEmail, requested: ["대본 제공자"] });
-  const producer = await signup(browser, { name: "미리보기제작자", email: producerEmail, requested: ["영상 제작자"] });
-  await approveAllFor(request, writerEmail);
-  await approveAllFor(request, producerEmail);
+  const writer = await creator(browser, { name: "미리보기작가", email: writerEmail });
+  const producer = await creator(browser, { name: "미리보기제작자", email: producerEmail });
 
   // 1. 작성 → 임시 저장 → 첫 요약
   await writer.goto("/dashboard/scripts/new");
@@ -46,20 +44,27 @@ test("대본을 고칠 때마다 AI 요약이 새로 만들어지고, 미리보�
   const scriptUrl = writer.url();
   await expect(writer.getByText("미리보기 대본이 있습니다", { exact: false })).toBeVisible();
 
-  // 5. 영상 제작자: 열람 승인 전에도 미리보기는 보이고 전문은 안 보인다
+  // 5. 다른 사용자: 미리보기는 열람권(3코인)을 사야 보인다. 전문은 여전히 안 보인다
   await producer.goto(scriptUrl);
   const preview = producer.getByRole("region", { name: "미리보기 대본" });
+  await expect(preview.getByText("등대지기: 불을 켜.")).toHaveCount(0);
+  await preview.getByRole("button", { name: "미리보기 열람 (3코인)" }).click();
   await expect(preview.getByText("등대지기: 불을 켜.")).toBeVisible();
+  await expect(coinBadge(producer)).toHaveText("🪙 7");
   await expect(producer.getByText("선장: 보인다.")).toHaveCount(0);
+  await producer.reload();
+  await expect(producer.getByRole("region", { name: "미리보기 대본" }).getByText("등대지기: 불을 켜.")).toBeVisible();
+  await expect(coinBadge(producer)).toHaveText("🪙 7"); // 다시 볼 때는 차감 없음
   await expect(producer.getByRole("region", { name: "AI 요약" }).getByText("두 번째 버전의 시놉시스입니다.", { exact: false })).toBeVisible();
 
-  // 6. 일반 계정과 비로그인에게는 미리보기가 없다
+  // 6. 프로필 비공개 계정은 프로필 공개 안내, 비로그인은 로그인 안내 (미리보기 본문은 안 보임)
   const member = await login(browser, SEED.member.email, SEED.member.password);
   await member.goto(scriptUrl);
-  await expect(member.getByRole("heading", { name: title })).toBeVisible();
-  await expect(member.getByRole("region", { name: "미리보기 대본" })).toHaveCount(0);
+  const memberPreview = member.getByRole("region", { name: "미리보기 대본" });
+  await expect(memberPreview.getByRole("link", { name: "프로필 공개하러 가기" })).toBeVisible();
+  await expect(member.getByText("등대지기: 불을 켜.")).toHaveCount(0);
   const anon = await (await browser.newContext()).newPage();
   await anon.goto(scriptUrl);
-  await expect(anon.getByRole("heading", { name: title })).toBeVisible();
-  await expect(anon.getByRole("region", { name: "미리보기 대본" })).toHaveCount(0);
+  await expect(anon.getByRole("link", { name: "로그인하고 미리보기 보기" })).toBeVisible();
+  await expect(anon.getByText("등대지기: 불을 켜.")).toHaveCount(0);
 });

@@ -1,18 +1,14 @@
 import { expect, test } from "@playwright/test";
-import { approveAllFor, signup, suffix as makeSuffix } from "./helpers";
+import { creator, suffix as makeSuffix } from "./helpers";
 
 const suffix = makeSuffix();
 
-test("대본 제공자와 제작자가 대본으로 매칭되어 딜이 만들어진다", async ({ browser, request }) => {
+test("대본 제공자와 제작자가 대본으로 매칭되어 딜이 만들어진다", async ({ browser }) => {
   const title = `E2E 대본 ${suffix}`;
 
-  // 0. 권한을 신청하며 가입하고 관리자가 승인 (승인 흐름 자체는 roles.spec.ts에서 화면으로 확인)
-  const writerEmail = `writer-${suffix}@e2e.test`;
-  const producerEmail = `producer-${suffix}@e2e.test`;
-  const writer = await signup(browser, { name: "작가E2E", email: writerEmail, requested: ["대본 제공자"] });
-  const producer = await signup(browser, { name: "제작자E2E", email: producerEmail, requested: ["영상 제작자"] });
-  await approveAllFor(request, writerEmail);
-  await approveAllFor(request, producerEmail);
+  // 0. 일반 가입 → 프로필·이메일 공개
+  const writer = await creator(browser, { name: "작가E2E", email: `writer-${suffix}@e2e.test` });
+  const producer = await creator(browser, { name: "제작자E2E", email: `producer-${suffix}@e2e.test` });
 
   // 1. 대본 작성 → 권리 진술 → 공개
   await writer.goto("/dashboard/scripts/new");

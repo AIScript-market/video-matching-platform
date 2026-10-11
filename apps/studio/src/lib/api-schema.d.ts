@@ -82,13 +82,48 @@ export interface paths {
         get: operations["IdentityController_me"];
         put?: never;
         post?: never;
+        /** 회원 탈퇴 (비밀번호 확인). 같은 이메일로 다시 가입할 수 있다 */
+        delete: operations["ProfilesController_withdraw"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/coins": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 내 코인 잔액, 가격표, 구매 패키지 */
+        get: operations["WalletController_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/role-requests": {
+    "/coins/transactions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 내 코인 사용·충전 내역 (최신순) */
+        get: operations["WalletController_history"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/coins/purchase": {
         parameters: {
             query?: never;
             header?: never;
@@ -97,25 +132,93 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** 권한 신청 (대본 제공자 WRITER / 영상 제작자 PRODUCER). 관리자가 승인하면 역할이 생긴다 */
-        post: operations["MembershipController_request"];
+        /** 코인 구매 (지금은 테스트 결제로 바로 충전) */
+        post: operations["WalletController_purchase"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/role-requests/mine": {
+    "/users/{id}": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** 내 권한 신청 내역 */
-        get: operations["MembershipController_mine"];
+        /** 공개 프로필 (공개한 계정만. 이메일은 공개한 경우에만) */
+        get: operations["ProfilesController_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** 내 프로필 수정 (이름, 소개, 프로필·이메일 공개) */
+        patch: operations["ProfilesController_update"];
+        trace?: never;
+    };
+    "/admin/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 사용자 목록 (관리자). 상태·검색 필터 */
+        get: operations["BackofficeController_users"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/users/{id}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** 일반 계정 정지·해제 (관리자). 정지된 이메일로는 다시 가입할 수 없다 */
+        patch: operations["BackofficeController_setStatus"];
+        trace?: never;
+    };
+    "/admin/users/{id}/coins": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 코인 지급(+)·회수(-) (관리자) */
+        post: operations["BackofficeController_adjustCoins"];
         delete?: never;
         options?: never;
         head?: never;
@@ -129,7 +232,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** 메시지 로그 (제작자·작가 간 모든 메시지, 최신순) */
+        /** 메시지 로그 (최신순) */
         get: operations["BackofficeController_messageLogs"];
         put?: never;
         post?: never;
@@ -173,66 +276,15 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/admin/role-requests": {
+    "/admin/logs/coins": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** 권한 신청 목록 (관리자). status 생략 시 전체 */
-        get: operations["BackofficeController_roleRequests"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/admin/role-requests/{id}/approve": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** 권한 신청 승인 → 사용자에게 역할 부여 (관리자) */
-        post: operations["BackofficeController_approveRole"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/admin/role-requests/{id}/reject": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** 권한 신청 거절 (관리자) */
-        post: operations["BackofficeController_rejectRole"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/admin/users": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** 사용자 목록 (관리자) */
-        get: operations["BackofficeController_users"];
+        /** 코인 충전·사용 로그 (최신순) */
+        get: operations["BackofficeController_coinLogs"];
         put?: never;
         post?: never;
         delete?: never;
@@ -302,7 +354,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** 파일로 새 대본 초안 만들기 (.txt, .md, .fountain, .docx, .pdf, 최대 5MB) */
+        /** 파일로 새 대본 초안 만들기 (코인 사용, .txt, .md, .fountain, .docx, .pdf, 최대 5MB) */
         post: operations["ScriptsController_upload"];
         delete?: never;
         options?: never;
@@ -319,7 +371,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** 대본 전문을 업로드한 파일 내용으로 바꾸기 (작가 본인) */
+        /** 대본 전문을 업로드한 파일 내용으로 바꾸기 (작가 본인, 코인 사용) */
         post: operations["ScriptsController_replaceUpload"];
         delete?: never;
         options?: never;
@@ -336,7 +388,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** 미리보기 대본을 파일로 올리기 (작가 본인). 열람 승인 전 제작자에게 보인다 */
+        /** 미리보기 대본을 파일로 올리기 (작가 본인, 코인 사용) */
         post: operations["ScriptsController_uploadPreview"];
         delete?: never;
         options?: never;
@@ -355,6 +407,23 @@ export interface paths {
         put?: never;
         /** AI 요약 다시 만들기 (작가 본인). 내용이 바뀌면 자동으로도 다시 만든다 */
         post: operations["ScriptsController_refreshSummary"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/scripts/{id}/preview/unlock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 미리보기 열람권 구매 (코인). 이미 샀으면 다시 차감하지 않는다 */
+        post: operations["ScriptsController_unlockPreview"];
         delete?: never;
         options?: never;
         head?: never;
@@ -405,7 +474,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** 전문 열람 요청 (제작자, NDA 동의 필수) */
+        /** 전문 열람 요청 (프로필·이메일 공개 필요, NDA 동의 필수) */
         post: operations["AccessController_request"];
         delete?: never;
         options?: never;
@@ -439,7 +508,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** 열람 요청 승인 (대본 작가) */
+        /** 열람 요청 승인 (대본 작성자) */
         post: operations["AccessController_approve"];
         delete?: never;
         options?: never;
@@ -456,7 +525,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** 열람 요청 거절 (대본 작가) */
+        /** 열람 요청 거절 (대본 작성자) */
         post: operations["AccessController_reject"];
         delete?: never;
         options?: never;
@@ -473,7 +542,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** 협상 시작 (열람 승인된 제작자). 이미 있으면 기존 협상을 반환 */
+        /** 협상 시작 (열람 승인을 받은 사람). 이미 있으면 기존 협상을 반환 */
         post: operations["NegotiationsController_start"];
         delete?: never;
         options?: never;
@@ -490,7 +559,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** 대본 검토 후 작가에게 메시지 보내기 (전문을 열람한 제작자). 협상 대화로 이어진다 */
+        /** 대본 검토 후 작가에게 메시지 보내기 (전문을 열람한 사람, 코인 사용). 협상 대화로 이어진다 */
         post: operations["NegotiationsController_contact"];
         delete?: never;
         options?: never;
@@ -542,7 +611,7 @@ export interface paths {
         /** 메시지 목록. after=<메시지 id>로 폴링 */
         get: operations["NegotiationsController_messages"];
         put?: never;
-        /** 메시지 보내기 */
+        /** 메시지 보내기 (코인 사용) */
         post: operations["NegotiationsController_postMessage"];
         delete?: never;
         options?: never;
@@ -679,17 +748,21 @@ export interface components {
             email: string;
             password: string;
             displayName: string;
-            /** @description 가입과 함께 관리자에게 신청할 권한 (WRITER 대본 제공자 / PRODUCER 영상 제작자, 둘 다 가능). 가입 직후에는 역할이 없는 일반 계정이고, 관리자가 승인하면 역할이 생긴다 */
-            requestedRoles?: ("WRITER" | "PRODUCER")[];
         };
         MeDto: {
             id: string;
             email: string;
             displayName: string;
-            /** @description 빈 배열이면 일반 계정 */
+            /** @description 빈 배열이면 일반 계정, ADMIN이면 관리자 */
             roles: ("WRITER" | "PRODUCER" | "ADMIN")[];
             /** Format: date-time */
             createdAt: string;
+            bio: string | null;
+            profilePublic: boolean;
+            emailPublic: boolean;
+            /** @description 대본 제공·영상 제작 가능 (소개 작성 + 프로필·이메일 공개) */
+            creatorReady: boolean;
+            coinBalance: number;
         };
         AuthResultDto: {
             user: components["schemas"]["MeDto"];
@@ -700,34 +773,112 @@ export interface components {
             email: string;
             password: string;
         };
-        CreateRoleRequestDto: {
-            /**
-             * @description WRITER = 대본 제공자, PRODUCER = 영상 제작자
-             * @enum {string}
-             */
-            role: "WRITER" | "PRODUCER";
-            /** @description 관리자에게 남길 말 (경력, 포트폴리오 등) */
-            message?: string;
+        CoinPricesDto: {
+            MESSAGE: number;
+            PREVIEW_UNLOCK: number;
+            SCRIPT_UPLOAD: number;
         };
-        RequesterDto: {
+        CoinPackageDto: {
+            id: string;
+            coins: number;
+            priceKrw: number;
+            label: string;
+        };
+        WalletDto: {
+            balance: number;
+            prices: components["schemas"]["CoinPricesDto"];
+            packages: components["schemas"]["CoinPackageDto"][];
+            /** @description 테스트 결제 여부 (실제 결제 미연동) */
+            testPayments: boolean;
+        };
+        CoinTransactionDto: {
+            id: string;
+            /** @enum {string} */
+            type: "SIGNUP_BONUS" | "PURCHASE" | "SPEND" | "ADMIN_ADJUST";
+            /** @description + 충전 / - 사용 */
+            amount: number;
+            balanceAfter: number;
+            /** @enum {string|null} */
+            use: "MESSAGE" | "PREVIEW_UNLOCK" | "SCRIPT_UPLOAD" | null;
+            refId: string | null;
+            priceKrw: number | null;
+            memo: string | null;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        CoinTransactionPageDto: {
+            items: components["schemas"]["CoinTransactionDto"][];
+            nextCursor: string | null;
+        };
+        PurchaseCoinsDto: {
+            /** @enum {string} */
+            packageId: "coins_10" | "coins_55" | "coins_120";
+        };
+        ProfileScriptDto: {
+            id: string;
+            title: string;
+            genre: string;
+            logline: string;
+        };
+        PublicProfileDto: {
+            id: string;
+            displayName: string;
+            bio: string | null;
+            /** @description 이메일 공개 시에만 */
+            email: string | null;
+            profilePublic: boolean;
+            emailPublic: boolean;
+            /** @description 대본 제공·영상 제작 가능 (프로필·이메일 공개) */
+            creatorReady: boolean;
+            /** Format: date-time */
+            createdAt: string;
+            /** @description 공개 대본 */
+            scripts: components["schemas"]["ProfileScriptDto"][];
+        };
+        UpdateProfileDto: {
+            displayName?: string;
+            /** @description 공개 프로필 소개 (경력, 작품, 관심 장르 등) */
+            bio?: string;
+            /** @description 프로필 공개. 공개하려면 소개가 있어야 한다 */
+            profilePublic?: boolean;
+            /** @description 공개 프로필에 이메일 표시 */
+            emailPublic?: boolean;
+        };
+        WithdrawDto: {
+            /** @description 본인 확인용 비밀번호 */
+            password: string;
+        };
+        AdminUserDto: {
             id: string;
             email: string;
             displayName: string;
             roles: ("WRITER" | "PRODUCER" | "ADMIN")[];
-        };
-        RoleRequestDto: {
-            id: string;
-            userId: string;
             /** @enum {string} */
-            role: "WRITER" | "PRODUCER";
-            message: string | null;
-            /** @enum {string} */
-            status: "PENDING" | "APPROVED" | "REJECTED";
+            status: "ACTIVE" | "SUSPENDED" | "WITHDRAWN";
+            /** Format: date-time */
+            suspendedAt: string | null;
+            suspendReason: string | null;
+            profilePublic: boolean;
+            emailPublic: boolean;
+            coinBalance: number;
             /** Format: date-time */
             createdAt: string;
-            /** Format: date-time */
-            decidedAt: string | null;
-            user: components["schemas"]["RequesterDto"];
+            /** @description 작성한 대본 수 */
+            scriptCount: number;
+        };
+        SetUserStatusDto: {
+            /**
+             * @description SUSPENDED = 정지, ACTIVE = 정지 해제
+             * @enum {string}
+             */
+            status: "ACTIVE" | "SUSPENDED";
+            /** @description 정지 사유 (정지할 때) */
+            reason?: string;
+        };
+        AdjustCoinsDto: {
+            /** @description 지급(+) 또는 회수(-) 코인. 잔액이 음수가 될 수 없다 */
+            amount: number;
+            memo?: string;
         };
         LogScriptDto: {
             id: string;
@@ -738,6 +889,8 @@ export interface components {
             displayName: string;
             email: string;
             roles: ("WRITER" | "PRODUCER" | "ADMIN")[];
+            /** @enum {string} */
+            status: "ACTIVE" | "SUSPENDED" | "WITHDRAWN";
         };
         MessageLogDto: {
             id: string;
@@ -787,15 +940,23 @@ export interface components {
             items: components["schemas"]["UploadLogDto"][];
             nextCursor: string | null;
         };
-        AdminUserDto: {
+        CoinLogDto: {
             id: string;
-            email: string;
-            displayName: string;
-            roles: ("WRITER" | "PRODUCER" | "ADMIN")[];
             /** Format: date-time */
             createdAt: string;
-            /** @description 작성한 대본 수 */
-            scriptCount: number;
+            /** @enum {string} */
+            type: "SIGNUP_BONUS" | "PURCHASE" | "SPEND" | "ADMIN_ADJUST";
+            amount: number;
+            balanceAfter: number;
+            /** @enum {string|null} */
+            use: "MESSAGE" | "PREVIEW_UNLOCK" | "SCRIPT_UPLOAD" | null;
+            priceKrw: number | null;
+            memo: string | null;
+            user: components["schemas"]["LogUserDto"];
+        };
+        CoinLogPageDto: {
+            items: components["schemas"]["CoinLogDto"][];
+            nextCursor: string | null;
         };
         AdminScriptDto: {
             id: string;
@@ -850,6 +1011,8 @@ export interface components {
             accessRequestStatus: "PENDING" | "APPROVED" | "REJECTED" | null;
             canReadFullText: boolean;
             canReadPreview: boolean;
+            /** @description 코인으로 미리보기 열람권을 샀는지 */
+            previewUnlocked: boolean;
         };
         ScriptDetailDto: {
             id: string;
@@ -882,8 +1045,10 @@ export interface components {
             rightsDeclaredAt: string | null;
             /** @description 권한이 없으면 null */
             fullText: string | null;
-            /** @description 미리보기 대본. 없거나 볼 권한이 없으면 null */
+            /** @description 미리보기 대본. 없거나 볼 권한(작가 본인·열람권)이 없으면 null */
             previewText: string | null;
+            /** @description 이 대본에 미리보기가 있는지 (열람권 구매 전에도 알 수 있음) */
+            previewAvailable: boolean;
             viewer: components["schemas"]["ViewerAccessDto"];
         };
         ScriptSummaryDto: {
@@ -1234,7 +1399,7 @@ export interface operations {
             };
         };
     };
-    MembershipController_request: {
+    ProfilesController_withdraw: {
         parameters: {
             query?: never;
             header?: never;
@@ -1243,21 +1408,19 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["CreateRoleRequestDto"];
+                "application/json": components["schemas"]["WithdrawDto"];
             };
         };
         responses: {
-            200: {
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["RoleRequestDto"];
-                };
+                content?: never;
             };
         };
     };
-    MembershipController_mine: {
+    WalletController_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -1271,7 +1434,166 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["RoleRequestDto"][];
+                    "application/json": components["schemas"]["WalletDto"];
+                };
+            };
+        };
+    };
+    WalletController_history: {
+        parameters: {
+            query?: {
+                cursor?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CoinTransactionPageDto"];
+                };
+            };
+        };
+    };
+    WalletController_purchase: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PurchaseCoinsDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WalletDto"];
+                };
+            };
+        };
+    };
+    ProfilesController_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicProfileDto"];
+                };
+            };
+        };
+    };
+    ProfilesController_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateProfileDto"];
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    BackofficeController_users: {
+        parameters: {
+            query?: {
+                status?: "ACTIVE" | "SUSPENDED" | "WITHDRAWN";
+                /** @description 이름·이메일 검색 */
+                q?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminUserDto"][];
+                };
+            };
+        };
+    };
+    BackofficeController_setStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetUserStatusDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminUserDto"];
+                };
+            };
+        };
+    };
+    BackofficeController_adjustCoins: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdjustCoinsDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WalletDto"];
                 };
             };
         };
@@ -1351,10 +1673,14 @@ export interface operations {
             };
         };
     };
-    BackofficeController_roleRequests: {
+    BackofficeController_coinLogs: {
         parameters: {
             query?: {
-                status?: "PENDING" | "APPROVED" | "REJECTED";
+                /** @description 대본 제목, 사용자 이름·이메일 검색 */
+                q?: string;
+                /** @description 이전 응답의 nextCursor */
+                cursor?: string;
+                take?: number;
             };
             header?: never;
             path?: never;
@@ -1367,68 +1693,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["RoleRequestDto"][];
-                };
-            };
-        };
-    };
-    BackofficeController_approveRole: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RoleRequestDto"];
-                };
-            };
-        };
-    };
-    BackofficeController_rejectRole: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RoleRequestDto"];
-                };
-            };
-        };
-    };
-    BackofficeController_users: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AdminUserDto"][];
+                    "application/json": components["schemas"]["CoinLogPageDto"];
                 };
             };
         };
@@ -1612,6 +1877,27 @@ export interface operations {
         };
     };
     ScriptsController_refreshSummary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScriptDetailDto"];
+                };
+            };
+        };
+    };
+    ScriptsController_unlockPreview: {
         parameters: {
             query?: never;
             header?: never;
