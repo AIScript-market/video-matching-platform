@@ -114,13 +114,14 @@ model User {
   coinTransactions     CoinTransaction[]
   previewUnlocks       ScriptPreviewUnlock[]
 
-  identity          IdentityVerification?
-  talentProfile     TalentProfile?        @relation("TalentUser")
-  wards             TalentProfile[]       @relation("TalentGuardian")
-  castingOffers     CastingOffer[]
-  takedownRequests  TakedownRequest[]     @relation("TakedownRequester")
-  takedownDecisions TakedownRequest[]     @relation("TakedownDecider")
-  likenessAccess    LikenessAccessLog[]
+  identity           IdentityVerification?
+  talentProfile      TalentProfile?            @relation("TalentUser")
+  wards              TalentProfile[]           @relation("TalentGuardian")
+  castingOffers      CastingOffer[]
+  takedownRequests   TakedownRequest[]         @relation("TakedownRequester")
+  takedownDecisions  TakedownRequest[]         @relation("TakedownDecider")
+  likenessAccess     LikenessAccessLog[]
+  performanceRecords WorkPerformanceSnapshot[]
 }
 
 model Script {
@@ -142,6 +143,9 @@ model Script {
   previewText          String?      @db.Text
   /// 내용(제목·로그라인·시놉시스·장르·전문·미리보기)이 마지막으로 바뀐 시각. 공개·숨김 같은 상태 변경은 포함하지 않는다
   contentUpdatedAt     DateTime     @default(now())
+  /// 흥행 판단 모델의 분석·학습에 이 대본을 써도 된다는 작가의 동의 (선택, 기본 동의 안 함)
+  trainingConsent      Boolean      @default(false)
+  trainingConsentAt    DateTime?
   createdAt            DateTime     @default(now())
   updatedAt            DateTime     @updatedAt
 
@@ -623,8 +627,9 @@ model Work {
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
-  appearances WorkAppearance[]
-  takedowns   TakedownRequest[]
+  appearances  WorkAppearance[]
+  takedowns    TakedownRequest[]
+  performances WorkPerformanceSnapshot[]
 }
 
 model WorkAppearance {
@@ -674,4 +679,30 @@ model TakedownRequest {
   createdAt       DateTime       @default(now())
 
   @@index([status, createdAt])
+}
+
+/// 공개된 작품의 성과 기록 (흥행 판단 모델의 정답 데이터). 지금은 기획사·관리자가 직접 입력하고, 나중에 유튜브 분석 API로 채운다
+model WorkPerformanceSnapshot {
+  id                 String   @id @default(cuid())
+  workId             String
+  work               Work     @relation(fields: [workId], references: [id], onDelete: Cascade)
+  /// 이 숫자를 확인한 시각
+  capturedAt         DateTime
+  views              Int
+  /// 총 시청 시간 (분)
+  watchTimeMinutes   Int?
+  /// 평균 시청 지속 시간 (초)
+  avgViewDurationSec Int?
+  likes              Int?
+  comments           Int?
+  subscribersGained  Int?
+  /// 이 시점까지의 누적 수익 (원)
+  revenueKrw         Int?
+  /// MANUAL(직접 입력) / YOUTUBE_API
+  source             String   @default("MANUAL")
+  recordedById       String
+  recordedBy         User     @relation(fields: [recordedById], references: [id])
+  createdAt          DateTime @default(now())
+
+  @@index([workId, capturedAt])
 }
