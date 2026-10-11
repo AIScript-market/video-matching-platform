@@ -15,6 +15,8 @@ export class RecordPerformanceDto {
   @ApiPropertyOptional({ description: '평균 시청 지속 시간 (초)' }) @IsOptional() @IsInt() @Min(0) @Max(86_400) avgViewDurationSec?: number;
   @ApiPropertyOptional() @IsOptional() @IsInt() @Min(0) @Max(INT_MAX) likes?: number;
   @ApiPropertyOptional() @IsOptional() @IsInt() @Min(0) @Max(INT_MAX) comments?: number;
+  @ApiPropertyOptional({ description: '긍정 댓글 수' }) @IsOptional() @IsInt() @Min(0) @Max(INT_MAX) positiveComments?: number;
+  @ApiPropertyOptional({ description: '영상 공개 시점의 채널 구독자 수' }) @IsOptional() @IsInt() @Min(0) @Max(INT_MAX) channelSubscribers?: number;
   @ApiPropertyOptional({ description: '이 영상으로 늘어난 구독자' }) @IsOptional() @IsInt() @Min(0) @Max(INT_MAX) subscribersGained?: number;
   @ApiPropertyOptional({ description: '누적 수익 (원)' }) @IsOptional() @IsInt() @Min(0) @Max(INT_MAX) revenueKrw?: number;
 }
@@ -28,6 +30,8 @@ export class PerformanceSnapshotDto {
   @ApiProperty({ nullable: true, type: Number }) avgViewDurationSec!: number | null;
   @ApiProperty({ nullable: true, type: Number }) likes!: number | null;
   @ApiProperty({ nullable: true, type: Number }) comments!: number | null;
+  @ApiProperty({ nullable: true, type: Number }) positiveComments!: number | null;
+  @ApiProperty({ nullable: true, type: Number }) channelSubscribers!: number | null;
   @ApiProperty({ nullable: true, type: Number }) subscribersGained!: number | null;
   @ApiProperty({ nullable: true, type: Number }) revenueKrw!: number | null;
   @ApiProperty({ enum: ['MANUAL', 'YOUTUBE_API'] }) source!: string;
