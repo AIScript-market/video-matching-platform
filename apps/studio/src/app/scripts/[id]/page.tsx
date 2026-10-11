@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import { CreatorNotice, ErrorText, Modal, StatusBadge } from "@/components/ui";
 import { api, dateTime, unwrap, type ScriptDetail } from "@/lib/api";
 import { ReviewMessage } from "@/components/review-message";
+import { ReportButton } from "@/components/report-button";
 import { AiSummaryCard } from "@/components/ai-summary-card";
 import { useSession } from "@/lib/session";
 
@@ -193,6 +194,12 @@ export default function ScriptDetailPage() {
         <div>
           <ErrorText error={error} />
         </div>
+        {!viewer.isAuthor && (
+          <div className="row small muted">
+            <span>문제가 있는 대본·작성자인가요?</span>
+            <ReportButton targetId={script.author.id} targetName={script.author.displayName} scriptId={script.id} />
+          </div>
+        )}
       </aside>
 
       {ndaOpen && (

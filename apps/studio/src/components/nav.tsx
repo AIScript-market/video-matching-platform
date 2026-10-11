@@ -28,6 +28,7 @@ export function Nav() {
           {user && link("/negotiations", "협상")}
           {user && link("/deals", "내 딜")}
           {has("ADMIN") && link("/admin", "관리자")}
+          {has("ADMIN") && link("/admin/reports", "신고")}
           {has("ADMIN") && link("/admin/logs", "활동 로그")}
           {user && link("/account", "내 계정")}
           {DEV_ACCOUNTS_ENABLED && link("/dev/accounts", "계정 전환(개발)")}

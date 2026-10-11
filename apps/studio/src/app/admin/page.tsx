@@ -101,9 +101,14 @@ function Admin() {
     <div className="stack">
       <div className="spread">
         <h1>관리자</h1>
-        <Link href="/admin/logs" className="button secondary">
-          활동 로그 (메시지·열람·업로드·코인)
-        </Link>
+        <div className="row">
+          <Link href="/admin/reports" className="button secondary">
+            신고 관리
+          </Link>
+          <Link href="/admin/logs" className="button secondary">
+            활동 로그
+          </Link>
+        </div>
       </div>
       <ErrorText error={error} />
 
@@ -141,6 +146,7 @@ function Admin() {
                 <th>프로필</th>
                 <th className="num">코인</th>
                 <th className="num">대본</th>
+                <th className="num">신고</th>
                 <th>관리</th>
               </tr>
             </thead>
@@ -171,6 +177,19 @@ function Admin() {
                     </td>
                     <td className="num">{u.coinBalance}</td>
                     <td className="num">{u.scriptCount}</td>
+                    <td className="num">
+                      {u.openReportCount > 0 ? (
+                        <Link
+                          href={`/admin/reports?target=${u.id}&name=${encodeURIComponent(u.displayName)}`}
+                          className="badge warn"
+                          title="처리 전 신고"
+                        >
+                          {u.openReportCount}
+                        </Link>
+                      ) : (
+                        <span className="muted">0</span>
+                      )}
+                    </td>
                     <td>
                       {!isAdmin && u.status !== "WITHDRAWN" && (
                         <div className="row">

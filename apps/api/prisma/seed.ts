@@ -146,7 +146,21 @@ async function main() {
     };
     await prisma.script.upsert({ where: { id: s.id }, update: data, create: data });
   }
-  console.log(`시드 완료: 사용자 ${SEED_USERS.length}명, 공개 대본 ${scripts.length}편`);
+  // 관리자 신고 화면 확인용 예시 신고 (처리 전). 이미 있으면 다시 만들지 않는다
+  const sampleReports = [
+    { reporter: 'writer2@vmp.dev', target: 'member1@vmp.dev', reason: 'SPAM' as const, details: '제작 문의를 가장한 홍보 링크를 보냈습니다.' },
+    { reporter: 'producer2@vmp.dev', target: 'member1@vmp.dev', reason: 'ABUSE' as const, details: '협상 중 욕설을 했습니다.' },
+  ];
+  for (const r of sampleReports) {
+    const reporterId = ids.get(r.reporter)!;
+    const targetId = ids.get(r.target)!;
+    const exists = await prisma.accountReport.findFirst({ where: { reporterId, targetId } });
+    if (!exists) {
+      await prisma.accountReport.create({ data: { reporterId, targetId, reason: r.reason, details: r.details } });
+    }
+  }
+
+  console.log(`시드 완료: 사용자 ${SEED_USERS.length}명, 공개 대본 ${scripts.length}편, 예시 신고 ${sampleReports.length}건`);
 }
 
 try {

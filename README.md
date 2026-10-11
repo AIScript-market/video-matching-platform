@@ -19,7 +19,8 @@
 | 협상 | 채팅(3초 폴링), 조건 제안(분배 합 100, 선급금, 기간, 독점), 역제안·수락·거절·철회, 제안 이력 |
 | 매칭 | 제안 수락 시 딜과 라이선스(초안) 생성. 독점이면 같은 대본의 다른 협상 종료 |
 | 장부 | 관리자가 딜별 수익·지급·수수료·조정 기록, 참여자는 조회 |
-| 관리자 | 일반 계정 정지·해제, 코인 지급, 사용자 목록·검색, 대본 숨김·해제, 장부 기록, **활동 로그**(메시지·전문 열람·업로드·코인, `/admin/logs`) |
+| 계정 신고 | 공개 프로필·대본 상세(작성자)·협상방(상대방)에서 사유(스팸, 욕설, 사기, 저작권, 부적절한 콘텐츠, 기타)와 내용으로 신고 |
+| 관리자 | **신고 관리**(신고된 계정을 신고 많은 순으로, 신고 목록, 기각·처리·정지하고 처리, `/admin/reports`), 일반 계정 정지·해제, 코인 지급, 사용자 목록·검색, 대본 숨김·해제, 장부 기록, **활동 로그**(메시지·전문 열람·업로드·코인, `/admin/logs`) |
 
 ### 계정별로 할 수 있는 것
 
@@ -56,7 +57,7 @@ docker compose -f ops/compose.yaml up --build
 | 일반 (비공개) | `member1@vmp.dev` | `member1234!` | 프로필 공개 전이라 창작 활동 불가, 10코인 |
 | 정지된 계정 | `suspended1@vmp.dev` | `member1234!` | 로그인·같은 이메일 재가입 불가 |
 
-"마지막 열차"(writer1)에는 미리보기 대본이 있어서 다른 계정으로 3코인 열람권 구매를 시험할 수 있다.
+"마지막 열차"(writer1)에는 미리보기 대본이 있어서 다른 계정으로 3코인 열람권 구매를 시험할 수 있다. `member1`에는 처리 전 예시 신고 2건이 있어서 관리자 신고 관리 화면을 바로 볼 수 있다.
 
 **계정별 접속 주소 (개발용)**: http://localhost:3000/dev/accounts 에 계정마다 전용 주소가 있다 (`admin.localhost:3000`, `writer1.localhost:3000`, `producer1.localhost:3000`, `member1.localhost:3000`, `suspended1.localhost:3000` …). 로그인 쿠키는 호스트 이름별로 나뉘므로, 주소가 다르면 한 브라우저의 여러 탭에서 서로 다른 계정을 동시에 쓸 수 있다. "바로 로그인"은 `<계정>.localhost:3000/dev/login?as=<계정>`으로 시드 계정에 자동 로그인한다. `NEXT_PUBLIC_DEV_ACCOUNTS=true`일 때만 나타난다 (ops/compose.yaml에서만 켬). `*.localhost`는 Chrome·Edge·Firefox에서 바로 열린다.
 
@@ -71,6 +72,7 @@ apps/
     src/modules/identity    가입·로그인·내 정보
     src/modules/profiles    공개 프로필, 프로필 편집, 탈퇴
     src/modules/wallet      코인 (가격표, 구매, 차감, 내역)
+    src/modules/reports     계정 신고, 관리자 신고 관리
     src/modules/backoffice  관리자 API (/admin/*: 계정 정지, 코인 지급, 활동 로그)
     src/modules/{scripts,access,negotiations,deals,ledger}  도메인 API
     prisma/                 스키마, 마이그레이션, 시드

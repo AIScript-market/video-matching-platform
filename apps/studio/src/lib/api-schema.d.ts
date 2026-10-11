@@ -327,6 +327,74 @@ export interface paths {
         patch: operations["BackofficeController_hide"];
         trace?: never;
     };
+    "/users/{id}/reports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 계정 신고 (로그인한 사용자). 같은 계정을 처리 전에 다시 신고할 수 없다 */
+        post: operations["ReportsController_report"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/reported-users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 신고된 계정 (처리 전 신고가 있는 계정, 많이 신고된 순) */
+        get: operations["AdminReportsController_reportedUsers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/reports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 신고 목록 (최신순). 상태·대상 계정으로 거르기 */
+        get: operations["AdminReportsController_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/reports/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** 신고 처리: 조치함(RESOLVED) / 기각(DISMISSED). suspend=true면 계정 정지 후 처리 */
+        patch: operations["AdminReportsController_resolve"];
+        trace?: never;
+    };
     "/scripts": {
         parameters: {
             query?: never;
@@ -865,6 +933,8 @@ export interface components {
             createdAt: string;
             /** @description 작성한 대본 수 */
             scriptCount: number;
+            /** @description 처리 전 신고 수 */
+            openReportCount: number;
         };
         SetUserStatusDto: {
             /**
@@ -976,6 +1046,82 @@ export interface components {
              * @default true
              */
             hidden: boolean;
+        };
+        CreateReportDto: {
+            /**
+             * @description SPAM 스팸·홍보 / ABUSE 욕설·괴롭힘 / FRAUD 사기·금전 요구 / COPYRIGHT 저작권 침해 / INAPPROPRIATE 부적절한 콘텐츠 / OTHER 기타
+             * @enum {string}
+             */
+            reason: "SPAM" | "ABUSE" | "FRAUD" | "COPYRIGHT" | "INAPPROPRIATE" | "OTHER";
+            /** @description 구체적인 내용 (기타 사유면 필수) */
+            details?: string;
+            /** @description 신고한 위치의 대본 id (선택) */
+            scriptId?: string;
+        };
+        ReportReceiptDto: {
+            id: string;
+            /** @enum {string} */
+            reason: "SPAM" | "ABUSE" | "FRAUD" | "COPYRIGHT" | "INAPPROPRIATE" | "OTHER";
+            /** @enum {string} */
+            status: "OPEN" | "RESOLVED" | "DISMISSED";
+            /** Format: date-time */
+            createdAt: string;
+        };
+        ReportUserDto: {
+            id: string;
+            displayName: string;
+            email: string;
+            /** @enum {string} */
+            status: "ACTIVE" | "SUSPENDED" | "WITHDRAWN";
+        };
+        ReportedUserDto: {
+            user: components["schemas"]["ReportUserDto"];
+            /** @description 처리 전 신고 수 */
+            openCount: number;
+            /** @description 전체 신고 수 */
+            totalCount: number;
+            /** @description 신고한 서로 다른 사람 수 (처리 전) */
+            openReporters: number;
+            /** @description 처리 전 신고 사유 (많은 순) */
+            reasons: ("SPAM" | "ABUSE" | "FRAUD" | "COPYRIGHT" | "INAPPROPRIATE" | "OTHER")[];
+            /** Format: date-time */
+            lastReportedAt: string;
+        };
+        ReportScriptDto: {
+            id: string;
+            title: string;
+        };
+        AdminReportDto: {
+            id: string;
+            /** @enum {string} */
+            reason: "SPAM" | "ABUSE" | "FRAUD" | "COPYRIGHT" | "INAPPROPRIATE" | "OTHER";
+            details: string | null;
+            /** @enum {string} */
+            status: "OPEN" | "RESOLVED" | "DISMISSED";
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            resolvedAt: string | null;
+            resolutionNote: string | null;
+            reporter: components["schemas"]["ReportUserDto"];
+            target: components["schemas"]["ReportUserDto"];
+            script: components["schemas"]["ReportScriptDto"] | null;
+            resolvedBy: components["schemas"]["ReportUserDto"] | null;
+        };
+        AdminReportPageDto: {
+            items: components["schemas"]["AdminReportDto"][];
+            nextCursor: string | null;
+        };
+        ResolveReportDto: {
+            /**
+             * @description RESOLVED = 조치함, DISMISSED = 문제없음(기각)
+             * @enum {string}
+             */
+            status: "RESOLVED" | "DISMISSED";
+            /** @description 처리 메모 */
+            note?: string;
+            /** @description true면 신고된 계정을 정지하고 처리 (status=RESOLVED일 때만) */
+            suspend?: boolean;
         };
         CreateScriptDto: {
             title: string;
@@ -1738,6 +1884,100 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AdminScriptDto"];
+                };
+            };
+        };
+    };
+    ReportsController_report: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateReportDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportReceiptDto"];
+                };
+            };
+        };
+    };
+    AdminReportsController_reportedUsers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportedUserDto"][];
+                };
+            };
+        };
+    };
+    AdminReportsController_list: {
+        parameters: {
+            query?: {
+                status?: "OPEN" | "RESOLVED" | "DISMISSED";
+                /** @description 신고된 계정 id로 거르기 */
+                targetId?: string;
+                cursor?: string;
+                take?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminReportPageDto"];
+                };
+            };
+        };
+    };
+    AdminReportsController_resolve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResolveReportDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminReportDto"];
                 };
             };
         };
