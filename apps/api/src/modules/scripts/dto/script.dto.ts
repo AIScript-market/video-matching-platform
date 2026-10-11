@@ -12,6 +12,7 @@ import {
 } from 'class-validator';
 
 export const FULL_TEXT_MAX = 500_000;
+export const PREVIEW_MAX = 50_000;
 
 export class CreateScriptDto {
   @ApiProperty({ maxLength: 120 })
@@ -38,6 +39,15 @@ export class CreateScriptDto {
   @IsString()
   @MaxLength(FULL_TEXT_MAX)
   fullText!: string;
+
+  @ApiPropertyOptional({
+    description: '미리보기 대본: 열람 승인 전 제작자에게 보여줄 일부분. 빈 문자열이면 미리보기 없음',
+    maxLength: PREVIEW_MAX,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(PREVIEW_MAX)
+  previewText?: string;
 
   @ApiPropertyOptional({ description: '권리 보유 진술. 공개하려면 true여야 한다' })
   @IsOptional()
@@ -111,6 +121,11 @@ export class ScriptSummaryDto {
   @ApiProperty() genre!: string;
   @ApiProperty({ enum: SCRIPT_STATUSES }) status!: (typeof SCRIPT_STATUSES)[number];
   @ApiProperty({ type: AiSummaryDto, nullable: true }) aiSummary!: AiSummaryDto | null;
+  @ApiProperty({ description: '내용이 바뀌어 새 AI 요약을 만드는 중' }) aiSummaryPending!: boolean;
+  @ApiProperty({ type: String, format: 'date-time', nullable: true, description: '마지막 AI 요약 요청 시각' })
+  aiSummaryRequestedAt!: Date | null;
+  @ApiProperty({ format: 'date-time', description: '내용(제목·로그라인·시놉시스·장르·전문·미리보기)이 마지막으로 바뀐 시각' })
+  contentUpdatedAt!: Date;
   @ApiProperty({ type: AuthorDto }) author!: AuthorDto;
   @ApiProperty({ format: 'date-time' }) createdAt!: Date;
   @ApiProperty({ format: 'date-time' }) updatedAt!: Date;
@@ -126,6 +141,7 @@ export class ViewerAccessDto {
   @ApiProperty({ enum: ['PENDING', 'APPROVED', 'REJECTED'], nullable: true })
   accessRequestStatus!: 'PENDING' | 'APPROVED' | 'REJECTED' | null;
   @ApiProperty() canReadFullText!: boolean;
+  @ApiProperty() canReadPreview!: boolean;
 }
 
 export class ScriptDetailDto extends ScriptSummaryDto {
@@ -133,6 +149,8 @@ export class ScriptDetailDto extends ScriptSummaryDto {
   @ApiProperty({ type: String, format: 'date-time', nullable: true }) rightsDeclaredAt!: Date | null;
   @ApiProperty({ nullable: true, type: String, description: '권한이 없으면 null' })
   fullText!: string | null;
+  @ApiProperty({ nullable: true, type: String, description: '미리보기 대본. 없거나 볼 권한이 없으면 null' })
+  previewText!: string | null;
   @ApiProperty({ type: ViewerAccessDto }) viewer!: ViewerAccessDto;
 }
 

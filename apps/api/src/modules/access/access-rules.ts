@@ -16,6 +16,16 @@ export function canSeeScript(
   return script.authorId === viewer.id || viewer.roles.includes('ADMIN');
 }
 
+/** 미리보기 대본을 볼 수 있는가: 작가 본인, 그리고 공개 대본을 보는 영상 제작자 */
+export function canReadPreview(
+  script: { authorId: string; status: ScriptStatus },
+  viewer: Viewer | null,
+): boolean {
+  if (!viewer) return false;
+  if (script.authorId === viewer.id) return true;
+  return script.status === 'PUBLISHED' && viewer.roles.includes('PRODUCER');
+}
+
 /**
  * 전문(fullText)을 볼 수 있는가 — 계약: 작가 본인과 열람 승인된 제작자만.
  * 승인된 제작자라도 대본이 공개 상태가 아니면(숨김 등) 볼 수 없다.

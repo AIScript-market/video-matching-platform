@@ -3,6 +3,7 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
   Param,
   Patch,
   Post,
@@ -76,6 +77,28 @@ export class ScriptsController {
   @ApiOkResponse({ type: ScriptDetailDto })
   replaceUpload(@Param('id') id: string, @CurrentUser() user: Viewer, @UploadedFile() file?: UploadedScriptFile) {
     return this.scripts.replaceFromUpload(id, user, requireFile(file));
+  }
+
+  @Post(':id/preview/upload')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: UPLOAD_MAX_BYTES } }))
+  @ApiConsumes('multipart/form-data')
+  @FileBody()
+  @ApiOperation({ summary: '미리보기 대본을 파일로 올리기 (작가 본인). 열람 승인 전 제작자에게 보인다' })
+  @ApiOkResponse({ type: ScriptDetailDto })
+  uploadPreview(@Param('id') id: string, @CurrentUser() user: Viewer, @UploadedFile() file?: UploadedScriptFile) {
+    return this.scripts.uploadPreview(id, user, requireFile(file));
+  }
+
+  @Post(':id/summary/refresh')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(200)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'AI 요약 다시 만들기 (작가 본인). 내용이 바뀌면 자동으로도 다시 만든다' })
+  @ApiOkResponse({ type: ScriptDetailDto })
+  refreshSummary(@Param('id') id: string, @CurrentUser() user: Viewer) {
+    return this.scripts.refreshSummary(id, user);
   }
 
   @Get()
