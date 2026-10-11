@@ -5,9 +5,14 @@
 //   일반 (공개, 영상 제작) producer1@vmp.dev, producer2@vmp.dev / producer1234!
 //   일반 (비공개)          member1@vmp.dev     / member1234!
 //   정지된 계정            suspended1@vmp.dev  / member1234!  (로그인·같은 이메일 재가입 불가)
+//   출연자 (배우·일반인)    talent1@vmp.dev, talent2@vmp.dev / talent1234!
+//   출연자 (아역, 14세)     kid1@vmp.dev        / talent1234!
+//   보호자 (아역의 대리인)  guardian1@vmp.dev   / guardian1234!
 import { hash } from '@node-rs/argon2';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient, type Role, type UserStatus } from '../src/generated/prisma/client.js';
+import { adultOnFrom, POLICY_VERSION, type ContentTag } from '../src/modules/talent/likeness-policy.js';
+import { vaultFromEnv } from '../src/modules/talent/likeness-vault.js';
 
 const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
@@ -49,6 +54,10 @@ const SEED_USERS: SeedUser[] = [
     email: 'suspended1@vmp.dev', displayName: '강정지', roles: [], password: 'member1234!', coins: 0,
     status: 'SUSPENDED', suspendReason: '타인의 대본을 무단으로 올림',
   },
+  { email: 'talent1@vmp.dev', displayName: '최한별', roles: [], password: 'talent1234!', coins: 10 },
+  { email: 'talent2@vmp.dev', displayName: '정도윤', roles: [], password: 'talent1234!', coins: 10 },
+  { email: 'kid1@vmp.dev', displayName: '윤서아', roles: [], password: 'talent1234!', coins: 10 },
+  { email: 'guardian1@vmp.dev', displayName: '윤보호', roles: [], password: 'guardian1234!', coins: 10 },
 ];
 
 const scripts = [
@@ -146,8 +155,177 @@ async function main() {
     };
     await prisma.script.upsert({ where: { id: s.id }, update: data, create: data });
   }
-  console.log(`시드 완료: 사용자 ${SEED_USERS.length}명, 공개 대본 ${scripts.length}편`);
+  await seedCasting(ids);
+  console.log(`시드 완료: 사용자 ${SEED_USERS.length}명, 공개 대본 ${scripts.length}편, 출연자 3명과 캐스팅 시범 작품`);
 }
+
+// --- 출연자·캐스팅 시범 데이터 (docs/policies/likeness-policy.md) -------------------------
+// 얼굴 스캔은 개발용 키로 암호화한 가짜 파일이다. 실제 사람의 얼굴·목소리는 넣지 않는다.
+const DAY = 86_400_000;
+
+async function seedCasting(ids: Map<string, string>) {
+  const vault = vaultFromEnv();
+  const id = (email: string) => ids.get(email)!;
+  const birth = (age: number) => new Date(Date.UTC(new Date().getUTCFullYear() - age, 0, 15));
+
+  async function registered(email: string, o: { kind: 'ACTOR' | 'GENERAL'; stageName: string; legalName: string; age: number; allowedTags: ContentTag[]; minFeeKrw: number; guardianEmail?: string }) {
+    const userId = id(email);
+    const minor = o.age < 19;
+    const identity = { provider: 'seed', legalName: o.legalName, isMinor: minor, adultOn: minor ? adultOnFrom(birth(o.age)) : null };
+    await prisma.identityVerification.upsert({ where: { userId }, update: identity, create: { userId, ...identity } });
+    const guardian = o.guardianEmail
+      ? { guardianEmail: o.guardianEmail, guardianId: id(o.guardianEmail), guardianConsentAt: new Date(), guardianVerifiedAt: new Date() }
+      : {};
+    const data = {
+      kind: o.kind,
+      stageName: o.stageName,
+      bio: `${o.stageName}의 시범 프로필`,
+      status: 'ACTIVE' as const,
+      allowedTags: o.allowedTags,
+      minFeeKrw: o.minFeeKrw,
+      livenessVerifiedAt: new Date(),
+      consentVersion: POLICY_VERSION,
+      consentedAt: new Date(),
+      withdrawRequestedAt: null,
+      purgeAfter: null,
+      withdrawnAt: null,
+      ...guardian,
+    };
+    const profile = await prisma.talentProfile.upsert({ where: { userId }, update: data, create: { userId, ...data } });
+    const hasFace = await prisma.likenessAsset.count({ where: { talentId: profile.id, kind: 'FACE_SCAN', status: 'ACTIVE' } });
+    if (!hasFace) {
+      const bytes = Buffer.from(`seed face scan of ${o.stageName}`);
+      await prisma.likenessAsset.create({
+        data: { talentId: profile.id, kind: 'FACE_SCAN', contentType: 'image/jpeg', sizeBytes: bytes.length, ...(await vault.store(bytes)) },
+      });
+    }
+    return profile;
+  }
+
+  await prisma.identityVerification.upsert({
+    where: { userId: id('guardian1@vmp.dev') },
+    update: {},
+    create: { userId: id('guardian1@vmp.dev'), provider: 'seed', legalName: '윤보호', isMinor: false },
+  });
+  const actor = await registered('talent1@vmp.dev', {
+    kind: 'ACTOR', stageName: '한별', legalName: '최한별', age: 26, allowedTags: ['ROMANCE', 'VIOLENCE', 'PROFANITY'], minFeeKrw: 200_000,
+  });
+  await registered('talent2@vmp.dev', { kind: 'GENERAL', stageName: '도윤', legalName: '정도윤', age: 31, allowedTags: ['ROMANCE'], minFeeKrw: 0 });
+  const kid = await registered('kid1@vmp.dev', {
+    kind: 'ACTOR', stageName: '서아', legalName: '윤서아', age: 14, allowedTags: ['ROMANCE'], minFeeKrw: 100_000, guardianEmail: 'guardian1@vmp.dev',
+  });
+
+  // "마지막 열차"로 김작가(writer1)와 박제작(producer1)이 맺은 딜 → 작품
+  const writerId = id('writer1@vmp.dev');
+  const producerId = id('producer1@vmp.dev');
+  const scriptId = 'seed_script_last_train';
+  await prisma.negotiation.upsert({
+    where: { id: 'seed_neg_last_train' },
+    update: {},
+    create: { id: 'seed_neg_last_train', scriptId, writerId, producerId, status: 'AGREED' },
+  });
+  await prisma.offer.upsert({
+    where: { id: 'seed_offer_last_train' },
+    update: {},
+    create: {
+      id: 'seed_offer_last_train', negotiationId: 'seed_neg_last_train', proposerId: producerId,
+      writerSharePct: 50, producerSharePct: 50, upfrontFeeKrw: 3_000_000, termMonths: 24, exclusive: true, status: 'ACCEPTED',
+    },
+  });
+  await prisma.deal.upsert({
+    where: { id: 'seed_deal_last_train' },
+    update: {},
+    create: { id: 'seed_deal_last_train', negotiationId: 'seed_neg_last_train', acceptedOfferId: 'seed_offer_last_train' },
+  });
+  await prisma.license.upsert({
+    where: { id: 'seed_license_last_train' },
+    update: {},
+    create: {
+      id: 'seed_license_last_train', dealId: 'seed_deal_last_train', scriptId, licenseeId: producerId,
+      scope: '작가 50% / 제작자 50%, 선급금 3,000,000원, 24개월, 독점',
+    },
+  });
+  await prisma.project.upsert({
+    where: { id: 'seed_project_last_train' },
+    update: {},
+    create: { id: 'seed_project_last_train', dealId: 'seed_deal_last_train', title: '마지막 열차 (유튜브 6부작)' },
+  });
+
+  // 1) 정수 역: 한별과 계약됨, 1화 초안이 출연분 확인을 기다림
+  await prisma.castingRole.upsert({
+    where: { id: 'seed_role_jeongsu' },
+    update: {},
+    create: { id: 'seed_role_jeongsu', projectId: 'seed_project_last_train', name: '정수 (역무원)', description: '폐역을 지키는 50대 역무원', contentTags: ['ROMANCE'], status: 'CAST' },
+  });
+  await prisma.castingNegotiation.upsert({
+    where: { id: 'seed_cneg_jeongsu' },
+    update: {},
+    create: { id: 'seed_cneg_jeongsu', roleId: 'seed_role_jeongsu', talentId: actor.id, initiatedBy: 'STUDIO', status: 'AGREED' },
+  });
+  await prisma.castingOffer.upsert({
+    where: { id: 'seed_coffer_jeongsu' },
+    update: {},
+    create: {
+      id: 'seed_coffer_jeongsu', negotiationId: 'seed_cneg_jeongsu', proposerId: producerId, side: 'STUDIO', feeType: 'FLAT', flatFeeKrw: 300_000,
+      usage: 'DIGITAL', termMonths: 12, exclusive: false, productionDays: 30, status: 'ACCEPTED', respondedAt: new Date(),
+    },
+  });
+  const startsAt = new Date();
+  await prisma.castingContract.upsert({
+    where: { id: 'seed_contract_jeongsu' },
+    update: {},
+    create: {
+      id: 'seed_contract_jeongsu', negotiationId: 'seed_cneg_jeongsu', offerId: 'seed_coffer_jeongsu', projectId: 'seed_project_last_train',
+      roleId: 'seed_role_jeongsu', talentId: actor.id, feeType: 'FLAT', flatFeeKrw: 300_000, perEpisodeFeeKrw: 0, revenueSharePct: 0,
+      usage: 'DIGITAL', contentTags: ['ROMANCE'], exclusive: false, requiresTalentApproval: true, earlyTerminationPct: 50,
+      startsAt, productionEndsAt: new Date(startsAt.getTime() + 30 * DAY), endsAt: new Date(startsAt.getTime() + 365 * DAY),
+    },
+  });
+  // 다시 시드하면 시범 장면을 처음 상태(공개 전, 확인 대기)로 되돌린다
+  await prisma.takedownRequest.deleteMany({ where: { workId: 'seed_work_ep1' } });
+  await prisma.work.upsert({
+    where: { id: 'seed_work_ep1' },
+    update: { status: 'DRAFT', externalUrl: null, publishedAt: null },
+    create: {
+      id: 'seed_work_ep1', projectId: 'seed_project_last_train', title: '마지막 열차 1화', contentTags: ['ROMANCE'],
+      appearances: { create: { contractId: 'seed_contract_jeongsu' } },
+    },
+  });
+
+  await prisma.workAppearance.updateMany({ where: { workId: 'seed_work_ep1' }, data: { approvedAt: null } });
+
+  // 2) 수아 역 (미성년 배역): 서아에게 회당 5만 원 × 6회 제안, 보호자 승인 대기
+  await prisma.castingContract.deleteMany({ where: { id: { not: 'seed_contract_jeongsu' }, projectId: 'seed_project_last_train', roleId: 'seed_role_sua', appearances: { none: {} } } });
+  await prisma.castingRole.upsert({
+    where: { id: 'seed_role_sua' },
+    update: {},
+    create: { id: 'seed_role_sua', projectId: 'seed_project_last_train', name: '수아 (정수의 조카, 중학생)', isMinorRole: true, contentTags: ['ROMANCE'] },
+  });
+  await prisma.castingRole.update({ where: { id: 'seed_role_sua' }, data: { status: 'OPEN' } });
+  await prisma.castingNegotiation.upsert({
+    where: { id: 'seed_cneg_sua' },
+    update: { status: 'OPEN' },
+    create: { id: 'seed_cneg_sua', roleId: 'seed_role_sua', talentId: kid.id, initiatedBy: 'STUDIO' },
+  });
+  await prisma.castingOffer.upsert({
+    where: { id: 'seed_coffer_sua' },
+    update: {},
+    create: {
+      id: 'seed_coffer_sua', negotiationId: 'seed_cneg_sua', proposerId: producerId, side: 'STUDIO', feeType: 'PER_EPISODE', perEpisodeFeeKrw: 50_000,
+      episodes: 6, usage: 'DIGITAL', termMonths: 12, exclusive: false, productionDays: 45, status: 'PENDING_GUARDIAN', note: '디지털 출연만, 학교 일정과 무관',
+    },
+  });
+  await prisma.castingOffer.update({ where: { id: 'seed_coffer_sua' }, data: { status: 'PENDING_GUARDIAN', respondedAt: null } });
+  await prisma.castingOffer.deleteMany({ where: { negotiationId: 'seed_cneg_sua', id: { not: 'seed_coffer_sua' } } });
+
+  // 3) 공개 오디션
+  await prisma.castingRole.upsert({
+    where: { id: 'seed_role_passenger' },
+    update: {},
+    create: { id: 'seed_role_passenger', projectId: 'seed_project_last_train', name: '마지막 승객', description: '누구나 지원 가능', contentTags: ['ROMANCE'] },
+  });
+}
+
 
 try {
   await main();

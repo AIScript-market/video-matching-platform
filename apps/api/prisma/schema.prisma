@@ -113,6 +113,14 @@ model User {
   scriptUploads        ScriptUpload[]
   coinTransactions     CoinTransaction[]
   previewUnlocks       ScriptPreviewUnlock[]
+
+  identity          IdentityVerification?
+  talentProfile     TalentProfile?        @relation("TalentUser")
+  wards             TalentProfile[]       @relation("TalentGuardian")
+  castingOffers     CastingOffer[]
+  takedownRequests  TakedownRequest[]     @relation("TakedownRequester")
+  takedownDecisions TakedownRequest[]     @relation("TakedownDecider")
+  likenessAccess    LikenessAccessLog[]
 }
 
 model Script {
@@ -221,6 +229,7 @@ model Deal {
 
   licenses      License[]
   ledgerEntries LedgerEntry[]
+  project       Project?
 }
 
 model License {
@@ -249,7 +258,6 @@ model LedgerEntry {
   createdById String
   createdBy   User            @relation(fields: [createdById], references: [id])
 }
-
 
 enum UploadKind {
   FULL // 대본 전문
@@ -303,4 +311,367 @@ model ScriptPreviewUnlock {
   createdAt DateTime @default(now())
 
   @@unique([scriptId, userId])
+}
+
+// ---------------------------------------------------------------------------
+// B: 출연자 등록·캐스팅·작품 공개. 기준: docs/policies/likeness-policy.md
+// 계정은 일반 계정 그대로 쓰고, 출연자는 TalentProfile, 보호자는 본인인증한 일반 계정이다.
+// ---------------------------------------------------------------------------
+
+/// 본인인증 결과. 생년월일은 저장하지 않고, 미성년자는 만 19세가 되는 날만 남긴다
+model IdentityVerification {
+  id         String    @id @default(cuid())
+  userId     String    @unique
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider   String
+  legalName  String
+  isMinor    Boolean
+  /// 미성년자가 만 19세가 되는 날. 성인이면 null
+  adultOn    DateTime?
+  verifiedAt DateTime  @default(now())
+}
+
+enum TalentKind {
+  ACTOR
+  GENERAL
+}
+
+enum TalentStatus {
+  PENDING_VERIFICATION
+  ACTIVE
+  WITHDRAWING
+  WITHDRAWN
+}
+
+/// 장면 유형. 배역 태그 ⊆ 출연자 허용 태그여야 제안할 수 있고, 작품 태그 ⊆ 계약 태그여야 공개할 수 있다
+enum ContentTag {
+  ROMANCE
+  INTIMACY
+  VIOLENCE
+  HORROR
+  DEATH
+  SUBSTANCE
+  PROFANITY
+}
+
+model TalentProfile {
+  id                  String       @id @default(cuid())
+  userId              String       @unique
+  user                User         @relation("TalentUser", fields: [userId], references: [id], onDelete: Cascade)
+  kind                TalentKind
+  stageName           String
+  bio                 String?
+  status              TalentStatus @default(PENDING_VERIFICATION)
+  allowedTags         ContentTag[]
+  /// 받을 수 있는 최저 출연료 (원). 기획사 제안의 보장액이 이보다 낮으면 거절된다
+  minFeeKrw           Int          @default(0)
+  livenessVerifiedAt  DateTime?
+  consentVersion      String?
+  consentedAt         DateTime?
+  /// 미성년자: 보호자가 가입할 이메일, 그다음 연결된 보호자 계정
+  guardianEmail       String?
+  guardianId          String?
+  guardian            User?        @relation("TalentGuardian", fields: [guardianId], references: [id])
+  guardianConsentAt   DateTime?
+  /// 관리자가 가족관계증명서 등으로 관계를 확인한 시각
+  guardianVerifiedAt  DateTime?
+  withdrawRequestedAt DateTime?
+  /// 원본·모델을 삭제할 시각 (숙려 기간과 진행 중 계약의 제작 기한 중 늦은 날)
+  purgeAfter          DateTime?
+  withdrawnAt         DateTime?
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+
+  assets       LikenessAsset[]
+  negotiations CastingNegotiation[]
+  contracts    CastingContract[]
+
+  @@index([status])
+}
+
+enum LikenessAssetKind {
+  FACE_SCAN
+  VOICE
+  MOTION
+}
+
+enum LikenessAssetStatus {
+  ACTIVE
+  DELETED
+}
+
+/// 암호화된 초상 원본. 파일 내용은 저장소(LikenessStorage)에 있고 DB에는 없다
+model LikenessAsset {
+  id          String              @id @default(cuid())
+  talentId    String
+  talent      TalentProfile       @relation(fields: [talentId], references: [id], onDelete: Cascade)
+  kind        LikenessAssetKind
+  storageKey  String              @unique
+  contentType String
+  sizeBytes   Int
+  sha256      String
+  /// 파일별 데이터 키를 마스터 키로 감싼 값. 삭제할 때 지운다 (백업 사본까지 복구 불가)
+  wrappedKey  String?
+  status      LikenessAssetStatus @default(ACTIVE)
+  createdAt   DateTime            @default(now())
+  deletedAt   DateTime?
+
+  accessLogs LikenessAccessLog[]
+
+  @@index([talentId, status])
+}
+
+model LikenessAccessLog {
+  id         String           @id @default(cuid())
+  assetId    String
+  asset      LikenessAsset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User             @relation(fields: [userId], references: [id])
+  contractId String?
+  contract   CastingContract? @relation(fields: [contractId], references: [id])
+  purpose    String
+  accessedAt DateTime         @default(now())
+
+  @@index([assetId, accessedAt])
+}
+
+/// 딜의 작가와 제작자(= 기획사)가 만드는 작품. 딜 하나에 하나
+model Project {
+  id        String   @id @default(cuid())
+  dealId    String   @unique
+  deal      Deal     @relation(fields: [dealId], references: [id])
+  title     String
+  createdAt DateTime @default(now())
+
+  roles     CastingRole[]
+  contracts CastingContract[]
+  works     Work[]
+}
+
+enum CastingRoleStatus {
+  OPEN
+  CAST
+  CLOSED
+}
+
+model CastingRole {
+  id          String            @id @default(cuid())
+  projectId   String
+  project     Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  /// 만 19세 미만 인물. 누가 연기하든 미성년자 제한이 적용된다
+  isMinorRole Boolean           @default(false)
+  contentTags ContentTag[]
+  status      CastingRoleStatus @default(OPEN)
+  createdAt   DateTime          @default(now())
+
+  negotiations CastingNegotiation[]
+  contracts    CastingContract[]
+
+  @@index([status])
+}
+
+enum CastingSide {
+  STUDIO
+  TALENT
+}
+
+enum CastingNegotiationStatus {
+  OPEN
+  AGREED
+  CLOSED
+}
+
+model CastingNegotiation {
+  id          String                   @id @default(cuid())
+  roleId      String
+  role        CastingRole              @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  talentId    String
+  talent      TalentProfile            @relation(fields: [talentId], references: [id], onDelete: Cascade)
+  initiatedBy CastingSide
+  message     String?
+  status      CastingNegotiationStatus @default(OPEN)
+  createdAt   DateTime                 @default(now())
+  updatedAt   DateTime                 @updatedAt
+
+  offers   CastingOffer[]
+  contract CastingContract?
+
+  @@unique([roleId, talentId])
+}
+
+enum FeeType {
+  FLAT
+  PER_EPISODE
+  REVENUE_SHARE
+  HYBRID
+}
+
+enum UsageScope {
+  DIGITAL
+  LIVE
+  BOTH
+}
+
+enum CastingOfferStatus {
+  PROPOSED
+  COUNTERED
+  WITHDRAWN
+  PENDING_GUARDIAN
+  REJECTED_BY_GUARDIAN
+  ACCEPTED
+}
+
+model CastingOffer {
+  id                     String             @id @default(cuid())
+  negotiationId          String
+  negotiation            CastingNegotiation @relation(fields: [negotiationId], references: [id], onDelete: Cascade)
+  proposerId             String
+  proposer               User               @relation(fields: [proposerId], references: [id])
+  side                   CastingSide
+  feeType                FeeType
+  /// 고정 출연료 (원). FLAT, HYBRID
+  flatFeeKrw             Int                @default(0)
+  /// 회당 출연료 (원). PER_EPISODE
+  perEpisodeFeeKrw       Int                @default(0)
+  episodes               Int?
+  /// 작품 순수익 중 배분 비율(%). REVENUE_SHARE, HYBRID
+  revenueSharePct        Int                @default(0)
+  usage                  UsageScope
+  termMonths             Int
+  exclusive              Boolean
+  /// 출연분 확인권: 출연자가 작품마다 확인해야 공개할 수 있다
+  requiresTalentApproval Boolean            @default(true)
+  /// 계약일부터 새 장면을 제작할 수 있는 기간 (최대 90일)
+  productionDays         Int
+  /// 조기 종료 보상: 고정 출연료 반환 + 이 비율(%)
+  earlyTerminationPct    Int                @default(50)
+  note                   String?
+  status                 CastingOfferStatus @default(PROPOSED)
+  respondedAt            DateTime?
+  createdAt              DateTime           @default(now())
+
+  contract CastingContract?
+
+  @@index([negotiationId, createdAt])
+}
+
+enum CastingContractStatus {
+  ACTIVE
+  TERMINATED
+  EXPIRED
+}
+
+/// 출연 계약 + 초상 사용 라이선스. 수락한 제안의 조건을 복사해 둔다
+model CastingContract {
+  id                     String                @id @default(cuid())
+  negotiationId          String                @unique
+  negotiation            CastingNegotiation    @relation(fields: [negotiationId], references: [id])
+  offerId                String                @unique
+  offer                  CastingOffer          @relation(fields: [offerId], references: [id])
+  projectId              String
+  project                Project               @relation(fields: [projectId], references: [id])
+  roleId                 String
+  role                   CastingRole           @relation(fields: [roleId], references: [id])
+  talentId               String
+  talent                 TalentProfile         @relation(fields: [talentId], references: [id])
+  feeType                FeeType
+  flatFeeKrw             Int
+  perEpisodeFeeKrw       Int
+  episodes               Int?
+  revenueSharePct        Int
+  usage                  UsageScope
+  contentTags            ContentTag[]
+  exclusive              Boolean
+  requiresTalentApproval Boolean
+  earlyTerminationPct    Int
+  guardianApprovedAt     DateTime?
+  startsAt               DateTime
+  productionEndsAt       DateTime
+  endsAt                 DateTime
+  status                 CastingContractStatus @default(ACTIVE)
+  terminatedAt           DateTime?
+  terminationReason      String?
+  createdAt              DateTime              @default(now())
+
+  appearances    WorkAppearance[]
+  likenessAccess LikenessAccessLog[]
+
+  @@index([talentId, status])
+}
+
+enum WorkStatus {
+  DRAFT
+  PUBLISHED
+  UNLISTED
+  REMOVED
+}
+
+/// 계약으로 만든 결과물 (회차, 숏폼 등)
+model Work {
+  id          String       @id @default(cuid())
+  projectId   String
+  project     Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title       String
+  contentTags ContentTag[]
+  /// AI로 만든 초상을 썼는지. 공개할 때 합성 콘텐츠 표시가 필요하다
+  aiGenerated Boolean      @default(true)
+  externalUrl String?
+  status      WorkStatus   @default(DRAFT)
+  publishedAt DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  appearances WorkAppearance[]
+  takedowns   TakedownRequest[]
+}
+
+model WorkAppearance {
+  workId     String
+  work       Work            @relation(fields: [workId], references: [id], onDelete: Cascade)
+  contractId String
+  contract   CastingContract @relation(fields: [contractId], references: [id])
+  approvedAt DateTime?
+
+  @@id([workId, contractId])
+}
+
+enum TakedownReason {
+  OUT_OF_SCOPE
+  PROHIBITED_CONTENT
+  NOT_APPROVED
+  IDENTITY_FRAUD
+  MINOR_PROTECTION
+  PERSONALITY_HARM
+  PERSONAL_WITHDRAWAL
+}
+
+enum TakedownStatus {
+  OPEN
+  UPHELD
+  REJECTED
+  SETTLED
+}
+
+model TakedownRequest {
+  id              String         @id @default(cuid())
+  workId          String
+  work            Work           @relation(fields: [workId], references: [id], onDelete: Cascade)
+  requesterId     String
+  requester       User           @relation("TakedownRequester", fields: [requesterId], references: [id])
+  reason          TakedownReason
+  details         String
+  /// 신고하자마자 자동으로 비공개 처리했는지
+  interimUnlisted Boolean
+  status          TakedownStatus @default(OPEN)
+  /// 자동 비공개된 신고의 관리자 판단 기한
+  reviewDueAt     DateTime?
+  decidedById     String?
+  decidedBy       User?          @relation("TakedownDecider", fields: [decidedById], references: [id])
+  decidedAt       DateTime?
+  resolution      String?
+  createdAt       DateTime       @default(now())
+
+  @@index([status, createdAt])
 }

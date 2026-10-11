@@ -21,3 +21,6 @@ apps/api/.openapi-build/
 apps/studio/test-results/
 apps/studio/playwright-report/
 apps/studio/next-env.d.ts
+
+# 개발용 초상 원본 저장소 (암호화된 파일)
+apps/api/.likeness-store/
