@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { MockSummarizer } from './mock-summarizer.js';
 import { processSummarize } from './processor.js';
-import type { AiSummary, ScriptForSummary } from './summary.js';
+import { CoverageSchema, type AiSummary, type ScriptForSummary } from './summary.js';
 
 function fakeRepo(script: ScriptForSummary | null) {
   const saved: AiSummary[] = [];
@@ -51,10 +51,34 @@ describe('processSummarize', () => {
     const { repo, saved } = fakeRepo(script);
     const summarizer = {
       model: 'test',
-      summarize: async () => ({ summary: ' 요약 ', tags: ['#a', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i'], contentRating: 'ALL' as const }),
+      summarize: async () => ({
+        summary: ' 요약 ',
+        tags: ['#a', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i'],
+        contentRating: 'ALL' as const,
+        coverage: {
+          scores: { hook: 3, conflict: 3, characters: 3, pacing: 3, dialogue: 3 },
+          productionDifficulty: 2,
+          estimatedCast: 2,
+          estimatedLocations: 1,
+          strengths: [' 하나 ', '하나', '둘', '셋', '넷'],
+          risks: [],
+          comparableTitles: ['가', '나', '다', '라'],
+        },
+      }),
     };
     await processSummarize({ scriptId: 's1' }, { scripts: repo, summarizer });
     expect(saved[0].summary).toBe('요약');
     expect(saved[0].tags).toEqual(['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']);
+    expect(saved[0].coverage.strengths).toEqual(['하나', '둘', '셋']);
+    expect(saved[0].coverage.comparableTitles).toHaveLength(3);
+  });
+
+  it('mock 요약기도 형식에 맞는 커버리지를 만든다 (장소·인물 수 추정)', async () => {
+    const { repo, saved } = fakeRepo(script);
+    await processSummarize({ scriptId: 's1' }, { scripts: repo, summarizer: new MockSummarizer() });
+    const c = saved[0].coverage;
+    expect(CoverageSchema.parse(c)).toEqual(c);
+    expect(c.estimatedLocations).toBe(1); // "폐역 승강장" 한 곳
+    expect(c.scores.hook).toBeGreaterThanOrEqual(3); // 첫 장면에 총소리
   });
 });
