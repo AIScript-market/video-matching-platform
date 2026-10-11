@@ -4,6 +4,8 @@ import { CurrentUser, JwtAuthGuard, Roles, RolesGuard } from '../../core/auth/in
 import type { Viewer } from '../access/access-rules.js';
 import {
   AcceptOfferResultDto,
+  ContactResultDto,
+  ContactWriterDto,
   CreateMessageDto,
   CreateOfferDto,
   ListMessagesQueryDto,
@@ -31,6 +33,14 @@ export class NegotiationsController {
   @ApiOkResponse({ type: NegotiationDetailDto })
   start(@Param('id') scriptId: string, @CurrentUser() user: Viewer) {
     return this.negotiations.start(scriptId, user);
+  }
+
+  @Post('scripts/:id/contact')
+  @Roles('PRODUCER')
+  @ApiOperation({ summary: '대본 검토 후 작가에게 메시지 보내기 (전문을 열람한 제작자). 협상 대화로 이어진다' })
+  @ApiOkResponse({ type: ContactResultDto })
+  contact(@Param('id') scriptId: string, @CurrentUser() user: Viewer, @Body() dto: ContactWriterDto) {
+    return this.negotiations.contactWriter(scriptId, user, dto.body);
   }
 
   @Get('negotiations')

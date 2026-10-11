@@ -8,6 +8,7 @@ import {
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { Viewer } from '../access/access-rules.js';
 import type {
+  ContactResultDto,
   CreateMessageDto,
   MessageDto,
   NegotiationDetailDto,
@@ -19,6 +20,7 @@ const LIST_INCLUDE = {
   writer: { select: { id: true, displayName: true } },
   producer: { select: { id: true, displayName: true } },
   offers: { orderBy: { createdAt: 'desc' }, take: 1 },
+  messages: { orderBy: { createdAt: 'desc' }, take: 1 },
   deal: { select: { id: true } },
 } as const;
 
@@ -64,6 +66,26 @@ export class NegotiationsService {
     return this.get(negotiation.id, producer);
   }
 
+  /**
+   * 제작자가 대본을 검토한 뒤 작가에게 메시지를 보낸다.
+   * 열람 승인을 받고 전문을 실제로 연 기록(ScriptAccessLog)이 있어야 한다.
+   * 이 대본·제작자의 협상이 없으면 만들고, 있으면 그 대화에 이어서 남긴다.
+   */
+  async contactWriter(scriptId: string, producer: Viewer, body: string): Promise<ContactResultDto> {
+    const text = body.trim();
+    if (!text) throw new BadRequestException('메시지 내용이 비어 있습니다');
+    const viewed = await this.prisma.scriptAccessLog.findFirst({
+      where: { scriptId, userId: producer.id },
+      select: { id: true },
+    });
+    if (!viewed) {
+      throw new ForbiddenException('대본 전문을 먼저 검토한 뒤에 메시지를 보낼 수 있습니다');
+    }
+    const negotiation = await this.start(scriptId, producer);
+    const message = await this.postMessage(negotiation.id, producer, { body: text });
+    return { negotiationId: negotiation.id, message };
+  }
+
   async list(user: Viewer): Promise<NegotiationDto[]> {
     const rows = await this.prisma.negotiation.findMany({
       where: { OR: [{ writerId: user.id }, { producerId: user.id }] },
@@ -71,9 +93,10 @@ export class NegotiationsService {
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       take: 200,
     });
-    return rows.map(({ offers, deal, ...n }) => ({
+    return rows.map(({ offers, messages, deal, ...n }) => ({
       ...n,
       latestOffer: offers[0] ?? null,
+      lastMessage: messages[0] ?? null,
       dealId: deal?.id ?? null,
     })) as unknown as NegotiationDto[];
   }
@@ -89,11 +112,12 @@ export class NegotiationsService {
     if (!n || !(isParticipant(n, user) || user.roles.includes('ADMIN'))) {
       throw new NotFoundException('협상을 찾을 수 없습니다');
     }
-    const { offers, deal, ...rest } = n;
+    const { offers, messages, deal, ...rest } = n;
     return {
       ...rest,
       offers,
       latestOffer: offers[offers.length - 1] ?? null,
+      lastMessage: messages[0] ?? null,
       dealId: deal?.id ?? null,
     } as unknown as NegotiationDetailDto;
   }

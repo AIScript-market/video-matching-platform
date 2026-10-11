@@ -15,7 +15,7 @@ run('API e2e', () => {
   let app: INestApplication;
   let prisma: PrismaService;
   const suffix = Date.now().toString(36);
-  const emails = ['w', 'p', 'a'].map((r) => `e2e-${r}-${suffix}@test.local`);
+  const emails = ['w', 'p', 'a', 'w2', 'p2'].map((r) => `e2e-${r}-${suffix}@test.local`);
 
   beforeAll(async () => {
     process.env.AI_JOBS_DISABLED = 'true';
@@ -33,6 +33,7 @@ run('API e2e', () => {
     const negs = (await prisma.negotiation.findMany({ where: { scriptId: { in: scripts } }, select: { id: true } })).map((n) => n.id);
     const deals = (await prisma.deal.findMany({ where: { negotiationId: { in: negs } }, select: { id: true } })).map((d) => d.id);
     await prisma.roleRequest.deleteMany({ where: { userId: { in: ids } } });
+    await prisma.scriptUpload.deleteMany({ where: { uploaderId: { in: ids } } });
     await prisma.ledgerEntry.deleteMany({ where: { dealId: { in: deals } } });
     await prisma.license.deleteMany({ where: { dealId: { in: deals } } });
     await prisma.deal.deleteMany({ where: { id: { in: deals } } });
@@ -132,5 +133,78 @@ run('API e2e', () => {
     expect(ledger.body.totals.balance).toBe(1000);
 
     await http.post('/auth/logout').set(W).expect(204);
+  });
+
+  it('대본 업로드 → 제작자 검토 후 메시지 → 관리자 로그', async () => {
+    const http = request(app.getHttpServer());
+    const ADMIN = {
+      Authorization: `Bearer ${(await http.post('/auth/login').send({ email: 'admin@vmp.dev', password: 'admin1234!' })).body.accessToken}`,
+    };
+    // 권한을 신청하며 가입 → 관리자 승인
+    async function approvedUser(email: string, role: 'WRITER' | 'PRODUCER') {
+      const res = await http.post('/auth/signup').send({ email, password: 'password1234', displayName: role, requestedRoles: [role] }).expect(201);
+      const auth = { Authorization: `Bearer ${res.body.accessToken}` };
+      const [req] = (await http.get('/role-requests/mine').set(auth)).body;
+      await http.post(`/admin/role-requests/${req.id}/approve`).set(ADMIN).expect(200);
+      return auth;
+    }
+    const W = await approvedUser(emails[3], 'WRITER');
+    const P = await approvedUser(emails[4], 'PRODUCER');
+
+    // 업로드: 제작자는 못 올리고, 지원하지 않는 형식은 거부
+    await http.post('/scripts/upload').set(P).attach('file', Buffer.from('x'), 'a.txt').expect(403);
+    await http.post('/scripts/upload').set(W).attach('file', Buffer.from('x'), 'a.hwp').expect(400);
+    await http.post('/scripts/upload').set(W).expect(400);
+
+    // 파일로 새 초안 (한글 파일명 → 제목)
+    const draft = await http
+      .post('/scripts/upload')
+      .set(W)
+      .attach('file', Buffer.from('S#1. 바다 (새벽)\r\n\r\n\r\n해원: 다시 왔어.'), { filename: '바다의 끝.txt', contentType: 'text/plain' })
+      .expect(201);
+    expect(draft.body).toMatchObject({ title: '바다의 끝', status: 'DRAFT', fullText: 'S#1. 바다 (새벽)\n\n해원: 다시 왔어.' });
+
+    // 로그라인·시놉시스·장르가 비어 있으면 공개 불가
+    const publishFail = await http.post(`/scripts/${draft.body.id}/publish`).set(W).send({ rightsDeclared: true }).expect(400);
+    expect(publishFail.body.message).toContain('로그라인');
+    await http.patch(`/scripts/${draft.body.id}`).set(W).send({ logline: '바다로 돌아온 해원', synopsis: '시놉시스', genre: '드라마' }).expect(200);
+
+    // 본문 교체 업로드 → 공개
+    const replaced = await http.post(`/scripts/${draft.body.id}/upload`).set(W).attach('file', Buffer.from('S#1. 바다 (밤)\n해원: 끝이야.'), 'v2.md').expect(201);
+    expect(replaced.body.fullText).toBe('S#1. 바다 (밤)\n해원: 끝이야.');
+    await http.post(`/scripts/${draft.body.id}/upload`).set(P).attach('file', Buffer.from('x'), 'x.txt').expect(404);
+    await http.post(`/scripts/${draft.body.id}/publish`).set(W).send({ rightsDeclared: true }).expect(201);
+
+    // 제작자: 열람 승인 전·전문을 보기 전에는 메시지 불가 → 열람 후 메시지
+    await http.post(`/scripts/${draft.body.id}/contact`).set(P).send({ body: '좋네요' }).expect(403);
+    const ar = await http.post(`/scripts/${draft.body.id}/access-requests`).set(P).send({ ndaAccepted: true }).expect(201);
+    await http.post(`/access-requests/${ar.body.id}/approve`).set(W).expect(200);
+    await http.post(`/scripts/${draft.body.id}/contact`).set(P).send({ body: '좋네요' }).expect(403);
+    await http.get(`/scripts/${draft.body.id}`).set(P).expect(200); // 전문 검토 (열람 로그 생성)
+    await http.post(`/scripts/${draft.body.id}/contact`).set(P).send({ body: '   ' }).expect(400);
+    await http.post(`/scripts/${draft.body.id}/contact`).set(W).send({ body: '본인' }).expect(403);
+    const contact = await http.post(`/scripts/${draft.body.id}/contact`).set(P).send({ body: '검토했습니다. 2화 구성이 인상적이에요.' }).expect(201);
+    const again = await http.post(`/scripts/${draft.body.id}/contact`).set(P).send({ body: '통화 가능할까요?' }).expect(201);
+    expect(again.body.negotiationId).toBe(contact.body.negotiationId);
+
+    // 작가: 협상 목록에서 마지막 메시지 확인
+    const negs = (await http.get('/negotiations').set(W).expect(200)).body;
+    const neg = negs.find((n: { id: string }) => n.id === contact.body.negotiationId);
+    expect(neg.lastMessage.body).toBe('통화 가능할까요?');
+
+    // 관리자 로그: 메시지·열람·업로드
+    await http.get('/admin/logs/messages').set(W).expect(403);
+    const msgs = (await http.get('/admin/logs/messages?q=바다의 끝').set(ADMIN).expect(200)).body;
+    expect(msgs.items.map((m: { body: string }) => m.body)).toEqual(['통화 가능할까요?', '검토했습니다. 2화 구성이 인상적이에요.']);
+    expect(msgs.items[0].recipient.email).toBe(emails[3]);
+    expect(msgs.items[0].sender.email).toBe(emails[4]);
+    const views = (await http.get(`/admin/logs/views?q=${encodeURIComponent(emails[4])}`).set(ADMIN).expect(200)).body;
+    expect(views.items).toHaveLength(1);
+    expect(views.items[0].script.title).toBe('바다의 끝');
+    const uploads = (await http.get(`/admin/logs/uploads?q=${encodeURIComponent(emails[3])}`).set(ADMIN).expect(200)).body;
+    expect(uploads.items.map((u: { filename: string }) => u.filename)).toEqual(['v2.md', '바다의 끝.txt']);
+    const page1 = (await http.get('/admin/logs/messages?take=1').set(ADMIN).expect(200)).body;
+    expect(page1.items).toHaveLength(1);
+    expect(page1.nextCursor).toBeTruthy();
   });
 });

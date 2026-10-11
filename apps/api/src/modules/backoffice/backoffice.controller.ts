@@ -3,6 +3,13 @@ import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swa
 import { CurrentUser, JwtAuthGuard, Roles, RolesGuard, type AuthUser } from '../../core/auth/index.js';
 import { ListRoleRequestsQueryDto, RoleRequestDto } from '../membership/membership.dto.js';
 import { MembershipService } from '../membership/membership.service.js';
+import {
+  ActivityLogQueryDto,
+  MessageLogPageDto,
+  UploadLogPageDto,
+  ViewLogPageDto,
+} from './activity-log.dto.js';
+import { ActivityLogService } from './activity-log.service.js';
 import { AdminScriptDto, AdminUserDto, HideScriptDto } from './backoffice.dto.js';
 import { BackofficeService } from './backoffice.service.js';
 
@@ -15,7 +22,29 @@ export class BackofficeController {
   constructor(
     private readonly backoffice: BackofficeService,
     private readonly membership: MembershipService,
+    private readonly logs: ActivityLogService,
   ) {}
+
+  @Get('logs/messages')
+  @ApiOperation({ summary: '메시지 로그 (제작자·작가 간 모든 메시지, 최신순)' })
+  @ApiOkResponse({ type: MessageLogPageDto })
+  messageLogs(@Query() query: ActivityLogQueryDto) {
+    return this.logs.messages(query);
+  }
+
+  @Get('logs/views')
+  @ApiOperation({ summary: '대본 전문 열람 로그 (최신순)' })
+  @ApiOkResponse({ type: ViewLogPageDto })
+  viewLogs(@Query() query: ActivityLogQueryDto) {
+    return this.logs.views(query);
+  }
+
+  @Get('logs/uploads')
+  @ApiOperation({ summary: '대본 파일 업로드 로그 (최신순)' })
+  @ApiOkResponse({ type: UploadLogPageDto })
+  uploadLogs(@Query() query: ActivityLogQueryDto) {
+    return this.logs.uploads(query);
+  }
 
   @Get('role-requests')
   @ApiOperation({ summary: '권한 신청 목록 (관리자). status 생략 시 전체' })

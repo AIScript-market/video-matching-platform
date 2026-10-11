@@ -86,6 +86,7 @@ model User {
   offers               Offer[]
   licenses             License[]
   ledgerEntries        LedgerEntry[]
+  scriptUploads        ScriptUpload[]
   roleRequests         RoleRequest[]         @relation("RoleRequester")
   decidedRoleRequests  RoleRequest[]         @relation("RoleDecider")
 }
@@ -110,6 +111,7 @@ model Script {
   accessLogs     ScriptAccessLog[]
   negotiations   Negotiation[]
   licenses       License[]
+  uploads        ScriptUpload[]
 }
 
 model ScriptAccessRequest {
@@ -231,4 +233,20 @@ model RoleRequest {
 
   @@index([status, createdAt])
   @@index([userId])
+}
+
+// 대본 파일 업로드 기록 (관리자 로그용). 원본 파일은 저장하지 않고 추출한 본문만 Script.fullText에 넣는다
+model ScriptUpload {
+  id         String   @id @default(cuid())
+  scriptId   String
+  script     Script   @relation(fields: [scriptId], references: [id])
+  uploaderId String
+  uploader   User     @relation(fields: [uploaderId], references: [id])
+  filename   String
+  mimeType   String
+  sizeBytes  Int
+  charCount  Int
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
 }

@@ -188,6 +188,177 @@
         ]
       }
     },
+    "/admin/logs/messages": {
+      "get": {
+        "operationId": "BackofficeController_messageLogs",
+        "parameters": [
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "대본 제목, 사용자 이름·이메일 검색",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "이전 응답의 nextCursor",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "take",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 200,
+              "default": 50,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageLogPageDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "메시지 로그 (제작자·작가 간 모든 메시지, 최신순)",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/logs/views": {
+      "get": {
+        "operationId": "BackofficeController_viewLogs",
+        "parameters": [
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "대본 제목, 사용자 이름·이메일 검색",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "이전 응답의 nextCursor",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "take",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 200,
+              "default": 50,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ViewLogPageDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "대본 전문 열람 로그 (최신순)",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/logs/uploads": {
+      "get": {
+        "operationId": "BackofficeController_uploadLogs",
+        "parameters": [
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "대본 제목, 사용자 이름·이메일 검색",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "이전 응답의 nextCursor",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "take",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 200,
+              "default": 50,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadLogPageDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "대본 파일 업로드 로그 (최신순)",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/admin/role-requests": {
       "get": {
         "operationId": "BackofficeController_roleRequests",
@@ -510,6 +681,107 @@
           }
         },
         "summary": "공개 대본 목록 (공개 필드만). mine=true면 내 대본 전체",
+        "tags": [
+          "scripts"
+        ]
+      }
+    },
+    "/scripts/upload": {
+      "post": {
+        "operationId": "ScriptsController_upload",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "file"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScriptDetailDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "파일로 새 대본 초안 만들기 (.txt, .md, .fountain, .docx, .pdf, 최대 5MB)",
+        "tags": [
+          "scripts"
+        ]
+      }
+    },
+    "/scripts/{id}/upload": {
+      "post": {
+        "operationId": "ScriptsController_replaceUpload",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "file"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScriptDetailDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "대본 전문을 업로드한 파일 내용으로 바꾸기 (작가 본인)",
         "tags": [
           "scripts"
         ]
@@ -842,6 +1114,52 @@
           }
         ],
         "summary": "협상 시작 (열람 승인된 제작자). 이미 있으면 기존 협상을 반환",
+        "tags": [
+          "negotiations"
+        ]
+      }
+    },
+    "/scripts/{id}/contact": {
+      "post": {
+        "operationId": "NegotiationsController_contact",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContactWriterDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContactResultDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "대본 검토 후 작가에게 메시지 보내기 (전문을 열람한 제작자). 협상 대화로 이어진다",
         "tags": [
           "negotiations"
         ]
@@ -1534,6 +1852,223 @@
           "user"
         ]
       },
+      "LogScriptDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title"
+        ]
+      },
+      "LogUserDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "roles": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "WRITER",
+                "PRODUCER",
+                "ADMIN"
+              ]
+            }
+          }
+        },
+        "required": [
+          "id",
+          "displayName",
+          "email",
+          "roles"
+        ]
+      },
+      "MessageLogDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "negotiationId": {
+            "type": "string"
+          },
+          "negotiationStatus": {
+            "type": "string",
+            "enum": [
+              "OPEN",
+              "AGREED",
+              "CLOSED"
+            ]
+          },
+          "script": {
+            "$ref": "#/components/schemas/LogScriptDto"
+          },
+          "sender": {
+            "$ref": "#/components/schemas/LogUserDto"
+          },
+          "recipient": {
+            "description": "받는 사람 (협상의 다른 참여자)",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/LogUserDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "body",
+          "createdAt",
+          "negotiationId",
+          "negotiationStatus",
+          "script",
+          "sender",
+          "recipient"
+        ]
+      },
+      "MessageLogPageDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MessageLogDto"
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ]
+      },
+      "ViewLogDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "viewedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "script": {
+            "$ref": "#/components/schemas/LogScriptDto"
+          },
+          "user": {
+            "$ref": "#/components/schemas/LogUserDto"
+          }
+        },
+        "required": [
+          "id",
+          "viewedAt",
+          "script",
+          "user"
+        ]
+      },
+      "ViewLogPageDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ViewLogDto"
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ]
+      },
+      "UploadLogDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "filename": {
+            "type": "string"
+          },
+          "mimeType": {
+            "type": "string"
+          },
+          "sizeBytes": {
+            "type": "number"
+          },
+          "charCount": {
+            "type": "number"
+          },
+          "script": {
+            "$ref": "#/components/schemas/LogScriptDto"
+          },
+          "uploader": {
+            "$ref": "#/components/schemas/LogUserDto"
+          }
+        },
+        "required": [
+          "id",
+          "createdAt",
+          "filename",
+          "mimeType",
+          "sizeBytes",
+          "charCount",
+          "script",
+          "uploader"
+        ]
+      },
+      "UploadLogPageDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UploadLogDto"
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ]
+      },
       "AdminUserDto": {
         "type": "object",
         "properties": {
@@ -2134,6 +2669,34 @@
           "createdAt"
         ]
       },
+      "MessageDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "negotiationId": {
+            "type": "string"
+          },
+          "senderId": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "negotiationId",
+          "senderId",
+          "body",
+          "createdAt"
+        ]
+      },
       "NegotiationDetailDto": {
         "type": "object",
         "properties": {
@@ -2185,6 +2748,16 @@
             "nullable": true,
             "description": "합의되어 생성된 딜 id"
           },
+          "lastMessage": {
+            "nullable": true,
+            "description": "가장 최근 메시지",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MessageDto"
+              }
+            ]
+          },
           "offers": {
             "description": "제안 이력 (오래된 순)",
             "type": "array",
@@ -2205,7 +2778,37 @@
           "producer",
           "latestOffer",
           "dealId",
+          "lastMessage",
           "offers"
+        ]
+      },
+      "ContactWriterDto": {
+        "type": "object",
+        "properties": {
+          "body": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000,
+            "description": "검토 의견이나 제안하고 싶은 내용"
+          }
+        },
+        "required": [
+          "body"
+        ]
+      },
+      "ContactResultDto": {
+        "type": "object",
+        "properties": {
+          "negotiationId": {
+            "type": "string"
+          },
+          "message": {
+            "$ref": "#/components/schemas/MessageDto"
+          }
+        },
+        "required": [
+          "negotiationId",
+          "message"
         ]
       },
       "NegotiationDto": {
@@ -2258,6 +2861,16 @@
             "type": "string",
             "nullable": true,
             "description": "합의되어 생성된 딜 id"
+          },
+          "lastMessage": {
+            "nullable": true,
+            "description": "가장 최근 메시지",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MessageDto"
+              }
+            ]
           }
         },
         "required": [
@@ -2271,35 +2884,8 @@
           "writer",
           "producer",
           "latestOffer",
-          "dealId"
-        ]
-      },
-      "MessageDto": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "negotiationId": {
-            "type": "string"
-          },
-          "senderId": {
-            "type": "string"
-          },
-          "body": {
-            "type": "string"
-          },
-          "createdAt": {
-            "format": "date-time",
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "negotiationId",
-          "senderId",
-          "body",
-          "createdAt"
+          "dealId",
+          "lastMessage"
         ]
       },
       "CreateMessageDto": {

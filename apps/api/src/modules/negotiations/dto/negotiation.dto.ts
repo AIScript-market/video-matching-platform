@@ -102,6 +102,13 @@ export class MessageDto {
   @ApiProperty({ format: 'date-time' }) createdAt!: Date;
 }
 
+export class ContactWriterDto {
+  @ApiProperty({ minLength: 1, maxLength: MESSAGE_MAX, description: '검토 의견이나 제안하고 싶은 내용' })
+  @IsString()
+  @Length(1, MESSAGE_MAX)
+  body!: string;
+}
+
 export class NegotiationDto {
   @ApiProperty() id!: string;
   @ApiProperty() scriptId!: string;
@@ -116,10 +123,17 @@ export class NegotiationDto {
   latestOffer!: OfferDto | null;
   @ApiProperty({ nullable: true, type: String, description: '합의되어 생성된 딜 id' })
   dealId!: string | null;
+  @ApiProperty({ type: () => MessageDto, nullable: true, description: '가장 최근 메시지' })
+  lastMessage!: MessageDto | null;
 }
 
 export class NegotiationDetailDto extends NegotiationDto {
   @ApiProperty({ type: [OfferDto], description: '제안 이력 (오래된 순)' }) offers!: OfferDto[];
+}
+
+export class ContactResultDto {
+  @ApiProperty() negotiationId!: string;
+  @ApiProperty({ type: MessageDto }) message!: MessageDto;
 }
 
 export class AcceptOfferResultDto {

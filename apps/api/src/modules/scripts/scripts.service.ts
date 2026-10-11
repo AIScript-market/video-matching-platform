@@ -7,6 +7,7 @@ import {
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { canReadFullText, canSeeScript, type Viewer } from '../access/access-rules.js';
 import { AiJobsQueue } from './ai-jobs.queue.js';
+import { extractScriptText } from './script-file.js';
 import type {
   CreateScriptDto,
   ListScriptsQueryDto,
@@ -30,6 +31,13 @@ const PUBLIC_SELECT = {
   updatedAt: true,
   author: { select: { id: true, displayName: true } },
 } as const;
+
+export interface UploadedScriptFile {
+  buffer: Buffer;
+  originalname: string;
+  mimetype: string;
+  size: number;
+}
 
 @Injectable()
 export class ScriptsService {
@@ -146,6 +154,47 @@ export class ScriptsService {
     return this.get(id, user);
   }
 
+  /** 파일을 올려 새 초안(DRAFT)을 만든다. 제목은 파일 이름, 로그라인·시놉시스는 비워 둔다 */
+  async createFromUpload(user: Viewer, file: UploadedScriptFile): Promise<ScriptDetailDto> {
+    const { text, suggestedTitle } = await extractScriptText(file);
+    const script = await this.prisma.script.create({
+      data: {
+        authorId: user.id,
+        title: suggestedTitle,
+        logline: '',
+        synopsis: '',
+        genre: '미정',
+        fullText: text,
+        status: 'DRAFT',
+      },
+    });
+    await this.logUpload(script.id, user.id, file, text);
+    return this.get(script.id, user);
+  }
+
+  /** 기존 대본의 본문을 업로드한 파일 내용으로 바꾼다 */
+  async replaceFromUpload(id: string, user: Viewer, file: UploadedScriptFile): Promise<ScriptDetailDto> {
+    const script = await this.findOwned(id, user);
+    const { text } = await extractScriptText(file);
+    await this.prisma.script.update({ where: { id }, data: { fullText: text } });
+    await this.logUpload(id, user.id, file, text);
+    if (script.status === 'PUBLISHED' && text !== script.fullText) await this.aiJobs.enqueueSummarize(id);
+    return this.get(id, user);
+  }
+
+  private logUpload(scriptId: string, uploaderId: string, file: UploadedScriptFile, text: string) {
+    return this.prisma.scriptUpload.create({
+      data: {
+        scriptId,
+        uploaderId,
+        filename: Buffer.from(file.originalname, 'latin1').toString('utf8').slice(0, 255),
+        mimeType: file.mimetype.slice(0, 120),
+        sizeBytes: file.size,
+        charCount: text.length,
+      },
+    });
+  }
+
   /** 공개. 권리 보유 진술(rightsDeclared=true)이 있어야 한다. 이미 공개면 그대로 반환. */
   async publish(id: string, user: Viewer, dto: PublishScriptDto): Promise<ScriptDetailDto> {
     const script = await this.findOwned(id, user);
@@ -158,6 +207,13 @@ export class ScriptsService {
     if (!declared) {
       throw new BadRequestException('공개하려면 권리 보유 진술(rightsDeclared=true)이 필요합니다');
     }
+    const missing = [
+      !script.logline.trim() && '로그라인',
+      !script.synopsis.trim() && '시놉시스',
+      (!script.genre.trim() || script.genre === '미정') && '장르',
+      !script.fullText.trim() && '대본 전문',
+    ].filter(Boolean);
+    if (missing.length) throw new BadRequestException(`공개하려면 ${missing.join(', ')}을(를) 채워야 합니다`);
     await this.prisma.script.update({
       where: { id },
       data: {

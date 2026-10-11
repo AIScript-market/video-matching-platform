@@ -1,5 +1,18 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UploadedFile,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser, JwtAuthGuard, Roles, RolesGuard } from '../../core/auth/index.js';
 import type { Viewer } from '../access/access-rules.js';
 import { OptionalJwtAuthGuard } from './optional-jwt.guard.js';
@@ -11,7 +24,19 @@ import {
   ScriptListDto,
   UpdateScriptDto,
 } from './dto/script.dto.js';
-import { ScriptsService } from './scripts.service.js';
+import { UPLOAD_EXTENSIONS, UPLOAD_MAX_BYTES } from './script-file.js';
+import { ScriptsService, type UploadedScriptFile } from './scripts.service.js';
+
+/** multipart/form-data 의 file 필드 하나 */
+const FileBody = () =>
+  ApiBody({
+    schema: { type: 'object', required: ['file'], properties: { file: { type: 'string', format: 'binary' } } },
+  });
+
+function requireFile(file?: UploadedScriptFile): UploadedScriptFile {
+  if (!file) throw new BadRequestException('file 필드로 파일을 올려주세요');
+  return file;
+}
 
 @ApiTags('scripts')
 @Controller('scripts')
@@ -26,6 +51,31 @@ export class ScriptsController {
   @ApiOkResponse({ type: ScriptDetailDto })
   create(@CurrentUser() user: Viewer, @Body() dto: CreateScriptDto) {
     return this.scripts.create(user, dto);
+  }
+
+  @Post('upload')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('WRITER')
+  @ApiBearerAuth()
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: UPLOAD_MAX_BYTES } }))
+  @ApiConsumes('multipart/form-data')
+  @FileBody()
+  @ApiOperation({ summary: `파일로 새 대본 초안 만들기 (${UPLOAD_EXTENSIONS.join(', ')}, 최대 5MB)` })
+  @ApiOkResponse({ type: ScriptDetailDto })
+  upload(@CurrentUser() user: Viewer, @UploadedFile() file?: UploadedScriptFile) {
+    return this.scripts.createFromUpload(user, requireFile(file));
+  }
+
+  @Post(':id/upload')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: UPLOAD_MAX_BYTES } }))
+  @ApiConsumes('multipart/form-data')
+  @FileBody()
+  @ApiOperation({ summary: '대본 전문을 업로드한 파일 내용으로 바꾸기 (작가 본인)' })
+  @ApiOkResponse({ type: ScriptDetailDto })
+  replaceUpload(@Param('id') id: string, @CurrentUser() user: Viewer, @UploadedFile() file?: UploadedScriptFile) {
+    return this.scripts.replaceFromUpload(id, user, requireFile(file));
   }
 
   @Get()
