@@ -7,6 +7,8 @@ dist/
 .env.*
 !.env.example
 __pycache__/
+.pytest_cache/
+.ruff_cache/
 .venv/
 
 # Prisma가 생성하는 클라이언트 코드 (컨테이너 시작 시 자동 생성)

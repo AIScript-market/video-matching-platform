@@ -1,0 +1,2 @@
+# 선택: ML_EMBEDDER=bge-m3 로 공개 다국어 임베딩 모델을 로컬에서 돌릴 때 (CPU torch 포함, 수 GB)
+sentence-transformers>=3,<6
