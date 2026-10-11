@@ -6,14 +6,26 @@
 
 | 흐름 | 내용 |
 |---|---|
-| 가입·로그인 | 작가 / 제작자 역할 선택 (둘 다 가능). 이메일+비밀번호(argon2id), JWT를 httpOnly 쿠키로 |
+| 가입·로그인 | 가입하면 **일반 계정**. 이메일+비밀번호(argon2id), JWT를 httpOnly 쿠키로 |
+| 권한 신청 | 일반 계정이 대본 제공자 / 영상 제작자 권한을 신청(가입 시 함께 신청 가능) → 관리자가 승인하면 역할이 생김 |
 | 대본 | 작가가 작성·수정하고, 권리 보유를 진술한 뒤 공개. 공개하면 AI 요약(줄거리·태그·예상 등급)이 자동 생성 |
 | 탐색 | 공개 대본 카드 목록, 장르 필터, 검색. 전문은 작가와 열람 승인된 제작자만 |
 | 열람 요청 | 제작자가 NDA에 동의하고 요청 → 작가가 대시보드에서 승인·거절 |
 | 협상 | 채팅(3초 폴링), 조건 제안(분배 합 100, 선급금, 기간, 독점), 역제안·수락·거절·철회, 제안 이력 |
 | 매칭 | 제안 수락 시 딜과 라이선스(초안) 생성. 독점이면 같은 대본의 다른 협상 종료 |
 | 장부 | 관리자가 딜별 수익·지급·수수료·조정 기록, 참여자는 조회 |
-| 관리자 | 사용자 목록, 대본 숨김·해제, 장부 기록 |
+| 관리자 | 권한 신청 승인·거절, 사용자 목록, 대본 숨김·해제, 장부 기록 |
+
+### 역할별로 할 수 있는 것
+
+| 역할 | 할 수 있는 것 |
+|---|---|
+| 일반 | 공개 대본 탐색·공개 정보 보기, 권한 신청 |
+| 대본 제공자 (WRITER) | 대본 작성·수정·공개, 열람 요청 승인·거절, 협상·제안 응답, 딜 조회 |
+| 영상 제작자 (PRODUCER) | NDA 동의 후 전문 열람 요청, 협상 시작·채팅·제안, 딜 조회 |
+| 관리자 (ADMIN) | 권한 신청 처리, 사용자 목록, 대본 숨김, 장부 기록 |
+
+한 계정이 대본 제공자와 영상 제작자 권한을 둘 다 가질 수 있다. 관리자 권한은 신청할 수 없다.
 
 ## 실행
 
@@ -32,14 +44,20 @@ docker compose -f ops/compose.yaml up --build
 | http://localhost:4000/openapi.json | OpenAPI |
 | `localhost:5432` | PostgreSQL (`vmp` / `vmp_local_only`) |
 
-시드 계정 (비밀번호 `password1234`):
+역할별 임시 계정 (시드):
 
-| 이메일 | 역할 |
-|---|---|
-| writer1@example.com | 작가 (공개 대본 2편) |
-| writer2@example.com | 작가 + 제작자 (공개 대본 1편) |
-| producer1@example.com, producer2@example.com | 제작자 |
-| admin@example.com | 관리자 |
+| 역할 | 아이디 | 비밀번호 | 비고 |
+|---|---|---|---|
+| 관리자 | `admin@vmp.dev` | `admin1234!` | |
+| 대본 제공자 | `writer1@vmp.dev` | `writer1234!` | 공개 대본 2편 |
+| 대본 제공자 | `writer2@vmp.dev` | `writer1234!` | 공개 대본 1편 |
+| 영상 제작자 | `producer1@vmp.dev` | `producer1234!` | |
+| 영상 제작자 | `producer2@vmp.dev` | `producer1234!` | |
+| 일반 | `member1@vmp.dev` | `member1234!` | 권한 없음 |
+| 일반 (신청 대기) | `applicant1@vmp.dev` | `member1234!` | 대본 제공자 권한 신청 대기 |
+| 일반 (신청 대기) | `applicant2@vmp.dev` | `member1234!` | 영상 제작자 권한 신청 대기 |
+
+관리자로 로그인해 `/admin`에서 applicant 계정의 신청을 승인하면, 그 계정으로 다시 들어갔을 때 대본 제공자·제작자 메뉴가 생긴다.
 
 AI 요약은 `.env`에 `ANTHROPIC_API_KEY`가 있으면 Claude로, 없으면 mock 요약기로 만든다 (`cp .env.example .env`).
 
@@ -50,7 +68,8 @@ apps/
   api/      NestJS + Prisma (PostgreSQL)
     src/core/auth           JWT 가드, 역할 가드, @CurrentUser()
     src/modules/identity    가입·로그인·내 정보
-    src/modules/backoffice  관리자 API (/admin/*)
+    src/modules/membership  권한 신청 (일반 → 대본 제공자 / 영상 제작자)
+    src/modules/backoffice  관리자 API (/admin/*, 권한 신청 승인·거절 포함)
     src/modules/{scripts,access,negotiations,deals,ledger}  도메인 API
     prisma/                 스키마, 마이그레이션, 시드
   worker/   BullMQ "ai-jobs" 큐의 script.summarize 처리 (AI 요약)

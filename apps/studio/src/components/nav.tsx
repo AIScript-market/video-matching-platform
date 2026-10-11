@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { RoleBadges } from "@/components/ui";
 import { useSession } from "@/lib/session";
 
 export function Nav() {
@@ -22,14 +23,16 @@ export function Nav() {
         </Link>
         <nav className="nav-links">
           {link("/scripts", "대본 탐색")}
-          {has("WRITER") && link("/dashboard", "작가 대시보드")}
+          {has("WRITER") && link("/dashboard", "제공자 대시보드")}
           {user && link("/negotiations", "협상")}
           {user && link("/deals", "내 딜")}
           {has("ADMIN") && link("/admin", "관리자")}
+          {user && link("/account", user.roles.length === 0 ? "권한 신청" : "내 계정")}
         </nav>
         {user ? (
           <div className="row small">
             <span className="muted">{user.displayName}</span>
+            <RoleBadges roles={user.roles} />
             <button
               className="ghost"
               onClick={async () => {

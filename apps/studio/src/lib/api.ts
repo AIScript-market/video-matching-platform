@@ -13,6 +13,8 @@ export type Deal = Schemas["DealDto"];
 export type Ledger = Schemas["LedgerDto"];
 export type Me = Schemas["MeDto"];
 export type Role = Me["roles"][number];
+export type RoleRequest = Schemas["RoleRequestDto"];
+export type RequestableRole = RoleRequest["role"];
 
 /** 같은 출처의 /api 로 보내면 next.config.ts의 rewrite가 API 서버로 넘긴다 */
 export const api = createClient<paths>({ baseUrl: "/api", credentials: "include" });

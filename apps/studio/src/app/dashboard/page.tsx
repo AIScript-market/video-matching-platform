@@ -57,7 +57,7 @@ function Dashboard() {
   return (
     <div className="stack">
       <div className="spread">
-        <h1>작가 대시보드</h1>
+        <h1>대본 제공자 대시보드</h1>
         <Link href="/dashboard/scripts/new" className="button">
           + 새 대본
         </Link>

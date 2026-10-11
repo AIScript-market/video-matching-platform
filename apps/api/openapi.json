@@ -1515,7 +1515,7 @@
             "type": "string"
           },
           "decidedAt": {
-            "type": "object",
+            "type": "string",
             "format": "date-time",
             "nullable": true
           },
@@ -1797,7 +1797,7 @@
             "type": "boolean"
           },
           "rightsDeclaredAt": {
-            "type": "object",
+            "type": "string",
             "format": "date-time",
             "nullable": true
           },
@@ -2022,7 +2022,7 @@
             "type": "string"
           },
           "decidedAt": {
-            "type": "object",
+            "type": "string",
             "format": "date-time",
             "nullable": true
           },
@@ -2390,12 +2390,12 @@
             "type": "string"
           },
           "startsAt": {
-            "type": "object",
+            "type": "string",
             "format": "date-time",
             "nullable": true
           },
           "endsAt": {
-            "type": "object",
+            "type": "string",
             "format": "date-time",
             "nullable": true
           },

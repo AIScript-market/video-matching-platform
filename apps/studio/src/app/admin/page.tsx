@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { LedgerTable } from "@/components/ledger-table";
-import { ErrorText, RequireAuth, ROLE_LABEL, StatusBadge } from "@/components/ui";
-import { api, dateTime, unwrap, type Deal, type Ledger, type Schemas } from "@/lib/api";
+import { ErrorText, RequireAuth, ROLE_LABEL, RoleBadges, StatusBadge } from "@/components/ui";
+import { api, dateTime, unwrap, type Deal, type Ledger, type RoleRequest, type Schemas } from "@/lib/api";
 
 type AdminUser = Schemas["AdminUserDto"];
 type AdminScript = Schemas["AdminScriptDto"];
@@ -21,15 +21,23 @@ function Admin() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [scripts, setScripts] = useState<AdminScript[]>([]);
   const [deals, setDeals] = useState<Deal[]>([]);
+  const [roleRequests, setRoleRequests] = useState<RoleRequest[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(
     () =>
-      Promise.all([unwrap(api.GET("/admin/users")), unwrap(api.GET("/admin/scripts")), unwrap(api.GET("/deals"))])
-        .then(([u, s, d]) => {
+      Promise.all([
+        unwrap(api.GET("/admin/users")),
+        unwrap(api.GET("/admin/scripts")),
+        unwrap(api.GET("/deals")),
+        unwrap(api.GET("/admin/role-requests")),
+      ])
+        .then(([u, s, d, r]) => {
           setUsers(u);
           setScripts(s);
           setDeals(d);
+          // 대기 중인 신청을 위로
+          setRoleRequests([...r].sort((a, b) => Number(b.status === "PENDING") - Number(a.status === "PENDING")));
         })
         .catch((err: Error) => setError(err.message)),
     [],
@@ -38,6 +46,20 @@ function Admin() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  async function decideRole(id: string, action: "approve" | "reject") {
+    setError(null);
+    try {
+      const path = { params: { path: { id } } };
+      if (action === "approve") await unwrap(api.POST("/admin/role-requests/{id}/approve", path));
+      else await unwrap(api.POST("/admin/role-requests/{id}/reject", path));
+      await load();
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }
+
+  const pendingCount = roleRequests.filter((r) => r.status === "PENDING").length;
 
   async function toggleHidden(script: AdminScript) {
     try {
@@ -57,6 +79,59 @@ function Admin() {
     <div className="stack">
       <h1>관리자</h1>
       <ErrorText error={error} />
+
+      <section className="card stack" aria-label="권한 신청 관리">
+        <h2>권한 신청 {pendingCount > 0 && <span className="badge warn">{pendingCount}</span>}</h2>
+        {roleRequests.length === 0 ? (
+          <p className="muted small">권한 신청이 없습니다.</p>
+        ) : (
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>신청자</th>
+                  <th>현재 권한</th>
+                  <th>신청 권한</th>
+                  <th>메모</th>
+                  <th>상태</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {roleRequests.map((r) => (
+                  <tr key={r.id}>
+                    <td>
+                      {r.user.displayName}
+                      <div className="small muted">{r.user.email}</div>
+                    </td>
+                    <td>
+                      <RoleBadges roles={r.user.roles} />
+                    </td>
+                    <td>
+                      <strong>{ROLE_LABEL[r.role]}</strong>
+                      <div className="small muted">{dateTime(r.createdAt)}</div>
+                    </td>
+                    <td className="small">{r.message}</td>
+                    <td>
+                      <StatusBadge status={r.status} />
+                    </td>
+                    <td>
+                      {r.status === "PENDING" && (
+                        <div className="row">
+                          <button onClick={() => decideRole(r.id, "approve")}>승인</button>
+                          <button className="ghost" onClick={() => decideRole(r.id, "reject")}>
+                            거절
+                          </button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
 
       <section className="card stack">
         <h2>딜별 장부 기록</h2>
@@ -113,7 +188,9 @@ function Admin() {
                 <tr key={u.id}>
                   <td>{u.displayName}</td>
                   <td className="small">{u.email}</td>
-                  <td className="small">{u.roles.map((r) => ROLE_LABEL[r]).join(", ")}</td>
+                  <td>
+                    <RoleBadges roles={u.roles} />
+                  </td>
                   <td className="num">{u.scriptCount}</td>
                   <td className="small">{dateTime(u.createdAt)}</td>
                 </tr>

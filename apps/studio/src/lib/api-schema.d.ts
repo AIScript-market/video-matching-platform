@@ -88,6 +88,91 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/role-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 권한 신청 (대본 제공자 WRITER / 영상 제작자 PRODUCER). 관리자가 승인하면 역할이 생긴다 */
+        post: operations["MembershipController_request"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/role-requests/mine": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 내 권한 신청 내역 */
+        get: operations["MembershipController_mine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/role-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 권한 신청 목록 (관리자). status 생략 시 전체 */
+        get: operations["BackofficeController_roleRequests"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/role-requests/{id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 권한 신청 승인 → 사용자에게 역할 부여 (관리자) */
+        post: operations["BackofficeController_approveRole"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/role-requests/{id}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 권한 신청 거절 (관리자) */
+        post: operations["BackofficeController_rejectRole"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/users": {
         parameters: {
             query?: never;
@@ -458,13 +543,14 @@ export interface components {
             email: string;
             password: string;
             displayName: string;
-            /** @description 작가·제작자 중 하나 이상 (둘 다 가능). ADMIN은 가입으로 얻을 수 없다 */
-            roles: ("WRITER" | "PRODUCER")[];
+            /** @description 가입과 함께 관리자에게 신청할 권한 (WRITER 대본 제공자 / PRODUCER 영상 제작자, 둘 다 가능). 가입 직후에는 역할이 없는 일반 계정이고, 관리자가 승인하면 역할이 생긴다 */
+            requestedRoles?: ("WRITER" | "PRODUCER")[];
         };
         MeDto: {
             id: string;
             email: string;
             displayName: string;
+            /** @description 빈 배열이면 일반 계정 */
             roles: ("WRITER" | "PRODUCER" | "ADMIN")[];
             /** Format: date-time */
             createdAt: string;
@@ -477,6 +563,35 @@ export interface components {
         LoginDto: {
             email: string;
             password: string;
+        };
+        CreateRoleRequestDto: {
+            /**
+             * @description WRITER = 대본 제공자, PRODUCER = 영상 제작자
+             * @enum {string}
+             */
+            role: "WRITER" | "PRODUCER";
+            /** @description 관리자에게 남길 말 (경력, 포트폴리오 등) */
+            message?: string;
+        };
+        RequesterDto: {
+            id: string;
+            email: string;
+            displayName: string;
+            roles: ("WRITER" | "PRODUCER" | "ADMIN")[];
+        };
+        RoleRequestDto: {
+            id: string;
+            userId: string;
+            /** @enum {string} */
+            role: "WRITER" | "PRODUCER";
+            message: string | null;
+            /** @enum {string} */
+            status: "PENDING" | "APPROVED" | "REJECTED";
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            decidedAt: string | null;
+            user: components["schemas"]["RequesterDto"];
         };
         AdminUserDto: {
             id: string;
@@ -555,7 +670,7 @@ export interface components {
             updatedAt: string;
             rightsDeclared: boolean;
             /** Format: date-time */
-            rightsDeclaredAt: Record<string, never> | null;
+            rightsDeclaredAt: string | null;
             /** @description 권한이 없으면 null */
             fullText: string | null;
             viewer: components["schemas"]["ViewerAccessDto"];
@@ -621,7 +736,7 @@ export interface components {
             /** Format: date-time */
             ndaAcceptedAt: string;
             /** Format: date-time */
-            decidedAt: Record<string, never> | null;
+            decidedAt: string | null;
             script: components["schemas"]["AccessScriptDto"];
             producer: components["schemas"]["AccessProducerDto"];
         };
@@ -716,9 +831,9 @@ export interface components {
             licenseeId: string;
             scope: string;
             /** Format: date-time */
-            startsAt: Record<string, never> | null;
+            startsAt: string | null;
             /** Format: date-time */
-            endsAt: Record<string, never> | null;
+            endsAt: string | null;
             /** @enum {string} */
             status: "DRAFT" | "ACTIVE" | "SUSPENDED" | "TERMINATED";
             terminationReason: string | null;
@@ -878,6 +993,111 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MeDto"];
+                };
+            };
+        };
+    };
+    MembershipController_request: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateRoleRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoleRequestDto"];
+                };
+            };
+        };
+    };
+    MembershipController_mine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoleRequestDto"][];
+                };
+            };
+        };
+    };
+    BackofficeController_roleRequests: {
+        parameters: {
+            query?: {
+                status?: "PENDING" | "APPROVED" | "REJECTED";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoleRequestDto"][];
+                };
+            };
+        };
+    };
+    BackofficeController_approveRole: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoleRequestDto"];
+                };
+            };
+        };
+    };
+    BackofficeController_rejectRole: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoleRequestDto"];
                 };
             };
         };

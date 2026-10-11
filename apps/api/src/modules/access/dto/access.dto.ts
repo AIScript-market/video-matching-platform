@@ -43,7 +43,7 @@ export class AccessRequestDto {
   @ApiProperty() producerId!: string;
   @ApiProperty({ enum: ACCESS_STATUSES }) status!: AccessStatusValue;
   @ApiProperty({ format: 'date-time' }) ndaAcceptedAt!: Date;
-  @ApiProperty({ format: 'date-time', nullable: true }) decidedAt!: Date | null;
+  @ApiProperty({ type: String, format: 'date-time', nullable: true }) decidedAt!: Date | null;
   @ApiProperty({ type: AccessScriptDto }) script!: AccessScriptDto;
   @ApiProperty({ type: AccessProducerDto }) producer!: AccessProducerDto;
 }

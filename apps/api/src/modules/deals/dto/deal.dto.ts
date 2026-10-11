@@ -10,8 +10,8 @@ export class LicenseDto {
   @ApiProperty() scriptId!: string;
   @ApiProperty() licenseeId!: string;
   @ApiProperty() scope!: string;
-  @ApiProperty({ format: 'date-time', nullable: true }) startsAt!: Date | null;
-  @ApiProperty({ format: 'date-time', nullable: true }) endsAt!: Date | null;
+  @ApiProperty({ type: String, format: 'date-time', nullable: true }) startsAt!: Date | null;
+  @ApiProperty({ type: String, format: 'date-time', nullable: true }) endsAt!: Date | null;
   @ApiProperty({ enum: LICENSE_STATUSES }) status!: (typeof LICENSE_STATUSES)[number];
   @ApiProperty({ nullable: true, type: String }) terminationReason!: string | null;
 }

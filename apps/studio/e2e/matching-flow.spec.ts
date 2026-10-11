@@ -1,27 +1,20 @@
-import { expect, test, type Browser, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
+import { approveAllFor, signup, suffix as makeSuffix } from "./helpers";
 
-const suffix = Date.now().toString(36);
-const password = "password1234";
+const suffix = makeSuffix();
 
-async function signup(browser: Browser, name: string, slug: string, roles: Array<"작가" | "제작자">): Promise<Page> {
-  const page = await (await browser.newContext()).newPage();
-  await page.goto("/signup");
-  await page.getByLabel("이름(활동명)").fill(name);
-  await page.getByLabel("이메일").fill(`${slug}-${suffix}@e2e.test`);
-  await page.getByLabel("비밀번호 (8자 이상)").fill(password);
-  // 기본으로 작가가 체크되어 있다
-  if (!roles.includes("작가")) await page.getByLabel(/대본 작가/).uncheck();
-  if (roles.includes("제작자")) await page.getByLabel(/영상 제작자/).check();
-  await page.getByRole("button", { name: "가입하기" }).click();
-  await expect(page.getByRole("button", { name: "로그아웃" })).toBeVisible();
-  return page;
-}
-
-test("작가와 제작자가 대본으로 매칭되어 딜이 만들어진다", async ({ browser }) => {
+test("대본 제공자와 제작자가 대본으로 매칭되어 딜이 만들어진다", async ({ browser, request }) => {
   const title = `E2E 대본 ${suffix}`;
 
-  // 1. 작가 가입 → 대본 작성 → 권리 진술 → 공개
-  const writer = await signup(browser, "작가E2E", "writer", ["작가"]);
+  // 0. 권한을 신청하며 가입하고 관리자가 승인 (승인 흐름 자체는 roles.spec.ts에서 화면으로 확인)
+  const writerEmail = `writer-${suffix}@e2e.test`;
+  const producerEmail = `producer-${suffix}@e2e.test`;
+  const writer = await signup(browser, { name: "작가E2E", email: writerEmail, requested: ["대본 제공자"] });
+  const producer = await signup(browser, { name: "제작자E2E", email: producerEmail, requested: ["영상 제작자"] });
+  await approveAllFor(request, writerEmail);
+  await approveAllFor(request, producerEmail);
+
+  // 1. 대본 작성 → 권리 진술 → 공개
   await writer.goto("/dashboard/scripts/new");
   await writer.getByLabel("제목").fill(title);
   await writer.getByLabel("장르").fill("스릴러");
@@ -38,8 +31,7 @@ test("작가와 제작자가 대본으로 매칭되어 딜이 만들어진다", 
   await expect(writer.getByText("예상 등급:")).toBeVisible({ timeout: 30_000 });
   const scriptUrl = writer.url();
 
-  // 3. 제작자 가입 → 탐색에서 찾기 → NDA 동의 후 열람 요청
-  const producer = await signup(browser, "제작자E2E", "producer", ["제작자"]);
+  // 3. 제작자: 탐색에서 찾기 → NDA 동의 후 열람 요청
   await producer.goto("/scripts");
   await producer.getByRole("button", { name: "스릴러" }).click();
   await producer.getByRole("link", { name: new RegExp(title) }).click();

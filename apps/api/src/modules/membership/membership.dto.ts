@@ -39,6 +39,6 @@ export class RoleRequestDto {
   @ApiProperty({ nullable: true, type: String }) message!: string | null;
   @ApiProperty({ enum: ROLE_REQUEST_STATUSES }) status!: (typeof ROLE_REQUEST_STATUSES)[number];
   @ApiProperty({ format: 'date-time' }) createdAt!: Date;
-  @ApiProperty({ format: 'date-time', nullable: true }) decidedAt!: Date | null;
+  @ApiProperty({ type: String, format: 'date-time', nullable: true }) decidedAt!: Date | null;
   @ApiProperty({ type: RequesterDto }) user!: RequesterDto;
 }

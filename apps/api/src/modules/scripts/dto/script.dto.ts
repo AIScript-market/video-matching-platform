@@ -130,7 +130,7 @@ export class ViewerAccessDto {
 
 export class ScriptDetailDto extends ScriptSummaryDto {
   @ApiProperty() rightsDeclared!: boolean;
-  @ApiProperty({ format: 'date-time', nullable: true }) rightsDeclaredAt!: Date | null;
+  @ApiProperty({ type: String, format: 'date-time', nullable: true }) rightsDeclaredAt!: Date | null;
   @ApiProperty({ nullable: true, type: String, description: '권한이 없으면 null' })
   fullText!: string | null;
   @ApiProperty({ type: ViewerAccessDto }) viewer!: ViewerAccessDto;

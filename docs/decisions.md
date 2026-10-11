@@ -93,3 +93,16 @@
 - OpenAPI 생성은 데코레이터 메타데이터가 필요해서 tsx가 아니라 tsc로 컴파일해 실행한다 (`pnpm --filter api openapi`).
 - 시드 대본 id는 `seed_script_*`로 고정해서 시드를 여러 번 돌려도 중복되지 않게 했다.
 - Playwright는 Pixel 7(모바일 폭) 한 프로젝트로 돌린다. 컨테이너에서 `http://studio:3000`으로 접속하므로 `allowedDevOrigins: ['studio']`가 필요하다.
+
+## 역할 구조: 일반 계정 + 관리자 승인
+
+- 가입하면 역할이 없는 **일반 계정**(`roles = []`)이 된다. 별도 USER 역할 값을 만들지 않고 빈 배열을 일반으로 본다 (계약의 Role 열거형을 그대로 유지).
+- 대본 제공자(WRITER)·영상 제작자(PRODUCER)는 `RoleRequest`로 신청하고 관리자가 승인하면 `User.roles`에 추가된다. ADMIN은 신청 대상이 아니다.
+- 가입 API의 `roles`를 `requestedRoles`(선택)로 바꿨다. 넣은 권한은 가입과 함께 신청(PENDING)된다. **계약의 `POST /auth/signup` 요청 형태가 바뀐 것**이므로 파트너와 맞춰야 한다.
+- 같은 권한에 대기 중인 신청이 있으면 409, 이미 가진 권한이면 400. 거절된 뒤에는 다시 신청할 수 있다.
+- 승인은 신청 상태 변경과 역할 추가를 한 트랜잭션으로 처리한다. 인증 가드가 매 요청마다 사용자를 다시 읽으므로 승인 즉시 반영된다 (다시 로그인할 필요 없음).
+- 새 API: `POST /role-requests`, `GET /role-requests/mine`, `GET /admin/role-requests?status=`, `POST /admin/role-requests/:id/approve`, `/reject`.
+- 사용자용은 `modules/membership`(파트너의 `users`와 겹치지 않는 이름), 관리자용은 `modules/backoffice`에 두었다. `User` 모델에 RoleRequest 관계 필드 2개를 추가했다 (계약상 A 모델 수정).
+- 마이그레이션 `b_role_request`.
+- 화면에서 역할 이름은 "대본 제공자", "영상 제작자", "관리자", 역할이 없으면 "일반"으로 표시한다.
+- 시드 계정은 역할마다 아이디와 비밀번호를 다르게 했다 (`@vmp.dev`). 이전 `@example.com` 시드 계정은 없어졌으므로 기존 개발 DB는 `down -v`로 초기화하는 것이 깔끔하다.

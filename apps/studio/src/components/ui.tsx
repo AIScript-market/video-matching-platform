@@ -30,10 +30,24 @@ export function StatusBadge({ status }: { status: string }) {
 }
 
 export const ROLE_LABEL: Record<Role, string> = {
-  WRITER: "작가",
-  PRODUCER: "제작자",
+  WRITER: "대본 제공자",
+  PRODUCER: "영상 제작자",
   ADMIN: "관리자",
 };
+
+/** 역할 배지 목록. 역할이 없으면 "일반" */
+export function RoleBadges({ roles }: { roles: Role[] }) {
+  if (roles.length === 0) return <span className="badge plain">일반</span>;
+  return (
+    <>
+      {roles.map((r) => (
+        <span key={r} className={`badge${r === "ADMIN" ? " bad" : ""}`}>
+          {ROLE_LABEL[r]}
+        </span>
+      ))}
+    </>
+  );
+}
 
 /** 로그인(과 역할)이 필요한 화면을 감싼다 */
 export function RequireAuth({ role, children }: { role?: Role; children: React.ReactNode }) {
@@ -53,7 +67,22 @@ export function RequireAuth({ role, children }: { role?: Role; children: React.R
         </div>
       </div>
     );
-  if (role && !has(role)) return <p className="error">{ROLE_LABEL[role]} 역할이 필요합니다.</p>;
+  if (role && !has(role))
+    return (
+      <div className="card stack">
+        <p>
+          이 화면은 <strong>{ROLE_LABEL[role]}</strong> 권한이 필요합니다.
+        </p>
+        {role !== "ADMIN" && (
+          <div className="row">
+            <Link href="/account" className="button">
+              {ROLE_LABEL[role]} 권한 신청하기
+            </Link>
+            <span className="small muted">관리자가 승인하면 바로 사용할 수 있습니다.</span>
+          </div>
+        )}
+      </div>
+    );
   return <>{children}</>;
 }
 

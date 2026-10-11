@@ -132,7 +132,12 @@ export default function ScriptDetailPage() {
               </Link>
             </>
           ) : !isProducer ? (
-            <p className="muted">전문 열람 요청은 제작자 역할이 필요합니다.</p>
+            <>
+              <p className="muted">전문 열람 요청은 영상 제작자 권한이 필요합니다.</p>
+              <Link href="/account" className="button secondary">
+                제작자 권한 신청
+              </Link>
+            </>
           ) : viewer.accessRequestStatus === null ? (
             <>
               <p>전문을 보려면 비밀유지(NDA)에 동의하고 작가에게 열람을 요청하세요.</p>
