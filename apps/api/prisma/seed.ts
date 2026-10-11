@@ -281,24 +281,30 @@ async function seedCasting(ids: Map<string, string>) {
       startsAt, productionEndsAt: new Date(startsAt.getTime() + 30 * DAY), endsAt: new Date(startsAt.getTime() + 365 * DAY),
     },
   });
+  // 다시 시드하면 시범 장면을 처음 상태(공개 전, 확인 대기)로 되돌린다
+  await prisma.takedownRequest.deleteMany({ where: { workId: 'seed_work_ep1' } });
   await prisma.work.upsert({
     where: { id: 'seed_work_ep1' },
-    update: {},
+    update: { status: 'DRAFT', externalUrl: null, publishedAt: null },
     create: {
       id: 'seed_work_ep1', projectId: 'seed_project_last_train', title: '마지막 열차 1화', contentTags: ['ROMANCE'],
       appearances: { create: { contractId: 'seed_contract_jeongsu' } },
     },
   });
 
+  await prisma.workAppearance.updateMany({ where: { workId: 'seed_work_ep1' }, data: { approvedAt: null } });
+
   // 2) 수아 역 (미성년 배역): 서아에게 회당 5만 원 × 6회 제안, 보호자 승인 대기
+  await prisma.castingContract.deleteMany({ where: { id: { not: 'seed_contract_jeongsu' }, projectId: 'seed_project_last_train', roleId: 'seed_role_sua', appearances: { none: {} } } });
   await prisma.castingRole.upsert({
     where: { id: 'seed_role_sua' },
     update: {},
     create: { id: 'seed_role_sua', projectId: 'seed_project_last_train', name: '수아 (정수의 조카, 중학생)', isMinorRole: true, contentTags: ['ROMANCE'] },
   });
+  await prisma.castingRole.update({ where: { id: 'seed_role_sua' }, data: { status: 'OPEN' } });
   await prisma.castingNegotiation.upsert({
     where: { id: 'seed_cneg_sua' },
-    update: {},
+    update: { status: 'OPEN' },
     create: { id: 'seed_cneg_sua', roleId: 'seed_role_sua', talentId: kid.id, initiatedBy: 'STUDIO' },
   });
   await prisma.castingOffer.upsert({
@@ -309,6 +315,8 @@ async function seedCasting(ids: Map<string, string>) {
       episodes: 6, usage: 'DIGITAL', termMonths: 12, exclusive: false, productionDays: 45, status: 'PENDING_GUARDIAN', note: '디지털 출연만, 학교 일정과 무관',
     },
   });
+  await prisma.castingOffer.update({ where: { id: 'seed_coffer_sua' }, data: { status: 'PENDING_GUARDIAN', respondedAt: null } });
+  await prisma.castingOffer.deleteMany({ where: { negotiationId: 'seed_cneg_sua', id: { not: 'seed_coffer_sua' } } });
 
   // 3) 공개 오디션
   await prisma.castingRole.upsert({
