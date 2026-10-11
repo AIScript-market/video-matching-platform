@@ -14,7 +14,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { CurrentUser, JwtAuthGuard, Roles, RolesGuard } from '../../core/auth/index.js';
+import { CreatorGuard, CurrentUser, JwtAuthGuard } from '../../core/auth/index.js';
 import type { Viewer } from '../access/access-rules.js';
 import { OptionalJwtAuthGuard } from './optional-jwt.guard.js';
 import {
@@ -45,8 +45,7 @@ export class ScriptsController {
   constructor(private readonly scripts: ScriptsService) {}
 
   @Post()
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('WRITER')
+  @UseGuards(JwtAuthGuard, CreatorGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: '대본 작성 (DRAFT로 생성)' })
   @ApiOkResponse({ type: ScriptDetailDto })
@@ -55,50 +54,59 @@ export class ScriptsController {
   }
 
   @Post('upload')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('WRITER')
+  @UseGuards(JwtAuthGuard, CreatorGuard)
   @ApiBearerAuth()
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: UPLOAD_MAX_BYTES } }))
   @ApiConsumes('multipart/form-data')
   @FileBody()
-  @ApiOperation({ summary: `파일로 새 대본 초안 만들기 (${UPLOAD_EXTENSIONS.join(', ')}, 최대 5MB)` })
+  @ApiOperation({ summary: `파일로 새 대본 초안 만들기 (코인 사용, ${UPLOAD_EXTENSIONS.join(', ')}, 최대 5MB)` })
   @ApiOkResponse({ type: ScriptDetailDto })
   upload(@CurrentUser() user: Viewer, @UploadedFile() file?: UploadedScriptFile) {
     return this.scripts.createFromUpload(user, requireFile(file));
   }
 
   @Post(':id/upload')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, CreatorGuard)
   @ApiBearerAuth()
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: UPLOAD_MAX_BYTES } }))
   @ApiConsumes('multipart/form-data')
   @FileBody()
-  @ApiOperation({ summary: '대본 전문을 업로드한 파일 내용으로 바꾸기 (작가 본인)' })
+  @ApiOperation({ summary: '대본 전문을 업로드한 파일 내용으로 바꾸기 (작가 본인, 코인 사용)' })
   @ApiOkResponse({ type: ScriptDetailDto })
   replaceUpload(@Param('id') id: string, @CurrentUser() user: Viewer, @UploadedFile() file?: UploadedScriptFile) {
     return this.scripts.replaceFromUpload(id, user, requireFile(file));
   }
 
   @Post(':id/preview/upload')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, CreatorGuard)
   @ApiBearerAuth()
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: UPLOAD_MAX_BYTES } }))
   @ApiConsumes('multipart/form-data')
   @FileBody()
-  @ApiOperation({ summary: '미리보기 대본을 파일로 올리기 (작가 본인). 열람 승인 전 제작자에게 보인다' })
+  @ApiOperation({ summary: '미리보기 대본을 파일로 올리기 (작가 본인, 코인 사용)' })
   @ApiOkResponse({ type: ScriptDetailDto })
   uploadPreview(@Param('id') id: string, @CurrentUser() user: Viewer, @UploadedFile() file?: UploadedScriptFile) {
     return this.scripts.uploadPreview(id, user, requireFile(file));
   }
 
   @Post(':id/summary/refresh')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, CreatorGuard)
   @HttpCode(200)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'AI 요약 다시 만들기 (작가 본인). 내용이 바뀌면 자동으로도 다시 만든다' })
   @ApiOkResponse({ type: ScriptDetailDto })
   refreshSummary(@Param('id') id: string, @CurrentUser() user: Viewer) {
     return this.scripts.refreshSummary(id, user);
+  }
+
+  @Post(':id/preview/unlock')
+  @UseGuards(JwtAuthGuard, CreatorGuard)
+  @HttpCode(200)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '미리보기 열람권 구매 (코인). 이미 샀으면 다시 차감하지 않는다' })
+  @ApiOkResponse({ type: ScriptDetailDto })
+  unlockPreview(@Param('id') id: string, @CurrentUser() user: Viewer) {
+    return this.scripts.unlockPreview(id, user);
   }
 
   @Get()
@@ -118,7 +126,7 @@ export class ScriptsController {
   }
 
   @Patch(':id')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, CreatorGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: '대본 수정 (작가 본인)' })
   @ApiOkResponse({ type: ScriptDetailDto })
@@ -127,7 +135,7 @@ export class ScriptsController {
   }
 
   @Post(':id/publish')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, CreatorGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: '대본 공개 (rightsDeclared=true 필수). AI 요약 작업을 등록한다' })
   @ApiOkResponse({ type: ScriptDetailDto })

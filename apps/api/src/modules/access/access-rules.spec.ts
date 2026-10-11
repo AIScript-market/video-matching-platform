@@ -38,12 +38,22 @@ describe('canReadFullText', () => {
 });
 
 describe('canReadPreview', () => {
-  it('작가 본인과 공개 대본의 제작자만', () => {
-    expect(canReadPreview(draft, author)).toBe(true);
-    expect(canReadPreview(published, producer)).toBe(true);
-    expect(canReadPreview(hidden, producer)).toBe(false);
-    expect(canReadPreview(published, { id: 'm1', roles: [] })).toBe(false);
-    expect(canReadPreview(published, admin)).toBe(false);
-    expect(canReadPreview(published, null)).toBe(false);
+  it('작가 본인과 열람권을 산 사람만 (공개 대본)', () => {
+    expect(canReadPreview(draft, author, false)).toBe(true);
+    expect(canReadPreview(published, producer, true)).toBe(true);
+    expect(canReadPreview(published, producer, false)).toBe(false);
+    expect(canReadPreview(hidden, producer, true)).toBe(false);
+    expect(canReadPreview(published, null, true)).toBe(false);
+  });
+});
+
+describe('정지·탈퇴한 작가의 대본', () => {
+  it('관리자만 볼 수 있다', () => {
+    const suspended = { ...published, authorStatus: 'SUSPENDED' };
+    expect(canSeeScript(suspended, null)).toBe(false);
+    expect(canSeeScript(suspended, producer)).toBe(false);
+    expect(canSeeScript(suspended, author)).toBe(false);
+    expect(canSeeScript(suspended, admin)).toBe(true);
+    expect(canSeeScript({ ...published, authorStatus: 'ACTIVE' }, null)).toBe(true);
   });
 });

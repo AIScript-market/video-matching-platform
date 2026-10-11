@@ -142,6 +142,7 @@ export class ViewerAccessDto {
   accessRequestStatus!: 'PENDING' | 'APPROVED' | 'REJECTED' | null;
   @ApiProperty() canReadFullText!: boolean;
   @ApiProperty() canReadPreview!: boolean;
+  @ApiProperty({ description: '코인으로 미리보기 열람권을 샀는지' }) previewUnlocked!: boolean;
 }
 
 export class ScriptDetailDto extends ScriptSummaryDto {
@@ -149,8 +150,10 @@ export class ScriptDetailDto extends ScriptSummaryDto {
   @ApiProperty({ type: String, format: 'date-time', nullable: true }) rightsDeclaredAt!: Date | null;
   @ApiProperty({ nullable: true, type: String, description: '권한이 없으면 null' })
   fullText!: string | null;
-  @ApiProperty({ nullable: true, type: String, description: '미리보기 대본. 없거나 볼 권한이 없으면 null' })
+  @ApiProperty({ nullable: true, type: String, description: '미리보기 대본. 없거나 볼 권한(작가 본인·열람권)이 없으면 null' })
   previewText!: string | null;
+  @ApiProperty({ description: '이 대본에 미리보기가 있는지 (열람권 구매 전에도 알 수 있음)' })
+  previewAvailable!: boolean;
   @ApiProperty({ type: ViewerAccessDto }) viewer!: ViewerAccessDto;
 }
 

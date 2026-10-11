@@ -17,6 +17,7 @@ import { OffersService } from '../../negotiations/offers.service.js';
 import { AiJobsQueue } from '../../scripts/ai-jobs.queue.js';
 import { ScriptsService } from '../../scripts/scripts.service.js';
 import { DealsService } from '../deals.service.js';
+import { WalletService } from '../../wallet/wallet.service.js';
 
 const run = process.env.DATABASE_URL ? describe : describe.skip;
 
@@ -35,7 +36,7 @@ run('도메인 흐름 (DB)', () => {
 
   async function makeUser(name: string, roles: Array<'WRITER' | 'PRODUCER' | 'ADMIN'>): Promise<Viewer> {
     const u = await prisma.user.create({
-      data: { email: `${name}-${suffix}@test.local`, passwordHash: 'x', displayName: name, roles },
+      data: { email: `${name}-${suffix}@test.local`, passwordHash: 'x', displayName: name, roles, coinBalance: 1000 },
     });
     userIds.push(u.id);
     return { id: u.id, roles };
@@ -44,9 +45,10 @@ run('도메인 흐름 (DB)', () => {
   beforeAll(async () => {
     prisma = new PrismaService();
     const queue = { enqueueSummarize: async (id: string) => (queued.push(id), true) } as AiJobsQueue;
-    scripts = new ScriptsService(prisma, queue);
+    const wallet = new WalletService(prisma);
+    scripts = new ScriptsService(prisma, queue, wallet);
     access = new AccessService(prisma);
-    negotiations = new NegotiationsService(prisma);
+    negotiations = new NegotiationsService(prisma, wallet);
     offers = new OffersService(prisma, negotiations);
     deals = new DealsService(prisma);
     ledger = new LedgerService(prisma, deals);
@@ -65,6 +67,7 @@ run('도메인 흐름 (DB)', () => {
     await prisma.license.deleteMany({ where: { dealId: { in: dealIds } } });
     await prisma.deal.deleteMany({ where: { id: { in: dealIds } } });
     await prisma.message.deleteMany({ where: { negotiationId: { in: negIds } } });
+    await prisma.coinTransaction.deleteMany({ where: { userId: { in: userIds } } });
     await prisma.offer.deleteMany({ where: { negotiationId: { in: negIds } } });
     await prisma.negotiation.deleteMany({ where: { id: { in: negIds } } });
     await prisma.scriptAccessLog.deleteMany({ where: { scriptId: { in: scriptIds } } });
@@ -132,6 +135,8 @@ run('도메인 흐름 (DB)', () => {
     expect((await negotiations.listMessages(neg.id, writer)).map((m) => m.id)).toEqual([m1.id, m2.id]);
     expect((await negotiations.listMessages(neg.id, writer, m1.id)).map((m) => m.id)).toEqual([m2.id]);
     expect(await negotiations.listMessages(neg.id, writer, m2.id)).toEqual([]);
+    // 메시지는 1건에 1코인
+    expect((await prisma.user.findUniqueOrThrow({ where: { id: producer.id } })).coinBalance).toBe(999);
 
     // 5. 제안 → 역제안 → 수락
     const terms = { writerSharePct: 50, producerSharePct: 50, upfrontFeeKrw: 3_000_000, termMonths: 24, exclusive: true };

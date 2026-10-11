@@ -1,5 +1,5 @@
 /**
- * 실제 AppModule + 인증으로 전체 흐름을 HTTP 레벨에서 확인한다 (DATABASE_URL 필요).
+ * 실제 AppModule + 인증으로 전체 흐름을 HTTP 레벨에서 확인한다 (DATABASE_URL 필요, 시드 관리자 사용).
  * Redis 없이 돌도록 요약 작업 등록은 끈다.
  */
 import { INestApplication } from '@nestjs/common';
@@ -15,7 +15,8 @@ run('API e2e', () => {
   let app: INestApplication;
   let prisma: PrismaService;
   const suffix = Date.now().toString(36);
-  const emails = ['w', 'p', 'a', 'w2', 'p2'].map((r) => `e2e-${r}-${suffix}@test.local`);
+  const email = (name: string) => `e2e-${name}-${suffix}@test.local`;
+  const createdUserIds = new Set<string>();
 
   beforeAll(async () => {
     process.env.AI_JOBS_DISABLED = 'true';
@@ -27,196 +28,214 @@ run('API e2e', () => {
   });
 
   afterAll(async () => {
-    const users = await prisma.user.findMany({ where: { email: { in: emails } }, select: { id: true } });
-    const ids = users.map((u) => u.id);
+    const ids = [...createdUserIds];
     const scripts = (await prisma.script.findMany({ where: { authorId: { in: ids } }, select: { id: true } })).map((s) => s.id);
-    const negs = (await prisma.negotiation.findMany({ where: { scriptId: { in: scripts } }, select: { id: true } })).map((n) => n.id);
+    const negs = (
+      await prisma.negotiation.findMany({
+        where: { OR: [{ scriptId: { in: scripts } }, { producerId: { in: ids } }] },
+        select: { id: true },
+      })
+    ).map((n) => n.id);
     const deals = (await prisma.deal.findMany({ where: { negotiationId: { in: negs } }, select: { id: true } })).map((d) => d.id);
-    await prisma.roleRequest.deleteMany({ where: { userId: { in: ids } } });
-    await prisma.scriptUpload.deleteMany({ where: { uploaderId: { in: ids } } });
     await prisma.ledgerEntry.deleteMany({ where: { dealId: { in: deals } } });
     await prisma.license.deleteMany({ where: { dealId: { in: deals } } });
     await prisma.deal.deleteMany({ where: { id: { in: deals } } });
     await prisma.message.deleteMany({ where: { negotiationId: { in: negs } } });
     await prisma.offer.deleteMany({ where: { negotiationId: { in: negs } } });
     await prisma.negotiation.deleteMany({ where: { id: { in: negs } } });
-    await prisma.scriptAccessLog.deleteMany({ where: { scriptId: { in: scripts } } });
-    await prisma.scriptAccessRequest.deleteMany({ where: { scriptId: { in: scripts } } });
+    await prisma.scriptAccessLog.deleteMany({ where: { OR: [{ scriptId: { in: scripts } }, { userId: { in: ids } }] } });
+    await prisma.scriptAccessRequest.deleteMany({ where: { OR: [{ scriptId: { in: scripts } }, { producerId: { in: ids } }] } });
+    await prisma.scriptPreviewUnlock.deleteMany({ where: { OR: [{ scriptId: { in: scripts } }, { userId: { in: ids } }] } });
+    await prisma.scriptUpload.deleteMany({ where: { OR: [{ scriptId: { in: scripts } }, { uploaderId: { in: ids } }] } });
     await prisma.script.deleteMany({ where: { id: { in: scripts } } });
+    await prisma.coinTransaction.deleteMany({ where: { userId: { in: ids } } });
     await prisma.user.deleteMany({ where: { id: { in: ids } } });
     await app.close();
   });
 
-  it('일반 가입 → 권한 신청 → 관리자 승인 → 대본 공개 → 열람 → 협상 → 수락 → 장부', async () => {
+  /** 일반 가입 → (선택) 프로필·이메일 공개 */
+  async function signup(name: string, opts: { creator?: boolean } = {}) {
     const http = request(app.getHttpServer());
-    const ADMIN = {
-      Authorization: `Bearer ${(await http.post('/auth/login').send({ email: 'admin@vmp.dev', password: 'admin1234!' }).expect(200)).body.accessToken}`,
-    };
-
-    // 가입은 일반 계정으로 시작. ADMIN은 신청할 수 없다
-    await http.post('/auth/signup').send({ email: emails[2], password: 'password1234', displayName: 'A', requestedRoles: ['ADMIN'] }).expect(400);
-    await http.post('/auth/signup').send({ email: 'bad', password: 'short', displayName: '' }).expect(400);
-
-    const writerSignup = await http
+    const res = await http
       .post('/auth/signup')
-      .send({ email: emails[0], password: 'password1234', displayName: '작가', requestedRoles: ['WRITER'] })
+      .send({ email: email(name), password: 'password1234', displayName: name })
       .expect(201);
-    expect(writerSignup.body.user.roles).toEqual([]);
-    expect(writerSignup.headers['set-cookie']?.[0]).toMatch(/vmp_token=.+HttpOnly/i);
-    await http.post('/auth/signup').send({ email: emails[0], password: 'password1234', displayName: '중복' }).expect(409);
-    await http.post('/auth/signup').send({ email: emails[1], password: 'password1234', displayName: '제작' }).expect(201);
+    createdUserIds.add(res.body.user.id);
+    const auth = { Authorization: `Bearer ${res.body.accessToken}` };
+    if (opts.creator) {
+      await http.patch('/me/profile').set(auth).send({ bio: `${name} 소개`, profilePublic: true, emailPublic: true }).expect(204);
+    }
+    return { id: res.body.user.id as string, auth, user: res.body.user };
+  }
 
-    // 로그인: 틀린 비밀번호 401, 쿠키 인증으로 /me
-    await http.post('/auth/login').send({ email: emails[0], password: 'wrong-password' }).expect(401);
-    const writerLogin = await http.post('/auth/login').send({ email: emails[0].toUpperCase(), password: 'password1234' }).expect(200);
-    const writerCookie = writerLogin.headers['set-cookie'] as unknown as string[];
-    const W = { Cookie: writerCookie.join('; ') };
-    const me = await http.get('/me').set(W).expect(200);
-    expect(me.body).toMatchObject({ email: emails[0], roles: [] });
-    expect(me.body.passwordHash).toBeUndefined();
+  async function adminAuth() {
+    const http = request(app.getHttpServer());
+    const res = await http.post('/auth/login').send({ email: 'admin@vmp.dev', password: 'admin1234!' }).expect(200);
+    return { Authorization: `Bearer ${res.body.accessToken}` };
+  }
+
+  it('일반 가입 → 프로필 공개 → 대본 공개 → 열람 → 협상(메시지 코인) → 수락 → 장부', async () => {
+    const http = request(app.getHttpServer());
+    const ADMIN = await adminAuth();
+
+    // 가입: 일반 계정 + 가입 보너스 10코인
+    await http.post('/auth/signup').send({ email: 'bad', password: 'short', displayName: '' }).expect(400);
+    const writer = await signup('writer');
+    expect(writer.user).toMatchObject({ roles: [], coinBalance: 10, creatorReady: false });
+    await http.post('/auth/signup').send({ email: email('writer'), password: 'password1234', displayName: '중복' }).expect(409);
+    // 예전 roles 같은 필드는 받지 않는다
+    await http.post('/auth/signup').send({ email: email('x'), password: 'password1234', displayName: 'x', roles: ['ADMIN'] }).expect(400);
+
+    // 로그인: 틀린 비밀번호 401, 쿠키 인증
+    await http.post('/auth/login').send({ email: email('writer'), password: 'wrong-password' }).expect(401);
+    const login = await http.post('/auth/login').send({ email: email('writer').toUpperCase(), password: 'password1234' }).expect(200);
+    const W = { Cookie: (login.headers['set-cookie'] as unknown as string[]).join('; ') };
+    expect((await http.get('/me').set(W).expect(200)).body.passwordHash).toBeUndefined();
     await http.get('/me').expect(401);
-    await http.get('/me').set('Authorization', 'Bearer not-a-token').expect(401);
 
-    const producerToken = (await http.post('/auth/login').send({ email: emails[1], password: 'password1234' }).expect(200)).body.accessToken;
-    const P = { Authorization: `Bearer ${producerToken}` };
+    // 프로필·이메일을 공개하기 전에는 대본 작성 불가
+    const blocked = await http.post('/scripts').set(W).send({ title: 't', logline: 'l', synopsis: 's', genre: 'g', fullText: 'f' }).expect(403);
+    expect(blocked.body.error).toBe('PROFILE_NOT_PUBLIC');
+    await http.patch('/me/profile').set(W).send({ profilePublic: true }).expect(400); // 소개 없이 공개 불가
+    await http.get(`/users/${writer.id}`).expect(404); // 비공개 프로필
+    await http.patch('/me/profile').set(W).send({ bio: '미스터리 작가입니다', profilePublic: true }).expect(204);
+    expect((await http.get('/me').set(W)).body.creatorReady).toBe(false); // 이메일도 공개해야 한다
+    await http.patch('/me/profile').set(W).send({ emailPublic: true }).expect(204);
+    expect((await http.get('/me').set(W)).body.creatorReady).toBe(true);
+    const profile = (await http.get(`/users/${writer.id}`).expect(200)).body;
+    expect(profile).toMatchObject({ bio: '미스터리 작가입니다', email: email('writer'), creatorReady: true });
 
-    // 일반 계정은 대본을 쓸 수 없다 → 가입 시 신청한 WRITER를 관리자가 승인
-    await http.post('/scripts').set(W).send({ title: 't', logline: 'l', synopsis: 's', genre: 'g', fullText: 'f' }).expect(403);
-    const writerReqs = (await http.get('/role-requests/mine').set(W).expect(200)).body;
-    expect(writerReqs).toHaveLength(1);
-    expect(writerReqs[0]).toMatchObject({ role: 'WRITER', status: 'PENDING' });
-    await http.post(`/admin/role-requests/${writerReqs[0].id}/approve`).set(W).expect(403);
-    await http.post(`/admin/role-requests/${writerReqs[0].id}/approve`).set(ADMIN).expect(200);
-    await http.post(`/admin/role-requests/${writerReqs[0].id}/approve`).set(ADMIN).expect(409);
-    expect((await http.get('/me').set(W)).body.roles).toEqual(['WRITER']);
-    await http.post('/role-requests').set(W).send({ role: 'WRITER' }).expect(400);
-
-    // 제작자: 가입 후 직접 신청 → 중복 신청 409 → 거절 → 재신청 → 승인
-    const pReq = await http.post('/role-requests').set(P).send({ role: 'PRODUCER', message: '제작사 PD' }).expect(201);
-    await http.post('/role-requests').set(P).send({ role: 'PRODUCER' }).expect(409);
-    await http.post('/role-requests').set(P).send({ role: 'ADMIN' }).expect(400);
-    const pending = (await http.get('/admin/role-requests?status=PENDING').set(ADMIN).expect(200)).body;
-    expect(pending.map((r: { id: string }) => r.id)).toContain(pReq.body.id);
-    await http.post(`/admin/role-requests/${pReq.body.id}/reject`).set(ADMIN).expect(200);
-    expect((await http.get('/me').set(P)).body.roles).toEqual([]);
-    const pReq2 = await http.post('/role-requests').set(P).send({ role: 'PRODUCER' }).expect(201);
-    await http.post(`/admin/role-requests/${pReq2.body.id}/approve`).set(ADMIN).expect(200);
-    expect((await http.get('/me').set(P)).body.roles).toEqual(['PRODUCER']);
+    const producer = await signup('producer', { creator: true });
+    const P = producer.auth;
+    const member = await signup('member'); // 프로필 비공개
 
     // 대본 작성·공개
     const script = await http.post('/scripts').set(W).send({ title: 'E2E 대본', logline: '로그라인', synopsis: '시놉시스', genre: '스릴러', fullText: '전문입니다' }).expect(201);
     await http.post(`/scripts/${script.body.id}/publish`).set(W).send({}).expect(400);
     await http.post(`/scripts/${script.body.id}/publish`).set(W).send({ rightsDeclared: true }).expect(201);
-    const anon = await http.get(`/scripts/${script.body.id}`).expect(200);
-    expect(anon.body.fullText).toBeNull();
+    expect((await http.get(`/scripts/${script.body.id}`).expect(200)).body.fullText).toBeNull();
 
-    // 열람 요청·승인
+    // 프로필 비공개 계정은 열람 요청 불가 → 공개한 계정은 가능
+    await http.post(`/scripts/${script.body.id}/access-requests`).set(member.auth).send({ ndaAccepted: true }).expect(403);
     const ar = await http.post(`/scripts/${script.body.id}/access-requests`).set(P).send({ ndaAccepted: true }).expect(201);
     await http.post(`/access-requests/${ar.body.id}/approve`).set(W).expect(200);
     expect((await http.get(`/scripts/${script.body.id}`).set(P).expect(200)).body.fullText).toBe('전문입니다');
 
-    // 협상·제안·수락
+    // 협상: 메시지 1건 = 1코인 (제작자 10코인)
     const neg = await http.post(`/scripts/${script.body.id}/negotiations`).set(P).expect(201);
-    await http.post(`/negotiations/${neg.body.id}/messages`).set(P).send({ body: '안녕하세요' }).expect(201);
+    for (let i = 0; i < 10; i++) {
+      await http.post(`/negotiations/${neg.body.id}/messages`).set(P).send({ body: `메시지 ${i}` }).expect(201);
+    }
+    const broke = await http.post(`/negotiations/${neg.body.id}/messages`).set(P).send({ body: '하나 더' }).expect(402);
+    expect(broke.body).toMatchObject({ error: 'INSUFFICIENT_COINS', required: 1, balance: 0 });
+    expect((await http.get(`/negotiations/${neg.body.id}/messages`).set(P)).body).toHaveLength(10); // 실패한 메시지는 안 남는다
+
+    // 코인 구매 (테스트 결제) → 다시 메시지
+    const wallet = (await http.get('/coins').set(P).expect(200)).body;
+    expect(wallet).toMatchObject({ balance: 0, prices: { MESSAGE: 1, PREVIEW_UNLOCK: 3, SCRIPT_UPLOAD: 5 }, testPayments: true });
+    await http.post('/coins/purchase').set(P).send({ packageId: 'nope' }).expect(400);
+    expect((await http.post('/coins/purchase').set(P).send({ packageId: 'coins_10' }).expect(200)).body.balance).toBe(10);
+    await http.post(`/negotiations/${neg.body.id}/messages`).set(P).send({ body: '충전했어요' }).expect(201);
+    const history = (await http.get('/coins/transactions').set(P).expect(200)).body.items;
+    expect(history[0]).toMatchObject({ type: 'SPEND', use: 'MESSAGE', amount: -1, balanceAfter: 9 });
+    expect(history[1]).toMatchObject({ type: 'PURCHASE', amount: 10, priceKrw: 1000 });
+    expect(history.at(-1)).toMatchObject({ type: 'SIGNUP_BONUS', amount: 10 });
+
+    // 제안·역제안·수락 (제안은 코인을 쓰지 않는다)
     const offer = await http.post(`/negotiations/${neg.body.id}/offers`).set(P).send({ writerSharePct: 55, producerSharePct: 45, upfrontFeeKrw: 2000000, termMonths: 18, exclusive: true }).expect(201);
     const counter = await http.post(`/negotiations/${neg.body.id}/offers`).set(W).send({ writerSharePct: 60, producerSharePct: 40, upfrontFeeKrw: 3000000, termMonths: 18, exclusive: true }).expect(201);
-    expect((await http.get(`/negotiations/${neg.body.id}`).set(W)).body.offers.map((o: { id: string; status: string }) => o.status)).toEqual(['COUNTERED', 'PROPOSED']);
     await http.post(`/offers/${offer.body.id}/accept`).set(W).expect(409);
     const accepted = await http.post(`/offers/${counter.body.id}/accept`).set(P).expect(200);
 
     // 장부: 관리자만 기록
     await http.post(`/deals/${accepted.body.dealId}/ledger`).set(W).send({ type: 'REVENUE', amountKrw: 1000 }).expect(403);
     await http.post(`/deals/${accepted.body.dealId}/ledger`).set(ADMIN).send({ type: 'REVENUE', amountKrw: 1000 }).expect(201);
-    expect((await http.get('/admin/users').set(ADMIN).expect(200)).body.length).toBeGreaterThan(0);
+    expect((await http.get(`/deals/${accepted.body.dealId}/ledger`).set(P).expect(200)).body.totals.balance).toBe(1000);
     await http.get('/admin/users').set(W).expect(403);
-    const ledger = await http.get(`/deals/${accepted.body.dealId}/ledger`).set(P).expect(200);
-    expect(ledger.body.totals.balance).toBe(1000);
 
     await http.post('/auth/logout').set(W).expect(204);
   });
 
-  it('대본 업로드 → 제작자 검토 후 메시지 → 관리자 로그', async () => {
+  it('업로드·미리보기 코인 → 검토 메시지 → 관리자 로그 → 정지 → 탈퇴 후 재가입', async () => {
     const http = request(app.getHttpServer());
-    const ADMIN = {
-      Authorization: `Bearer ${(await http.post('/auth/login').send({ email: 'admin@vmp.dev', password: 'admin1234!' })).body.accessToken}`,
-    };
-    // 권한을 신청하며 가입 → 관리자 승인
-    async function approvedUser(email: string, role: 'WRITER' | 'PRODUCER') {
-      const res = await http.post('/auth/signup').send({ email, password: 'password1234', displayName: role, requestedRoles: [role] }).expect(201);
-      const auth = { Authorization: `Bearer ${res.body.accessToken}` };
-      const [req] = (await http.get('/role-requests/mine').set(auth)).body;
-      await http.post(`/admin/role-requests/${req.id}/approve`).set(ADMIN).expect(200);
-      return auth;
-    }
-    const W = await approvedUser(emails[3], 'WRITER');
-    const P = await approvedUser(emails[4], 'PRODUCER');
+    const ADMIN = await adminAuth();
+    const writer = await signup('upwriter', { creator: true });
+    const producer = await signup('upproducer', { creator: true });
+    const W = writer.auth;
+    const P = producer.auth;
+    const title = `바다의 끝 ${suffix}`;
 
-    // 업로드: 제작자는 못 올리고, 지원하지 않는 형식은 거부
-    await http.post('/scripts/upload').set(P).attach('file', Buffer.from('x'), 'a.txt').expect(403);
+    // 업로드 1회 = 5코인 (보유 10). 형식 오류는 코인을 쓰지 않는다
     await http.post('/scripts/upload').set(W).attach('file', Buffer.from('x'), 'a.hwp').expect(400);
-    await http.post('/scripts/upload').set(W).expect(400);
-
-    // 파일로 새 초안 (한글 파일명 → 제목)
     const draft = await http
       .post('/scripts/upload')
       .set(W)
-      .attach('file', Buffer.from('S#1. 바다 (새벽)\r\n\r\n\r\n해원: 다시 왔어.'), { filename: `바다의 끝 ${suffix}.txt`, contentType: 'text/plain' })
+      .attach('file', Buffer.from('S#1. 바다 (새벽)\r\n\r\n\r\n해원: 다시 왔어.'), { filename: `${title}.txt`, contentType: 'text/plain' })
       .expect(201);
-    expect(draft.body).toMatchObject({ title: `바다의 끝 ${suffix}`, status: 'DRAFT', fullText: 'S#1. 바다 (새벽)\n\n해원: 다시 왔어.' });
-
-    // 로그라인·시놉시스·장르가 비어 있으면 공개 불가
-    const publishFail = await http.post(`/scripts/${draft.body.id}/publish`).set(W).send({ rightsDeclared: true }).expect(400);
-    expect(publishFail.body.message).toContain('로그라인');
-    await http.patch(`/scripts/${draft.body.id}`).set(W).send({ logline: '바다로 돌아온 해원', synopsis: '시놉시스', genre: '드라마' }).expect(200);
-
-    // 본문 교체 업로드 → 공개
-    const replaced = await http.post(`/scripts/${draft.body.id}/upload`).set(W).attach('file', Buffer.from('S#1. 바다 (밤)\n해원: 끝이야.'), 'v2.md').expect(201);
-    expect(replaced.body.fullText).toBe('S#1. 바다 (밤)\n해원: 끝이야.');
-    await http.post(`/scripts/${draft.body.id}/upload`).set(P).attach('file', Buffer.from('x'), 'x.txt').expect(404);
-    await http.post(`/scripts/${draft.body.id}/publish`).set(W).send({ rightsDeclared: true }).expect(201);
-
-    // 미리보기 대본 업로드: 제작자에게만 보인다
-    await http.post(`/scripts/${draft.body.id}/preview/upload`).set(P).attach('file', Buffer.from('x'), 'p.txt').expect(403);
+    expect(draft.body).toMatchObject({ title, status: 'DRAFT', fullText: 'S#1. 바다 (새벽)\n\n해원: 다시 왔어.' });
+    await http.post(`/scripts/${draft.body.id}/upload`).set(W).attach('file', Buffer.from('S#1. 바다 (밤)\n해원: 끝이야.'), 'v2.md').expect(201);
+    const noCoins = await http.post(`/scripts/${draft.body.id}/preview/upload`).set(W).attach('file', Buffer.from('일부'), 'preview.txt').expect(402);
+    expect(noCoins.body.error).toBe('INSUFFICIENT_COINS');
+    // 관리자 코인 지급
+    expect((await http.post(`/admin/users/${writer.id}/coins`).set(ADMIN).send({ amount: 20, memo: '이벤트' }).expect(200)).body.balance).toBe(20);
+    await http.post(`/admin/users/${writer.id}/coins`).set(ADMIN).send({ amount: -999 }).expect(400);
     const withPreview = await http.post(`/scripts/${draft.body.id}/preview/upload`).set(W).attach('file', Buffer.from('S#1. 바다 (밤) 일부'), 'preview.txt').expect(201);
     expect(withPreview.body.previewText).toBe('S#1. 바다 (밤) 일부');
-    const pView = (await http.get(`/scripts/${draft.body.id}`).set(P).expect(200)).body;
-    expect(pView).toMatchObject({ previewText: 'S#1. 바다 (밤) 일부', fullText: null });
-    expect((await http.get(`/scripts/${draft.body.id}`).expect(200)).body.previewText).toBeNull();
 
-    // 제작자: 열람 승인 전·전문을 보기 전에는 메시지 불가 → 열람 후 메시지
+    await http.patch(`/scripts/${draft.body.id}`).set(W).send({ logline: '돌아온 해원', synopsis: '시놉시스', genre: '드라마' }).expect(200);
+    await http.post(`/scripts/${draft.body.id}/publish`).set(W).send({ rightsDeclared: true }).expect(201);
+
+    // 미리보기: 열람권 전에는 존재만, 3코인으로 열람권 구매
+    const before = (await http.get(`/scripts/${draft.body.id}`).set(P).expect(200)).body;
+    expect(before).toMatchObject({ previewText: null, previewAvailable: true, fullText: null });
+    const unlocked = (await http.post(`/scripts/${draft.body.id}/preview/unlock`).set(P).expect(200)).body;
+    expect(unlocked.previewText).toBe('S#1. 바다 (밤) 일부');
+    await http.post(`/scripts/${draft.body.id}/preview/unlock`).set(P).expect(200); // 다시 눌러도 추가 차감 없음
+    expect((await http.get('/coins').set(P)).body.balance).toBe(7);
+
+    // 검토(전문 열람) 후 메시지 = 1코인
     await http.post(`/scripts/${draft.body.id}/contact`).set(P).send({ body: '좋네요' }).expect(403);
     const ar = await http.post(`/scripts/${draft.body.id}/access-requests`).set(P).send({ ndaAccepted: true }).expect(201);
     await http.post(`/access-requests/${ar.body.id}/approve`).set(W).expect(200);
-    await http.post(`/scripts/${draft.body.id}/contact`).set(P).send({ body: '좋네요' }).expect(403);
-    await http.get(`/scripts/${draft.body.id}`).set(P).expect(200); // 전문 검토 (열람 로그 생성)
-    await http.post(`/scripts/${draft.body.id}/contact`).set(P).send({ body: '   ' }).expect(400);
-    await http.post(`/scripts/${draft.body.id}/contact`).set(W).send({ body: '본인' }).expect(403);
-    const contact = await http.post(`/scripts/${draft.body.id}/contact`).set(P).send({ body: '검토했습니다. 2화 구성이 인상적이에요.' }).expect(201);
-    const again = await http.post(`/scripts/${draft.body.id}/contact`).set(P).send({ body: '통화 가능할까요?' }).expect(201);
-    expect(again.body.negotiationId).toBe(contact.body.negotiationId);
+    await http.get(`/scripts/${draft.body.id}`).set(P).expect(200);
+    const contact = await http.post(`/scripts/${draft.body.id}/contact`).set(P).send({ body: '검토했습니다. 미팅 가능할까요?' }).expect(201);
+    expect((await http.get('/coins').set(P)).body.balance).toBe(6);
 
-    // 작가: 협상 목록에서 마지막 메시지 확인
-    const negs = (await http.get('/negotiations').set(W).expect(200)).body;
-    const neg = negs.find((n: { id: string }) => n.id === contact.body.negotiationId);
-    expect(neg.lastMessage.body).toBe('통화 가능할까요?');
+    // 관리자 로그: 메시지·열람·업로드·코인
+    const q = (s: string) => encodeURIComponent(s);
+    expect((await http.get(`/admin/logs/messages?q=${q(title)}`).set(ADMIN).expect(200)).body.items.map((m: { body: string }) => m.body)).toEqual(['검토했습니다. 미팅 가능할까요?']);
+    expect((await http.get(`/admin/logs/views?q=${q(email('upproducer'))}`).set(ADMIN).expect(200)).body.items).toHaveLength(1);
+    const uploads = (await http.get(`/admin/logs/uploads?q=${q(email('upwriter'))}`).set(ADMIN).expect(200)).body.items;
+    expect(uploads.map((u: { kind: string; filename: string }) => `${u.kind}:${u.filename}`)).toEqual(['PREVIEW:preview.txt', 'FULL:v2.md', `FULL:${title}.txt`]);
+    const coinLog = (await http.get(`/admin/logs/coins?q=${q(email('upproducer'))}`).set(ADMIN).expect(200)).body.items;
+    expect(coinLog.map((c: { type: string; use: string | null }) => `${c.type}:${c.use ?? '-'}`)).toEqual(['SPEND:MESSAGE', 'SPEND:PREVIEW_UNLOCK', 'SIGNUP_BONUS:-']);
+    await http.get('/admin/logs/coins').set(W).expect(403);
 
-    // 관리자 로그: 메시지·열람·업로드
-    await http.get('/admin/logs/messages').set(W).expect(403);
-    const msgs = (await http.get(`/admin/logs/messages?q=${encodeURIComponent(`바다의 끝 ${suffix}`)}`).set(ADMIN).expect(200)).body;
-    expect(msgs.items.map((m: { body: string }) => m.body)).toEqual(['통화 가능할까요?', '검토했습니다. 2화 구성이 인상적이에요.']);
-    expect(msgs.items[0].recipient.email).toBe(emails[3]);
-    expect(msgs.items[0].sender.email).toBe(emails[4]);
-    const views = (await http.get(`/admin/logs/views?q=${encodeURIComponent(emails[4])}`).set(ADMIN).expect(200)).body;
-    expect(views.items).toHaveLength(1);
-    expect(views.items[0].script.title).toBe(`바다의 끝 ${suffix}`);
-    const uploads = (await http.get(`/admin/logs/uploads?q=${encodeURIComponent(emails[3])}`).set(ADMIN).expect(200)).body;
-    expect(uploads.items.map((u: { filename: string; kind: string }) => `${u.kind}:${u.filename}`)).toEqual([
-      'PREVIEW:preview.txt',
-      'FULL:v2.md',
-      `FULL:바다의 끝 ${suffix}.txt`,
-    ]);
-    const page1 = (await http.get('/admin/logs/messages?take=1').set(ADMIN).expect(200)).body;
-    expect(page1.items).toHaveLength(1);
-    expect(page1.nextCursor).toBeTruthy();
+    // 정지: 관리자는 일반 계정만 정지할 수 있다
+    const admin = await prisma.user.findUniqueOrThrow({ where: { email: 'admin@vmp.dev' } });
+    await http.patch(`/admin/users/${admin.id}/status`).set(ADMIN).send({ status: 'SUSPENDED' }).expect(400);
+    await http.patch(`/admin/users/${producer.id}/status`).set(W).send({ status: 'SUSPENDED' }).expect(403);
+    const suspended = await http.patch(`/admin/users/${producer.id}/status`).set(ADMIN).send({ status: 'SUSPENDED', reason: '스팸' }).expect(200);
+    expect(suspended.body).toMatchObject({ status: 'SUSPENDED', suspendReason: '스팸' });
+    expect((await http.get('/me').set(P).expect(403)).body.error).toBe('ACCOUNT_SUSPENDED');
+    const blockedLogin = await http.post('/auth/login').send({ email: email('upproducer'), password: 'password1234' }).expect(403);
+    expect(blockedLogin.body.message).toContain('스팸');
+    const blockedSignup = await http.post('/auth/signup').send({ email: email('upproducer'), password: 'password1234', displayName: '재가입' }).expect(403);
+    expect(blockedSignup.body.error).toBe('SUSPENDED_EMAIL');
+    await http.patch(`/admin/users/${producer.id}/status`).set(ADMIN).send({ status: 'ACTIVE' }).expect(200);
+    await http.get('/me').set(P).expect(200);
+
+    // 탈퇴: 비밀번호 확인 → 공개 대본 내림 → 같은 이메일로 재가입 가능
+    await http.delete('/me').set(W).send({ password: 'wrong-password' }).expect(401);
+    await http.delete('/me').set(W).send({ password: 'password1234' }).expect(204);
+    await http.get('/me').set(W).expect(401);
+    await http.post('/auth/login').send({ email: email('upwriter'), password: 'password1234' }).expect(401);
+    await http.get(`/scripts/${draft.body.id}`).expect(404);
+    const negotiation = (await http.get(`/negotiations/${contact.body.negotiationId}`).set(P).expect(200)).body;
+    expect(negotiation.status).toBe('CLOSED');
+    const again = await http.post('/auth/signup').send({ email: email('upwriter'), password: 'password1234', displayName: '다시' }).expect(201);
+    createdUserIds.add(again.body.user.id);
+    expect(again.body.user).toMatchObject({ coinBalance: 10, creatorReady: false });
+    expect(again.body.user.id).not.toBe(writer.id);
   });
 });

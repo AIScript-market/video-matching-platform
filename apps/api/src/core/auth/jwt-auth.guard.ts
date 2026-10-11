@@ -1,8 +1,8 @@
-import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
+import { CanActivate, ExecutionContext, ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import type { Request } from 'express';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import { AUTH_COOKIE, type AuthUser, type JwtPayload } from './auth-user.js';
+import { AUTH_COOKIE, AUTH_USER_SELECT, type AuthUser, type JwtPayload } from './auth-user.js';
 
 /** Authorization: Bearer <token> 또는 httpOnly 쿠키(vmp_token)의 JWT를 검증한다. */
 export function extractToken(req: Request): string | null {
@@ -30,12 +30,12 @@ export class JwtAuthGuard implements CanActivate {
     } catch {
       throw new UnauthorizedException('로그인이 만료되었거나 올바르지 않습니다');
     }
-    // 역할 변경이 바로 반영되도록 매 요청마다 사용자를 다시 읽는다
-    const user = await this.prisma.user.findUnique({
-      where: { id: payload.sub },
-      select: { id: true, email: true, displayName: true, roles: true },
-    });
-    if (!user) throw new UnauthorizedException('사용자를 찾을 수 없습니다');
+    // 정지·프로필 변경이 바로 반영되도록 매 요청마다 사용자를 다시 읽는다
+    const user = await this.prisma.user.findUnique({ where: { id: payload.sub }, select: AUTH_USER_SELECT });
+    if (!user || user.status === 'WITHDRAWN') throw new UnauthorizedException('사용자를 찾을 수 없습니다');
+    if (user.status === 'SUSPENDED') {
+      throw new ForbiddenException({ message: '이용이 정지된 계정입니다', error: 'ACCOUNT_SUSPENDED' });
+    }
     req.user = user;
     return true;
   }

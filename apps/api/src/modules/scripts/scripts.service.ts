@@ -6,7 +6,9 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import type { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { WalletService } from '../wallet/wallet.service.js';
 import {
   canReadFullText,
   canReadPreview,
@@ -39,11 +41,13 @@ const PUBLIC_SELECT = {
   contentUpdatedAt: true,
   createdAt: true,
   updatedAt: true,
-  author: { select: { id: true, displayName: true } },
+  author: { select: { id: true, displayName: true, status: true } },
 } as const;
 
 /** 요약 대상인 내용 필드. 이 중 하나라도 바뀌면 AI 요약을 다시 만든다 */
 const SUMMARY_FIELDS = ['title', 'logline', 'synopsis', 'genre', 'fullText'] as const;
+
+type Tx = Prisma.TransactionClient;
 
 export const VIEW_LOG_WINDOW_MS = 10 * 60 * 1000;
 /** 작성자가 요약 새로고침을 연달아 누를 때 같은 요청이 진행 중이면 이 시간 안에는 다시 받지 않는다 */
@@ -70,6 +74,12 @@ function withPending<T extends SummaryState>(row: T): T & { aiSummaryPending: bo
   return { ...row, aiSummaryPending: isSummaryPending(row) };
 }
 
+/** 응답에서 작가 상태(내부용)를 뺀다 */
+function publicShape<T extends { author: { id: string; displayName: string; status: string } }>(row: T) {
+  const { status: _status, ...author } = row.author;
+  return { ...row, author };
+}
+
 const cleanPreview = (text: string | undefined | null) => {
   const trimmed = text?.replace(/\r\n?/g, '\n').trim();
   return trimmed ? trimmed : null;
@@ -80,6 +90,7 @@ export class ScriptsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly aiJobs: AiJobsQueue,
+    private readonly wallet: WalletService,
   ) {}
 
   async create(user: Viewer, dto: CreateScriptDto): Promise<ScriptDetailDto> {
@@ -106,7 +117,10 @@ export class ScriptsService {
     if (query.mine && !viewer) throw new ForbiddenException('로그인이 필요합니다');
     const take = query.take ?? 20;
     const where = {
-      ...(query.mine ? { authorId: viewer!.id } : { status: 'PUBLISHED' as const }),
+      // 공개 목록에는 정지·탈퇴한 작가의 대본을 내보내지 않는다
+      ...(query.mine
+        ? { authorId: viewer!.id }
+        : { status: 'PUBLISHED' as const, author: { status: 'ACTIVE' as const } }),
       ...(query.genre ? { genre: query.genre } : {}),
       ...(query.q
         ? {
@@ -124,7 +138,7 @@ export class ScriptsService {
       take: take + 1,
       ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}),
     });
-    const items = rows.slice(0, take).map(withPending) as unknown as ScriptSummaryDto[];
+    const items = rows.slice(0, take).map((r) => publicShape(withPending(r))) as unknown as ScriptSummaryDto[];
     return { items, nextCursor: rows.length > take ? items[items.length - 1].id : null };
   }
 
@@ -137,44 +151,78 @@ export class ScriptsService {
       where: { id },
       select: { ...PUBLIC_SELECT, authorId: true, rightsDeclared: true, rightsDeclaredAt: true },
     });
-    if (!script || !canSeeScript(script, viewer)) throw new NotFoundException('대본을 찾을 수 없습니다');
+    if (!script || !canSeeScript({ ...script, authorStatus: script.author.status }, viewer)) {
+      throw new NotFoundException('대본을 찾을 수 없습니다');
+    }
 
     const isAuthor = viewer?.id === script.authorId;
-    const access =
+    const [access, unlock] =
       viewer && !isAuthor
-        ? await this.prisma.scriptAccessRequest.findUnique({
-            where: { scriptId_producerId: { scriptId: id, producerId: viewer.id } },
-            select: { status: true },
-          })
-        : null;
+        ? await Promise.all([
+            this.prisma.scriptAccessRequest.findUnique({
+              where: { scriptId_producerId: { scriptId: id, producerId: viewer.id } },
+              select: { status: true },
+            }),
+            this.prisma.scriptPreviewUnlock.findUnique({
+              where: { scriptId_userId: { scriptId: id, userId: viewer.id } },
+              select: { id: true },
+            }),
+          ])
+        : [null, null];
     const accessStatus = access?.status ?? null;
     const full = canReadFullText(script, viewer, accessStatus);
-    const preview = canReadPreview(script, viewer);
+    const preview = canReadPreview(script, viewer, Boolean(unlock));
 
-    let fullText: string | null = null;
-    let previewText: string | null = null;
-    if (full || preview) {
-      const row = await this.prisma.script.findUniqueOrThrow({
-        where: { id },
-        select: { fullText: full, previewText: preview },
-      });
-      fullText = full ? row.fullText : null;
-      previewText = preview ? (row.previewText ?? null) : null;
-      if (full && !isAuthor) await this.logView(id, viewer!.id);
-    }
+    const texts = await this.prisma.script.findUniqueOrThrow({
+      where: { id },
+      select: { fullText: full, previewText: true },
+    });
+    if (full && !isAuthor) await this.logView(id, viewer!.id);
 
     const { authorId: _authorId, ...rest } = script;
     return {
-      ...withPending(rest),
-      fullText,
-      previewText,
+      ...publicShape(withPending(rest)),
+      fullText: full ? texts.fullText : null,
+      previewText: preview ? (texts.previewText ?? null) : null,
+      previewAvailable: Boolean(texts.previewText),
       viewer: {
         isAuthor,
         accessRequestStatus: accessStatus,
         canReadFullText: full,
         canReadPreview: preview,
+        previewUnlocked: Boolean(unlock),
       },
     } as unknown as ScriptDetailDto;
+  }
+
+  /** 미리보기 열람권 구매 (코인). 이미 샀거나 작가 본인이면 그대로 반환 */
+  async unlockPreview(id: string, viewer: Viewer): Promise<ScriptDetailDto> {
+    const script = await this.prisma.script.findUnique({
+      where: { id },
+      select: { authorId: true, status: true, previewText: true, author: { select: { status: true } } },
+    });
+    if (!script || !canSeeScript({ ...script, authorStatus: script.author.status }, viewer)) {
+      throw new NotFoundException('대본을 찾을 수 없습니다');
+    }
+    if (script.authorId === viewer.id) return this.get(id, viewer);
+    if (script.status !== 'PUBLISHED' || !script.previewText) {
+      throw new BadRequestException('이 대본에는 미리보기가 없습니다');
+    }
+    const existing = await this.prisma.scriptPreviewUnlock.findUnique({
+      where: { scriptId_userId: { scriptId: id, userId: viewer.id } },
+    });
+    if (!existing) {
+      try {
+        await this.prisma.$transaction(async (tx) => {
+          await tx.scriptPreviewUnlock.create({ data: { scriptId: id, userId: viewer.id } });
+          await this.wallet.spend(tx, viewer.id, 'PREVIEW_UNLOCK', id);
+        });
+      } catch (err) {
+        // 동시에 두 번 눌러 열람권이 이미 생겼으면 (unique 충돌) 한 번만 차감된 것이므로 그대로 진행
+        if ((err as { code?: string }).code !== 'P2002') throw err;
+      }
+    }
+    return this.get(id, viewer);
   }
 
   async update(id: string, user: Viewer, dto: UpdateScriptDto): Promise<ScriptDetailDto> {
@@ -225,19 +273,24 @@ export class ScriptsService {
 
   /** 파일을 올려 새 초안(DRAFT)을 만든다. 제목은 파일 이름, 로그라인·시놉시스는 비워 둔다 */
   async createFromUpload(user: Viewer, file: UploadedScriptFile): Promise<ScriptDetailDto> {
+    // 본문 추출에 실패하면 코인을 쓰지 않는다
     const { text, suggestedTitle } = await extractScriptText(file);
-    const script = await this.prisma.script.create({
-      data: {
-        authorId: user.id,
-        title: suggestedTitle,
-        logline: '',
-        synopsis: '',
-        genre: '미정',
-        fullText: text,
-        status: 'DRAFT',
-      },
+    const script = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.script.create({
+        data: {
+          authorId: user.id,
+          title: suggestedTitle,
+          logline: '',
+          synopsis: '',
+          genre: '미정',
+          fullText: text,
+          status: 'DRAFT',
+        },
+      });
+      await this.wallet.spend(tx, user.id, 'SCRIPT_UPLOAD', created.id);
+      await this.logUpload(tx, created.id, user.id, file, text, 'FULL');
+      return created;
     });
-    await this.logUpload(script.id, user.id, file, text, 'FULL');
     await this.requestSummary(script.id);
     return this.get(script.id, user);
   }
@@ -247,11 +300,14 @@ export class ScriptsService {
     const script = await this.findOwned(id, user);
     const { text } = await extractScriptText(file);
     const changed = text !== script.fullText;
-    await this.prisma.script.update({
-      where: { id },
-      data: { fullText: text, ...(changed && { contentUpdatedAt: new Date() }) },
+    await this.prisma.$transaction(async (tx) => {
+      await this.wallet.spend(tx, user.id, 'SCRIPT_UPLOAD', id);
+      await tx.script.update({
+        where: { id },
+        data: { fullText: text, ...(changed && { contentUpdatedAt: new Date() }) },
+      });
+      await this.logUpload(tx, id, user.id, file, text, 'FULL');
     });
-    await this.logUpload(id, user.id, file, text, 'FULL');
     if (changed) await this.requestSummary(id);
     return this.get(id, user);
   }
@@ -263,11 +319,11 @@ export class ScriptsService {
     if (text.length > PREVIEW_MAX) {
       throw new BadRequestException(`미리보기는 ${PREVIEW_MAX.toLocaleString()}자 이하여야 합니다`);
     }
-    await this.prisma.script.update({
-      where: { id },
-      data: { previewText: text, contentUpdatedAt: new Date() },
+    await this.prisma.$transaction(async (tx) => {
+      await this.wallet.spend(tx, user.id, 'SCRIPT_UPLOAD', id);
+      await tx.script.update({ where: { id }, data: { previewText: text, contentUpdatedAt: new Date() } });
+      await this.logUpload(tx, id, user.id, file, text, 'PREVIEW');
     });
-    await this.logUpload(id, user.id, file, text, 'PREVIEW');
     return this.get(id, user);
   }
 
@@ -304,13 +360,14 @@ export class ScriptsService {
   }
 
   private logUpload(
+    tx: Tx,
     scriptId: string,
     uploaderId: string,
     file: UploadedScriptFile,
     text: string,
     kind: 'FULL' | 'PREVIEW',
   ) {
-    return this.prisma.scriptUpload.create({
+    return tx.scriptUpload.create({
       data: {
         scriptId,
         uploaderId,
@@ -359,6 +416,7 @@ export class ScriptsService {
     const script = await this.prisma.script.findUnique({ where: { id } });
     if (!script || !canSeeScript(script, user)) throw new NotFoundException('대본을 찾을 수 없습니다');
     if (script.authorId !== user.id) throw new ForbiddenException('작가 본인만 수정할 수 있습니다');
+    // (정지·탈퇴한 사용자는 인증 단계에서 이미 막힌다)
     return script;
   }
 }
