@@ -7,6 +7,7 @@ import { CreatorNotice, ErrorText, Modal, StatusBadge } from "@/components/ui";
 import { api, dateTime, unwrap, type ScriptDetail } from "@/lib/api";
 import { ReviewMessage } from "@/components/review-message";
 import { AiSummaryCard } from "@/components/ai-summary-card";
+import { HitInsightCard } from "@/components/hit-insight";
 import { useSession } from "@/lib/session";
 
 export default function ScriptDetailPage() {
@@ -189,6 +190,8 @@ export default function ScriptDetailPage() {
             </>
           )}
         </div>
+        {/* 흥행 판단은 작가 본인에게 보여 주지 않는다 */}
+        {user && !viewer.isAuthor && <HitInsightCard scriptId={script.id} />}
         {canAct && viewer.canReadFullText && <ReviewMessage scriptId={script.id} writerName={script.author.displayName} />}
         <div>
           <ErrorText error={error} />

@@ -55,7 +55,7 @@ export class CreateScriptDto {
   rightsDeclared?: boolean;
 
   @ApiPropertyOptional({
-    description: '흥행 판단 모델의 분석·학습에 이 대본을 써도 된다는 동의 (선택). 언제든 철회할 수 있다',
+    description: '흥행 판단 모델의 학습 데이터로 이 대본(의 벡터)을 써도 된다는 동의 (선택). 언제든 철회할 수 있다',
   })
   @IsOptional()
   @IsBoolean()
@@ -154,7 +154,7 @@ export class ViewerAccessDto {
 
 export class ScriptDetailDto extends ScriptSummaryDto {
   @ApiProperty() rightsDeclared!: boolean;
-  @ApiProperty({ description: '분석·학습 활용 동의 (작가 본인에게만 의미 있음)' }) trainingConsent!: boolean;
+  @ApiProperty({ description: '학습 데이터 활용 동의 (작가 본인에게만 의미 있음)' }) trainingConsent!: boolean;
   @ApiProperty({ type: String, format: 'date-time', nullable: true }) rightsDeclaredAt!: Date | null;
   @ApiProperty({ nullable: true, type: String, description: '권한이 없으면 null' })
   fullText!: string | null;

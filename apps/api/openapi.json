@@ -4980,7 +4980,7 @@
           },
           "trainingConsent": {
             "type": "boolean",
-            "description": "흥행 판단 모델의 분석·학습에 이 대본을 써도 된다는 동의 (선택). 언제든 철회할 수 있다"
+            "description": "흥행 판단 모델의 학습 데이터로 이 대본(의 벡터)을 써도 된다는 동의 (선택). 언제든 철회할 수 있다"
           }
         },
         "required": [
@@ -5143,7 +5143,7 @@
           },
           "trainingConsent": {
             "type": "boolean",
-            "description": "분석·학습 활용 동의 (작가 본인에게만 의미 있음)"
+            "description": "학습 데이터 활용 동의 (작가 본인에게만 의미 있음)"
           },
           "rightsDeclaredAt": {
             "type": "string",
@@ -5326,7 +5326,7 @@
           },
           "trainingConsent": {
             "type": "boolean",
-            "description": "흥행 판단 모델의 분석·학습에 이 대본을 써도 된다는 동의 (선택). 언제든 철회할 수 있다"
+            "description": "흥행 판단 모델의 학습 데이터로 이 대본(의 벡터)을 써도 된다는 동의 (선택). 언제든 철회할 수 있다"
           }
         }
       },

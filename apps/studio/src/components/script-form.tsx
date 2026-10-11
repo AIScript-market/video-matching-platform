@@ -191,10 +191,11 @@ export function ScriptForm({ script, onSaved }: { script?: ScriptDetail; onSaved
         <label className="check">
           <input type="checkbox" checked={trainingConsent} onChange={(e) => setTrainingConsent(e.target.checked)} />
           <span>
-            이 대본을 플랫폼의 흥행 판단 모델 분석·학습에 써도 됩니다.
+            이 대본을 흥행 판단 모델의 학습 데이터로 써도 됩니다.
             <span className="muted small">
               {" "}
-              (선택. 대본 원문은 학습 데이터로 내보내지 않고, AI가 뽑은 특징과 영상 성과만 씁니다. 언제든 끌 수 있습니다)
+              (선택. 대본은 플랫폼 안에서 장면 벡터(숫자)로 바뀌고, 학습에는 이 벡터와 영상 성과만 씁니다. 원문은 밖으로 내보내지 않습니다. 공개한
+              대본은 동의와 상관없이 영상 제작자에게 흥행 판단·추천 결과가 보입니다. 언제든 끌 수 있습니다)
             </span>
           </span>
         </label>
