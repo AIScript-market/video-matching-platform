@@ -59,3 +59,37 @@
 ### 진행 상황
 - A의 foundation이 4시간 동안 origin에 없어서 계약 ERD 기반 임시 환경(작업 폴더 밖 scratchpad)에서 검증했다. 실제 연결은 b-done.md "연결 시 할 일" 참고.
 - 파트너 프롬프트와 파일 충돌을 피하려고 내 아침 보고는 `docs/morning-report.md`가 아니라 `docs/morning-report-b.md`에 썼다.
+
+## A 파트도 영훈이 구현 (feat/b-fullstack)
+
+파트너의 1단계가 올라오지 않아 A 파트(기반·인증·관리자·웹)까지 직접 구현하고 실제로 띄워 검증했다.
+
+### 디렉터리 이름 — 파트너 작업과 겹치지 않게
+파트너가 나중에 자기 작업을 올려도 같은 경로를 덮어쓰지 않도록 계약상 A 소유 이름은 쓰지 않았다.
+
+| 계약상 A 경로 | 이 브랜치에서 쓴 경로 |
+|---|---|
+| `apps/web` | `apps/studio` (기존 `apps/web` MVP 뼈대는 그대로 두고 워크스페이스에서만 제외) |
+| `apps/api/src/common` | `apps/api/src/core` (auth), 기존 `apps/api/src/prisma` 유지 |
+| `modules/{auth,users}` | `modules/identity` |
+| `modules/admin` | `modules/backoffice` (경로는 계약대로 `/admin/*`) |
+| `docker/`, 루트 `docker-compose.yml` | `ops/dev.Dockerfile`, `ops/compose.yaml` (루트 compose는 손대지 않음) |
+| `packages/shared` | 만들지 않음 (웹은 openapi-typescript로 생성한 타입을 직접 씀) |
+| 루트 `CLAUDE.md` | 만들지 않음 (파트너가 만들 파일이라 충돌 방지). 내용은 README와 이 문서에 |
+
+공용일 수밖에 없는 파일은 고쳤다: 루트 `package.json`·`pnpm-workspace.yaml`·`pnpm-lock.yaml`, `apps/api/prisma/schema.prisma`·`package.json`·`src/app.module.ts`·`src/main.ts`, `.github/workflows/ci.yml`, `README.md`.
+
+### 결정
+- pnpm 12 워크스페이스 (`packageManager: pnpm@12.11.2`, corepack). pnpm 12는 승인 안 된 빌드 스크립트가 있으면 설치를 실패시키므로 `pnpm-workspace.yaml`의 `allowBuilds`에 prisma·@prisma/engines·@swc/core·esbuild를 허용, 텔레메트리(@scarf/scarf)·선택적 네이티브 가속(msgpackr-extract)은 거부.
+- 루트 스크립트 이름은 `stack`(`pnpm up`은 pnpm 기본 명령이라 못 씀).
+- 스키마: 계약 ERD 그대로. 이전 MVP 초안(User/Script/Proposal)에서 바꾸는 마이그레이션 `b_contract_schema`. 데이터 손실 경고 때문에 `migrate dev`가 비대화형 환경에서 멈춰서 `migrate diff`로 SQL을 만들었다. 기존 개발 DB에 데이터가 있으면 적용이 실패할 수 있다 → `down -v`로 초기화.
+- 인증: argon2id(`@node-rs/argon2`, 네이티브 빌드 스크립트 불필요), JWT 7일. 토큰은 응답 본문과 httpOnly 쿠키(`vmp_token`, SameSite=Lax) 둘 다로 주고, 가드는 Bearer 헤더와 쿠키를 모두 받는다. 매 요청마다 사용자를 DB에서 다시 읽어 역할 변경이 바로 반영된다.
+- 가입으로는 ADMIN 역할을 얻을 수 없다(시드 관리자만). 없는 이메일 로그인도 같은 비용의 해시 검증을 해서 응답 시간으로 가입 여부를 알 수 없게 했다.
+- 계약 외 추가 API: `POST /auth/logout`(쿠키 삭제), `GET /admin/scripts`(숨김 포함 목록), `PATCH /admin/scripts/:id/hide`에 `{hidden:false}`로 숨김 해제.
+- 웹은 `/api/*`를 Next.js rewrite로 API에 넘긴다. 같은 출처라 httpOnly 쿠키를 CORS 없이 쓸 수 있다.
+- 실제 API가 있으므로 MSW 목은 만들지 않았다.
+- Next.js의 Cache Components는 켜지 않았다. 화면은 대부분 클라이언트 컴포넌트에서 데이터를 불러온다.
+- 분배 비율은 슬라이더와 숫자 입력을 함께 둔다(정밀 입력, 테스트 안정성).
+- OpenAPI 생성은 데코레이터 메타데이터가 필요해서 tsx가 아니라 tsc로 컴파일해 실행한다 (`pnpm --filter api openapi`).
+- 시드 대본 id는 `seed_script_*`로 고정해서 시드를 여러 번 돌려도 중복되지 않게 했다.
+- Playwright는 Pixel 7(모바일 폭) 한 프로젝트로 돌린다. 컨테이너에서 `http://studio:3000`으로 접속하므로 `allowedDevOrigins: ['studio']`가 필요하다.

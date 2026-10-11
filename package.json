@@ -6,9 +6,9 @@
     "node": ">=24"
   },
   "scripts": {
-    "up": "docker compose -f ops/compose.yaml up --build",
-    "down": "docker compose -f ops/compose.yaml down",
-    "logs": "docker compose -f ops/compose.yaml logs -f api worker studio",
+    "stack": "docker compose -f ops/compose.yaml up --build",
+    "stack:down": "docker compose -f ops/compose.yaml down",
+    "stack:logs": "docker compose -f ops/compose.yaml logs -f api worker studio",
     "db:migrate": "docker compose -f ops/compose.yaml exec api pnpm --filter api db:migrate",
     "db:seed": "docker compose -f ops/compose.yaml exec api pnpm --filter api db:seed",
     "lint": "pnpm -r --if-present lint",

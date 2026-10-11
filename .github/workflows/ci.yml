@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:17-alpine
+        image: postgres:16-alpine
         env:
           POSTGRES_USER: vmp
           POSTGRES_PASSWORD: vmp
@@ -31,19 +31,36 @@ jobs:
           --health-interval 3s
           --health-timeout 3s
           --health-retries 20
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 3s
+          --health-timeout 3s
+          --health-retries 20
     env:
       DATABASE_URL: postgresql://vmp:vmp@localhost:5432/vmp
+      REDIS_URL: redis://localhost:6379
+      JWT_SECRET: ci-only-secret
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
-          cache: npm
-      - run: npm ci --no-audit --no-fund
+      - name: pnpm 준비 (package.json의 packageManager 버전)
+        run: corepack enable
+      - run: pnpm install --frozen-lockfile
       - name: 마이그레이션 적용
-        run: npm run db:deploy -w api
+        run: pnpm --filter api db:deploy
       - name: 스키마 변경에 마이그레이션이 빠지지 않았는지 확인
-        run: npm run db:check -w api
-      - run: npm run lint
-      - name: 빌드 (타입 검사 포함)
-        run: npm run build
+        run: pnpm --filter api db:check
+      - name: 시드 (e2e 테스트가 시드 관리자 계정을 쓴다)
+        run: pnpm --filter api db:seed
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - name: 테스트 (단위·DB 통합·Redis 통합·API e2e)
+        run: pnpm test
+      - name: 빌드
+        run: pnpm build
