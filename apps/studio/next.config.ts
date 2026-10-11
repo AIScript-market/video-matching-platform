@@ -6,7 +6,8 @@ const apiUrl = process.env.API_INTERNAL_URL ?? "http://localhost:4000";
 
 const nextConfig: NextConfig = {
   // Playwright 컨테이너가 http://studio:3000 으로 접속할 때 개발 서버 리소스가 막히지 않게 한다
-  allowedDevOrigins: ["studio"],
+  // 계정별 개발 주소(admin.localhost 등)도 허용
+  allowedDevOrigins: ["studio", "*.localhost"],
   async rewrites() {
     return [{ source: "/api/:path*", destination: `${apiUrl}/:path*` }];
   },

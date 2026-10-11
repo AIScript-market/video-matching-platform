@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { RoleBadges } from "@/components/ui";
+import { DEV_ACCOUNTS_ENABLED } from "@/lib/dev-accounts";
 import { useSession } from "@/lib/session";
 
 export function Nav() {
@@ -29,6 +30,7 @@ export function Nav() {
           {has("ADMIN") && link("/admin", "관리자")}
           {has("ADMIN") && link("/admin/logs", "활동 로그")}
           {user && link("/account", user.roles.length === 0 ? "권한 신청" : "내 계정")}
+          {DEV_ACCOUNTS_ENABLED && link("/dev/accounts", "계정 전환(개발)")}
         </nav>
         {user ? (
           <div className="row small">

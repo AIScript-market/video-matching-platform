@@ -60,6 +60,8 @@ docker compose -f ops/compose.yaml up --build
 
 관리자로 로그인해 `/admin`에서 applicant 계정의 신청을 승인하면, 그 계정으로 다시 들어갔을 때 대본 제공자·제작자 메뉴가 생긴다.
 
+**계정별 접속 주소 (개발용)**: http://localhost:3000/dev/accounts 에 계정마다 전용 주소가 있다 (`admin.localhost:3000`, `writer1.localhost:3000`, `producer1.localhost:3000`, `member1.localhost:3000` …). 로그인 쿠키는 호스트 이름별로 나뉘므로, 주소가 다르면 한 브라우저의 여러 탭에서 서로 다른 계정을 동시에 쓸 수 있다. "바로 로그인"은 `<계정>.localhost:3000/dev/login?as=<계정>`으로 시드 계정에 자동 로그인한다. `NEXT_PUBLIC_DEV_ACCOUNTS=true`일 때만 나타난다 (ops/compose.yaml에서만 켬). `*.localhost`는 Chrome·Edge·Firefox에서 바로 열린다.
+
 AI 요약은 `.env`에 `ANTHROPIC_API_KEY`가 있으면 Claude로, 없으면 mock 요약기로 만든다 (`cp .env.example .env`).
 
 ## 구조

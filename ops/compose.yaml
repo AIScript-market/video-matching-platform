@@ -86,6 +86,8 @@ services:
     environment:
       # Next.js가 /api/* 요청과 서버 렌더링 요청을 이 주소로 보낸다
       API_INTERNAL_URL: http://api:4000
+      # 개발용 계정 전환 화면 (/dev/accounts, <계정>.localhost 주소)
+      NEXT_PUBLIC_DEV_ACCOUNTS: "true"
     ports:
       - "${STUDIO_PORT:-3000}:3000"
     depends_on:
