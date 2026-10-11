@@ -1,9 +1,9 @@
 import { Body, Controller, Get, HttpCode, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { CurrentUser, JwtAuthGuard, Roles, RolesGuard } from '../../common/auth';
-import type { Viewer } from './access-rules';
-import { AccessService } from './access.service';
-import { AccessRequestDto, CreateAccessRequestDto, ListAccessRequestsQueryDto } from './dto/access.dto';
+import { CurrentUser, JwtAuthGuard, Roles, RolesGuard } from '../../core/auth/index.js';
+import type { Viewer } from './access-rules.js';
+import { AccessService } from './access.service.js';
+import { AccessRequestDto, CreateAccessRequestDto, ListAccessRequestsQueryDto } from './dto/access.dto.js';
 
 @ApiTags('access')
 @ApiBearerAuth()

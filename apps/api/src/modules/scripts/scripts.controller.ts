@@ -1,8 +1,8 @@
 import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { CurrentUser, JwtAuthGuard, Roles, RolesGuard } from '../../common/auth';
-import type { Viewer } from '../access/access-rules';
-import { OptionalJwtAuthGuard } from './optional-jwt.guard';
+import { CurrentUser, JwtAuthGuard, Roles, RolesGuard } from '../../core/auth/index.js';
+import type { Viewer } from '../access/access-rules.js';
+import { OptionalJwtAuthGuard } from './optional-jwt.guard.js';
 import {
   CreateScriptDto,
   ListScriptsQueryDto,
@@ -10,8 +10,8 @@ import {
   ScriptDetailDto,
   ScriptListDto,
   UpdateScriptDto,
-} from './dto/script.dto';
-import { ScriptsService } from './scripts.service';
+} from './dto/script.dto.js';
+import { ScriptsService } from './scripts.service.js';
 
 @ApiTags('scripts')
 @Controller('scripts')

@@ -1,4 +1,4 @@
-import { canReadFullText, canSeeScript } from './access-rules';
+import { canReadFullText, canSeeScript } from './access-rules.js';
 
 const author = { id: 'w1', roles: ['WRITER'] };
 const producer = { id: 'p1', roles: ['PRODUCER'] };

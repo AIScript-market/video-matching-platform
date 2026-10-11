@@ -1,0 +1,2326 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/health": {
+      "get": {
+        "operationId": "HealthController_check",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Health"
+        ]
+      }
+    },
+    "/auth/signup": {
+      "post": {
+        "operationId": "IdentityController_signup",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignupDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResultDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "회원가입 (작가/제작자, 둘 다 가능). 성공하면 로그인 쿠키도 설정",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "operationId": "IdentityController_login",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResultDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "로그인. 토큰을 응답 본문과 httpOnly 쿠키로 준다",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "operationId": "IdentityController_logout",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "summary": "로그아웃 (쿠키 삭제)",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/me": {
+      "get": {
+        "operationId": "IdentityController_me",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "내 정보",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/admin/users": {
+      "get": {
+        "operationId": "BackofficeController_users",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AdminUserDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "사용자 목록 (관리자)",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/scripts": {
+      "get": {
+        "operationId": "BackofficeController_scripts",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AdminScriptDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "공개·숨김 대본 목록 (관리자)",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/scripts/{id}/hide": {
+      "patch": {
+        "operationId": "BackofficeController_hide",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HideScriptDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminScriptDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "대본 숨김 / 숨김 해제 (관리자)",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/scripts": {
+      "post": {
+        "operationId": "ScriptsController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateScriptDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScriptDetailDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "대본 작성 (DRAFT로 생성)",
+        "tags": [
+          "scripts"
+        ]
+      },
+      "get": {
+        "operationId": "ScriptsController_list",
+        "parameters": [
+          {
+            "name": "genre",
+            "required": false,
+            "in": "query",
+            "description": "장르 필터",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "제목·로그라인 검색어",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "mine",
+            "required": false,
+            "in": "query",
+            "description": "true면 내가 쓴 대본 전체(비공개 포함). 로그인 필요",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "이전 응답의 nextCursor",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "take",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScriptListDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "공개 대본 목록 (공개 필드만). mine=true면 내 대본 전체",
+        "tags": [
+          "scripts"
+        ]
+      }
+    },
+    "/scripts/{id}": {
+      "get": {
+        "operationId": "ScriptsController_get",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScriptDetailDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "대본 상세. fullText는 작가·열람 승인된 제작자에게만",
+        "tags": [
+          "scripts"
+        ]
+      },
+      "patch": {
+        "operationId": "ScriptsController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateScriptDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScriptDetailDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "대본 수정 (작가 본인)",
+        "tags": [
+          "scripts"
+        ]
+      }
+    },
+    "/scripts/{id}/publish": {
+      "post": {
+        "operationId": "ScriptsController_publish",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublishScriptDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScriptDetailDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "대본 공개 (rightsDeclared=true 필수). AI 요약 작업을 등록한다",
+        "tags": [
+          "scripts"
+        ]
+      }
+    },
+    "/scripts/{id}/access-requests": {
+      "post": {
+        "operationId": "AccessController_request",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAccessRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessRequestDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "전문 열람 요청 (제작자, NDA 동의 필수)",
+        "tags": [
+          "access"
+        ]
+      }
+    },
+    "/access-requests": {
+      "get": {
+        "operationId": "AccessController_list",
+        "parameters": [
+          {
+            "name": "as",
+            "required": false,
+            "in": "query",
+            "description": "writer: 내 대본에 들어온 요청, producer: 내가 보낸 요청. 생략하면 둘 다",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "writer",
+                "producer"
+              ]
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "PENDING",
+                "APPROVED",
+                "REJECTED"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AccessRequestDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "열람 요청 목록 (내 대본에 들어온 것 + 내가 보낸 것)",
+        "tags": [
+          "access"
+        ]
+      }
+    },
+    "/access-requests/{id}/approve": {
+      "post": {
+        "operationId": "AccessController_approve",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessRequestDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "열람 요청 승인 (대본 작가)",
+        "tags": [
+          "access"
+        ]
+      }
+    },
+    "/access-requests/{id}/reject": {
+      "post": {
+        "operationId": "AccessController_reject",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessRequestDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "열람 요청 거절 (대본 작가)",
+        "tags": [
+          "access"
+        ]
+      }
+    },
+    "/scripts/{id}/negotiations": {
+      "post": {
+        "operationId": "NegotiationsController_start",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NegotiationDetailDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "협상 시작 (열람 승인된 제작자). 이미 있으면 기존 협상을 반환",
+        "tags": [
+          "negotiations"
+        ]
+      }
+    },
+    "/negotiations": {
+      "get": {
+        "operationId": "NegotiationsController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/NegotiationDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "내 협상 목록",
+        "tags": [
+          "negotiations"
+        ]
+      }
+    },
+    "/negotiations/{id}": {
+      "get": {
+        "operationId": "NegotiationsController_get",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NegotiationDetailDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "협상 상세 + 제안 이력",
+        "tags": [
+          "negotiations"
+        ]
+      }
+    },
+    "/negotiations/{id}/messages": {
+      "get": {
+        "operationId": "NegotiationsController_messages",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "after",
+            "required": false,
+            "in": "query",
+            "description": "이 메시지 id 이후의 메시지만 (폴링용). 생략하면 최근 100개",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MessageDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "메시지 목록. after=<메시지 id>로 폴링",
+        "tags": [
+          "negotiations"
+        ]
+      },
+      "post": {
+        "operationId": "NegotiationsController_postMessage",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateMessageDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "메시지 보내기",
+        "tags": [
+          "negotiations"
+        ]
+      }
+    },
+    "/negotiations/{id}/offers": {
+      "post": {
+        "operationId": "NegotiationsController_createOffer",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateOfferDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OfferDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "조건 제안 / 역제안. 기존 PROPOSED 제안은 COUNTERED 또는 WITHDRAWN 처리",
+        "tags": [
+          "negotiations"
+        ]
+      }
+    },
+    "/offers/{id}/accept": {
+      "post": {
+        "operationId": "NegotiationsController_accept",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AcceptOfferResultDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "제안 수락 → 딜·라이선스 생성 (매칭)",
+        "tags": [
+          "negotiations"
+        ]
+      }
+    },
+    "/offers/{id}/reject": {
+      "post": {
+        "operationId": "NegotiationsController_reject",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OfferDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "제안 거절",
+        "tags": [
+          "negotiations"
+        ]
+      }
+    },
+    "/offers/{id}/withdraw": {
+      "post": {
+        "operationId": "NegotiationsController_withdraw",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OfferDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "내 제안 철회",
+        "tags": [
+          "negotiations"
+        ]
+      }
+    },
+    "/deals": {
+      "get": {
+        "operationId": "DealsController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DealDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "내 딜 목록 (관리자는 전체)",
+        "tags": [
+          "deals"
+        ]
+      }
+    },
+    "/deals/{id}": {
+      "get": {
+        "operationId": "DealsController_get",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DealDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "딜 상세 (라이선스, 수락된 조건 포함)",
+        "tags": [
+          "deals"
+        ]
+      }
+    },
+    "/deals/{id}/ledger": {
+      "get": {
+        "operationId": "LedgerController_get",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LedgerDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "딜 장부 조회 (참여자·관리자)",
+        "tags": [
+          "ledger"
+        ]
+      },
+      "post": {
+        "operationId": "LedgerController_record",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateLedgerEntryDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LedgerEntryDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "장부 기록 (관리자 수동 기록)",
+        "tags": [
+          "ledger"
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "Video Matching Platform API",
+    "description": "대본 작가와 영상 제작자를 연결하는 플랫폼 API",
+    "version": "0.1.0",
+    "contact": {}
+  },
+  "tags": [],
+  "servers": [],
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http"
+      },
+      "cookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "vmp_token"
+      }
+    },
+    "schemas": {
+      "SignupDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "example": "writer@example.com"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 128
+          },
+          "displayName": {
+            "type": "string",
+            "maxLength": 40
+          },
+          "roles": {
+            "type": "array",
+            "description": "작가·제작자 중 하나 이상 (둘 다 가능). ADMIN은 가입으로 얻을 수 없다",
+            "items": {
+              "type": "string",
+              "enum": [
+                "WRITER",
+                "PRODUCER"
+              ]
+            }
+          }
+        },
+        "required": [
+          "email",
+          "password",
+          "displayName",
+          "roles"
+        ]
+      },
+      "MeDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "roles": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "WRITER",
+                "PRODUCER",
+                "ADMIN"
+              ]
+            }
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "displayName",
+          "roles",
+          "createdAt"
+        ]
+      },
+      "AuthResultDto": {
+        "type": "object",
+        "properties": {
+          "user": {
+            "$ref": "#/components/schemas/MeDto"
+          },
+          "accessToken": {
+            "type": "string",
+            "description": "Bearer 토큰. 웹은 같은 값이 httpOnly 쿠키로도 설정된다"
+          }
+        },
+        "required": [
+          "user",
+          "accessToken"
+        ]
+      },
+      "LoginDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ]
+      },
+      "AdminUserDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "roles": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "WRITER",
+                "PRODUCER",
+                "ADMIN"
+              ]
+            }
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "scriptCount": {
+            "type": "number",
+            "description": "작성한 대본 수"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "displayName",
+          "roles",
+          "createdAt",
+          "scriptCount"
+        ]
+      },
+      "AdminScriptDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "genre": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "PUBLISHED",
+              "HIDDEN"
+            ]
+          },
+          "rightsDeclared": {
+            "type": "boolean"
+          },
+          "authorId": {
+            "type": "string"
+          },
+          "authorName": {
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "genre",
+          "status",
+          "rightsDeclared",
+          "authorId",
+          "authorName",
+          "createdAt"
+        ]
+      },
+      "HideScriptDto": {
+        "type": "object",
+        "properties": {
+          "hidden": {
+            "type": "boolean",
+            "default": true,
+            "description": "false면 숨김 해제 (권리 진술이 있으면 PUBLISHED, 없으면 DRAFT)"
+          }
+        }
+      },
+      "CreateScriptDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "logline": {
+            "type": "string",
+            "description": "한 줄 소개",
+            "maxLength": 300
+          },
+          "synopsis": {
+            "type": "string",
+            "description": "공개 시놉시스",
+            "maxLength": 5000
+          },
+          "genre": {
+            "type": "string",
+            "example": "스릴러",
+            "maxLength": 40
+          },
+          "fullText": {
+            "type": "string",
+            "description": "대본 전문 (작가·승인된 제작자에게만 공개)",
+            "maxLength": 500000
+          },
+          "rightsDeclared": {
+            "type": "boolean",
+            "description": "권리 보유 진술. 공개하려면 true여야 한다"
+          }
+        },
+        "required": [
+          "title",
+          "logline",
+          "synopsis",
+          "genre",
+          "fullText"
+        ]
+      },
+      "AiSummaryDto": {
+        "type": "object",
+        "properties": {
+          "summary": {
+            "type": "string"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "contentRating": {
+            "type": "string",
+            "enum": [
+              "ALL",
+              "12",
+              "15",
+              "19"
+            ]
+          },
+          "model": {
+            "type": "string"
+          },
+          "generatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "summary",
+          "tags",
+          "contentRating",
+          "model",
+          "generatedAt"
+        ]
+      },
+      "AuthorDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "displayName"
+        ]
+      },
+      "ViewerAccessDto": {
+        "type": "object",
+        "properties": {
+          "isAuthor": {
+            "type": "boolean"
+          },
+          "accessRequestStatus": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "APPROVED",
+              "REJECTED"
+            ],
+            "nullable": true
+          },
+          "canReadFullText": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "isAuthor",
+          "accessRequestStatus",
+          "canReadFullText"
+        ]
+      },
+      "ScriptDetailDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "logline": {
+            "type": "string"
+          },
+          "synopsis": {
+            "type": "string"
+          },
+          "genre": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "PUBLISHED",
+              "HIDDEN"
+            ]
+          },
+          "aiSummary": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AiSummaryDto"
+              }
+            ]
+          },
+          "author": {
+            "$ref": "#/components/schemas/AuthorDto"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "rightsDeclared": {
+            "type": "boolean"
+          },
+          "rightsDeclaredAt": {
+            "type": "object",
+            "format": "date-time",
+            "nullable": true
+          },
+          "fullText": {
+            "type": "string",
+            "nullable": true,
+            "description": "권한이 없으면 null"
+          },
+          "viewer": {
+            "$ref": "#/components/schemas/ViewerAccessDto"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "logline",
+          "synopsis",
+          "genre",
+          "status",
+          "aiSummary",
+          "author",
+          "createdAt",
+          "updatedAt",
+          "rightsDeclared",
+          "rightsDeclaredAt",
+          "fullText",
+          "viewer"
+        ]
+      },
+      "ScriptSummaryDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "logline": {
+            "type": "string"
+          },
+          "synopsis": {
+            "type": "string"
+          },
+          "genre": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "PUBLISHED",
+              "HIDDEN"
+            ]
+          },
+          "aiSummary": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AiSummaryDto"
+              }
+            ]
+          },
+          "author": {
+            "$ref": "#/components/schemas/AuthorDto"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "logline",
+          "synopsis",
+          "genre",
+          "status",
+          "aiSummary",
+          "author",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "ScriptListDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScriptSummaryDto"
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ]
+      },
+      "UpdateScriptDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "logline": {
+            "type": "string",
+            "description": "한 줄 소개",
+            "maxLength": 300
+          },
+          "synopsis": {
+            "type": "string",
+            "description": "공개 시놉시스",
+            "maxLength": 5000
+          },
+          "genre": {
+            "type": "string",
+            "example": "스릴러",
+            "maxLength": 40
+          },
+          "fullText": {
+            "type": "string",
+            "description": "대본 전문 (작가·승인된 제작자에게만 공개)",
+            "maxLength": 500000
+          },
+          "rightsDeclared": {
+            "type": "boolean",
+            "description": "권리 보유 진술. 공개하려면 true여야 한다"
+          }
+        }
+      },
+      "PublishScriptDto": {
+        "type": "object",
+        "properties": {
+          "rightsDeclared": {
+            "type": "boolean",
+            "description": "아직 권리 보유를 진술하지 않았다면 여기서 true로 함께 진술할 수 있다"
+          }
+        }
+      },
+      "CreateAccessRequestDto": {
+        "type": "object",
+        "properties": {
+          "ndaAccepted": {
+            "type": "boolean",
+            "description": "NDA 동의. 반드시 true",
+            "enum": [
+              true
+            ]
+          }
+        },
+        "required": [
+          "ndaAccepted"
+        ]
+      },
+      "AccessScriptDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "authorId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "authorId"
+        ]
+      },
+      "AccessProducerDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "displayName"
+        ]
+      },
+      "AccessRequestDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "scriptId": {
+            "type": "string"
+          },
+          "producerId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "APPROVED",
+              "REJECTED"
+            ]
+          },
+          "ndaAcceptedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "decidedAt": {
+            "type": "object",
+            "format": "date-time",
+            "nullable": true
+          },
+          "script": {
+            "$ref": "#/components/schemas/AccessScriptDto"
+          },
+          "producer": {
+            "$ref": "#/components/schemas/AccessProducerDto"
+          }
+        },
+        "required": [
+          "id",
+          "scriptId",
+          "producerId",
+          "status",
+          "ndaAcceptedAt",
+          "decidedAt",
+          "script",
+          "producer"
+        ]
+      },
+      "ScriptRefDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title"
+        ]
+      },
+      "UserRefDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "displayName"
+        ]
+      },
+      "OfferDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "negotiationId": {
+            "type": "string"
+          },
+          "proposerId": {
+            "type": "string"
+          },
+          "writerSharePct": {
+            "type": "number"
+          },
+          "producerSharePct": {
+            "type": "number"
+          },
+          "upfrontFeeKrw": {
+            "type": "number"
+          },
+          "termMonths": {
+            "type": "number"
+          },
+          "exclusive": {
+            "type": "boolean"
+          },
+          "notes": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PROPOSED",
+              "COUNTERED",
+              "ACCEPTED",
+              "REJECTED",
+              "WITHDRAWN"
+            ]
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "negotiationId",
+          "proposerId",
+          "writerSharePct",
+          "producerSharePct",
+          "upfrontFeeKrw",
+          "termMonths",
+          "exclusive",
+          "notes",
+          "status",
+          "createdAt"
+        ]
+      },
+      "NegotiationDetailDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "scriptId": {
+            "type": "string"
+          },
+          "writerId": {
+            "type": "string"
+          },
+          "producerId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "OPEN",
+              "AGREED",
+              "CLOSED"
+            ]
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "script": {
+            "$ref": "#/components/schemas/ScriptRefDto"
+          },
+          "writer": {
+            "$ref": "#/components/schemas/UserRefDto"
+          },
+          "producer": {
+            "$ref": "#/components/schemas/UserRefDto"
+          },
+          "latestOffer": {
+            "nullable": true,
+            "description": "가장 최근 제안",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OfferDto"
+              }
+            ]
+          },
+          "dealId": {
+            "type": "string",
+            "nullable": true,
+            "description": "합의되어 생성된 딜 id"
+          },
+          "offers": {
+            "description": "제안 이력 (오래된 순)",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OfferDto"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "scriptId",
+          "writerId",
+          "producerId",
+          "status",
+          "createdAt",
+          "script",
+          "writer",
+          "producer",
+          "latestOffer",
+          "dealId",
+          "offers"
+        ]
+      },
+      "NegotiationDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "scriptId": {
+            "type": "string"
+          },
+          "writerId": {
+            "type": "string"
+          },
+          "producerId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "OPEN",
+              "AGREED",
+              "CLOSED"
+            ]
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "script": {
+            "$ref": "#/components/schemas/ScriptRefDto"
+          },
+          "writer": {
+            "$ref": "#/components/schemas/UserRefDto"
+          },
+          "producer": {
+            "$ref": "#/components/schemas/UserRefDto"
+          },
+          "latestOffer": {
+            "nullable": true,
+            "description": "가장 최근 제안",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OfferDto"
+              }
+            ]
+          },
+          "dealId": {
+            "type": "string",
+            "nullable": true,
+            "description": "합의되어 생성된 딜 id"
+          }
+        },
+        "required": [
+          "id",
+          "scriptId",
+          "writerId",
+          "producerId",
+          "status",
+          "createdAt",
+          "script",
+          "writer",
+          "producer",
+          "latestOffer",
+          "dealId"
+        ]
+      },
+      "MessageDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "negotiationId": {
+            "type": "string"
+          },
+          "senderId": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "negotiationId",
+          "senderId",
+          "body",
+          "createdAt"
+        ]
+      },
+      "CreateMessageDto": {
+        "type": "object",
+        "properties": {
+          "body": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "body"
+        ]
+      },
+      "CreateOfferDto": {
+        "type": "object",
+        "properties": {
+          "writerSharePct": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100,
+            "description": "producerSharePct와 합이 100"
+          },
+          "producerSharePct": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "upfrontFeeKrw": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 2000000000,
+            "description": "선급금 (원)"
+          },
+          "termMonths": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 120
+          },
+          "exclusive": {
+            "type": "boolean"
+          },
+          "notes": {
+            "type": "string",
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "writerSharePct",
+          "producerSharePct",
+          "upfrontFeeKrw",
+          "termMonths",
+          "exclusive"
+        ]
+      },
+      "AcceptOfferResultDto": {
+        "type": "object",
+        "properties": {
+          "offer": {
+            "$ref": "#/components/schemas/OfferDto"
+          },
+          "dealId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "offer",
+          "dealId"
+        ]
+      },
+      "LicenseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "dealId": {
+            "type": "string"
+          },
+          "scriptId": {
+            "type": "string"
+          },
+          "licenseeId": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "string"
+          },
+          "startsAt": {
+            "type": "object",
+            "format": "date-time",
+            "nullable": true
+          },
+          "endsAt": {
+            "type": "object",
+            "format": "date-time",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "ACTIVE",
+              "SUSPENDED",
+              "TERMINATED"
+            ]
+          },
+          "terminationReason": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "dealId",
+          "scriptId",
+          "licenseeId",
+          "scope",
+          "startsAt",
+          "endsAt",
+          "status",
+          "terminationReason"
+        ]
+      },
+      "DealDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "negotiationId": {
+            "type": "string"
+          },
+          "acceptedOfferId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING_CONTRACT",
+              "ACTIVE",
+              "TERMINATED"
+            ]
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "script": {
+            "$ref": "#/components/schemas/ScriptRefDto"
+          },
+          "writer": {
+            "$ref": "#/components/schemas/UserRefDto"
+          },
+          "producer": {
+            "$ref": "#/components/schemas/UserRefDto"
+          },
+          "acceptedOffer": {
+            "$ref": "#/components/schemas/OfferDto"
+          },
+          "licenses": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LicenseDto"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "negotiationId",
+          "acceptedOfferId",
+          "status",
+          "createdAt",
+          "script",
+          "writer",
+          "producer",
+          "acceptedOffer",
+          "licenses"
+        ]
+      },
+      "LedgerEntryDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "dealId": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "REVENUE",
+              "PAYOUT",
+              "FEE",
+              "ADJUSTMENT"
+            ]
+          },
+          "amountKrw": {
+            "type": "number"
+          },
+          "memo": {
+            "type": "string",
+            "nullable": true
+          },
+          "occurredAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "createdById": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "dealId",
+          "type",
+          "amountKrw",
+          "memo",
+          "occurredAt",
+          "createdById"
+        ]
+      },
+      "LedgerTotalsDto": {
+        "type": "object",
+        "properties": {
+          "REVENUE": {
+            "type": "number"
+          },
+          "PAYOUT": {
+            "type": "number"
+          },
+          "FEE": {
+            "type": "number"
+          },
+          "ADJUSTMENT": {
+            "type": "number"
+          },
+          "balance": {
+            "type": "number",
+            "description": "REVENUE - PAYOUT - FEE + ADJUSTMENT (아직 지급되지 않은 금액)"
+          }
+        },
+        "required": [
+          "REVENUE",
+          "PAYOUT",
+          "FEE",
+          "ADJUSTMENT",
+          "balance"
+        ]
+      },
+      "LedgerDto": {
+        "type": "object",
+        "properties": {
+          "dealId": {
+            "type": "string"
+          },
+          "entries": {
+            "description": "발생 시각 순",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LedgerEntryDto"
+            }
+          },
+          "totals": {
+            "$ref": "#/components/schemas/LedgerTotalsDto"
+          }
+        },
+        "required": [
+          "dealId",
+          "entries",
+          "totals"
+        ]
+      },
+      "CreateLedgerEntryDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "REVENUE",
+              "PAYOUT",
+              "FEE",
+              "ADJUSTMENT"
+            ]
+          },
+          "amountKrw": {
+            "type": "number",
+            "description": "원 단위 정수. ADJUSTMENT만 음수 가능, 0은 불가",
+            "minimum": -2000000000,
+            "maximum": 2000000000
+          },
+          "memo": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "occurredAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "생략하면 현재 시각 (UTC)"
+          }
+        },
+        "required": [
+          "type",
+          "amountKrw"
+        ]
+      }
+    }
+  }
+}

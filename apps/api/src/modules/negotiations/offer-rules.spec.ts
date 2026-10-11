@@ -10,7 +10,7 @@ import {
   supersededStatus,
   validateOfferTerms,
   type OfferTerms,
-} from './offer-rules';
+} from './offer-rules.js';
 
 const base: OfferTerms = {
   writerSharePct: 60,

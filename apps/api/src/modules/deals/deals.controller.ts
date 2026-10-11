@@ -1,9 +1,9 @@
 import { Controller, Get, Param, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { CurrentUser, JwtAuthGuard } from '../../common/auth';
-import type { Viewer } from '../access/access-rules';
-import { DealsService } from './deals.service';
-import { DealDto } from './dto/deal.dto';
+import { CurrentUser, JwtAuthGuard } from '../../core/auth/index.js';
+import type { Viewer } from '../access/access-rules.js';
+import { DealsService } from './deals.service.js';
+import { DealDto } from './dto/deal.dto.js';
 
 @ApiTags('deals')
 @ApiBearerAuth()

@@ -1,9 +1,9 @@
 import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { CurrentUser, JwtAuthGuard, Roles, RolesGuard } from '../../common/auth';
-import type { Viewer } from '../access/access-rules';
-import { CreateLedgerEntryDto, LedgerDto, LedgerEntryDto } from './dto/ledger.dto';
-import { LedgerService } from './ledger.service';
+import { CurrentUser, JwtAuthGuard, Roles, RolesGuard } from '../../core/auth/index.js';
+import type { Viewer } from '../access/access-rules.js';
+import { CreateLedgerEntryDto, LedgerDto, LedgerEntryDto } from './dto/ledger.dto.js';
+import { LedgerService } from './ledger.service.js';
 
 @ApiTags('ledger')
 @ApiBearerAuth()

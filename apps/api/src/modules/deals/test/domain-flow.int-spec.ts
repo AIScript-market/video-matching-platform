@@ -8,15 +8,15 @@ import {
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
-import { PrismaService } from '../../../common/prisma/prisma.service';
-import { AccessService } from '../../access/access.service';
-import type { Viewer } from '../../access/access-rules';
-import { LedgerService } from '../../ledger/ledger.service';
-import { NegotiationsService } from '../../negotiations/negotiations.service';
-import { OffersService } from '../../negotiations/offers.service';
-import { AiJobsQueue } from '../../scripts/ai-jobs.queue';
-import { ScriptsService } from '../../scripts/scripts.service';
-import { DealsService } from '../deals.service';
+import { PrismaService } from '../../../prisma/prisma.service.js';
+import { AccessService } from '../../access/access.service.js';
+import type { Viewer } from '../../access/access-rules.js';
+import { LedgerService } from '../../ledger/ledger.service.js';
+import { NegotiationsService } from '../../negotiations/negotiations.service.js';
+import { OffersService } from '../../negotiations/offers.service.js';
+import { AiJobsQueue } from '../../scripts/ai-jobs.queue.js';
+import { ScriptsService } from '../../scripts/scripts.service.js';
+import { DealsService } from '../deals.service.js';
 
 const run = process.env.DATABASE_URL ? describe : describe.skip;
 

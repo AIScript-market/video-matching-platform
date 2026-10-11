@@ -4,9 +4,9 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { PrismaService } from '../../common/prisma/prisma.service';
-import { canReadFullText, canSeeScript, type Viewer } from '../access/access-rules';
-import { AiJobsQueue } from './ai-jobs.queue';
+import { PrismaService } from '../../prisma/prisma.service.js';
+import { canReadFullText, canSeeScript, type Viewer } from '../access/access-rules.js';
+import { AiJobsQueue } from './ai-jobs.queue.js';
 import type {
   CreateScriptDto,
   ListScriptsQueryDto,
@@ -15,7 +15,7 @@ import type {
   ScriptListDto,
   ScriptSummaryDto,
   UpdateScriptDto,
-} from './dto/script.dto';
+} from './dto/script.dto.js';
 
 /** 목록·상세에서 공통으로 내보내는 공개 필드 (fullText 제외) */
 const PUBLIC_SELECT = {
@@ -115,12 +115,10 @@ export class ScriptsService {
 
     const { authorId: _authorId, ...rest } = script;
     return {
-      ...(rest as unknown as ScriptSummaryDto),
-      rightsDeclared: script.rightsDeclared,
-      rightsDeclaredAt: script.rightsDeclaredAt,
+      ...rest,
       fullText,
       viewer: { isAuthor, accessRequestStatus: accessStatus, canReadFullText: full },
-    };
+    } as unknown as ScriptDetailDto;
   }
 
   async update(id: string, user: Viewer, dto: UpdateScriptDto): Promise<ScriptDetailDto> {

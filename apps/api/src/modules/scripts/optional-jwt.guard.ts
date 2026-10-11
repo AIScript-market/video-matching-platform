@@ -1,6 +1,6 @@
 import { ExecutionContext, Injectable } from '@nestjs/common';
 import { isObservable, lastValueFrom } from 'rxjs';
-import { JwtAuthGuard } from '../../common/auth';
+import { JwtAuthGuard } from '../../core/auth/index.js';
 
 /**
  * 로그인하지 않아도 통과시키되, 유효한 토큰이 있으면 request.user를 채운다.

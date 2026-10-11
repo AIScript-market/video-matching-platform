@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../../common/prisma/prisma.service';
-import type { Viewer } from '../access/access-rules';
-import type { DealDto } from './dto/deal.dto';
+import { PrismaService } from '../../prisma/prisma.service.js';
+import type { Viewer } from '../access/access-rules.js';
+import type { DealDto } from './dto/deal.dto.js';
 
 const INCLUDE = {
   negotiation: {

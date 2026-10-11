@@ -1,5 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
-import type { LedgerType } from './dto/ledger.dto';
+import type { LedgerType } from './dto/ledger.dto.js';
 
 /** REVENUE·PAYOUT·FEE는 양수, ADJUSTMENT는 0이 아닌 정수(음수 가능) */
 export function validateLedgerAmount(type: LedgerType, amountKrw: number): void {

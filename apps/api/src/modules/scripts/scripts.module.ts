@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
-import { AiJobsQueue } from './ai-jobs.queue';
-import { ScriptsController } from './scripts.controller';
-import { ScriptsService } from './scripts.service';
+import { AiJobsQueue } from './ai-jobs.queue.js';
+import { ScriptsController } from './scripts.controller.js';
+import { ScriptsService } from './scripts.service.js';
 
 @Module({
   controllers: [ScriptsController],

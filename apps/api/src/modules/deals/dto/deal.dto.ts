@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { OfferDto, ScriptRefDto, UserRefDto } from '../../negotiations/dto/negotiation.dto';
+import { OfferDto, ScriptRefDto, UserRefDto } from '../../negotiations/dto/negotiation.dto.js';
 
 export const DEAL_STATUSES = ['PENDING_CONTRACT', 'ACTIVE', 'TERMINATED'] as const;
 export const LICENSE_STATUSES = ['DRAFT', 'ACTIVE', 'SUSPENDED', 'TERMINATED'] as const;

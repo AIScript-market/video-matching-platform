@@ -1,5 +1,5 @@
 /** REDIS_URL이 있을 때만 실행. 큐 등록과 Redis 장애 시 시간 제한을 확인한다. */
-import { AiJobsQueue } from './ai-jobs.queue';
+import { AiJobsQueue } from './ai-jobs.queue.js';
 
 const run = process.env.REDIS_URL ? describe : describe.skip;
 

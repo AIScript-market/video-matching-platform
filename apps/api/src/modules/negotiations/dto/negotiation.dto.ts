@@ -10,7 +10,7 @@ import {
   MaxLength,
   Min,
 } from 'class-validator';
-import { MAX_NOTES_LENGTH, MAX_TERM_MONTHS, MAX_UPFRONT_FEE_KRW } from '../offer-rules';
+import { MAX_NOTES_LENGTH, MAX_TERM_MONTHS, MAX_UPFRONT_FEE_KRW } from '../offer-rules.js';
 
 export const NEGOTIATION_STATUSES = ['OPEN', 'AGREED', 'CLOSED'] as const;
 export const OFFER_STATUSES = ['PROPOSED', 'COUNTERED', 'ACCEPTED', 'REJECTED', 'WITHDRAWN'] as const;

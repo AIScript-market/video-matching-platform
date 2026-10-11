@@ -1,5 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
-import { ledgerTotals, validateLedgerAmount } from './ledger-rules';
+import { ledgerTotals, validateLedgerAmount } from './ledger-rules.js';
 
 describe('validateLedgerAmount', () => {
   it('수익·지급·수수료는 양수만', () => {

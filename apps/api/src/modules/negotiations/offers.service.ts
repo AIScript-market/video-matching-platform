@@ -1,15 +1,15 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../../common/prisma/prisma.service';
-import type { Viewer } from '../access/access-rules';
-import type { AcceptOfferResultDto, CreateOfferDto, OfferDto } from './dto/negotiation.dto';
-import { isParticipant, NegotiationsService } from './negotiations.service';
+import { PrismaService } from '../../prisma/prisma.service.js';
+import type { Viewer } from '../access/access-rules.js';
+import type { AcceptOfferResultDto, CreateOfferDto, OfferDto } from './dto/negotiation.dto.js';
+import { isParticipant, NegotiationsService } from './negotiations.service.js';
 import {
   assertCanRespond,
   assertCanWithdraw,
   buildLicenseScope,
   supersededStatus,
   validateOfferTerms,
-} from './offer-rules';
+} from './offer-rules.js';
 
 @Injectable()
 export class OffersService {

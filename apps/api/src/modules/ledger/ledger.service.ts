@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../common/prisma/prisma.service';
-import type { Viewer } from '../access/access-rules';
-import { DealsService } from '../deals/deals.service';
-import type { CreateLedgerEntryDto, LedgerDto, LedgerEntryDto } from './dto/ledger.dto';
-import { ledgerTotals, validateLedgerAmount } from './ledger-rules';
+import { PrismaService } from '../../prisma/prisma.service.js';
+import type { Viewer } from '../access/access-rules.js';
+import { DealsService } from '../deals/deals.service.js';
+import type { CreateLedgerEntryDto, LedgerDto, LedgerEntryDto } from './dto/ledger.dto.js';
+import { ledgerTotals, validateLedgerAmount } from './ledger-rules.js';
 
 @Injectable()
 export class LedgerService {

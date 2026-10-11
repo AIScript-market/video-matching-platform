@@ -5,13 +5,13 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { PrismaService } from '../../common/prisma/prisma.service';
-import type { Viewer } from './access-rules';
+import { PrismaService } from '../../prisma/prisma.service.js';
+import type { Viewer } from './access-rules.js';
 import type {
   AccessRequestDto,
   CreateAccessRequestDto,
   ListAccessRequestsQueryDto,
-} from './dto/access.dto';
+} from './dto/access.dto.js';
 
 const INCLUDE = {
   script: { select: { id: true, title: true, authorId: true } },

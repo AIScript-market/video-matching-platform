@@ -1,23 +1,19 @@
 {
   "name": "video-matching-platform",
   "private": true,
-  "workspaces": [
-    "apps/*"
-  ],
+  "packageManager": "pnpm@12.11.2",
   "engines": {
     "node": ">=24"
   },
   "scripts": {
-    "up": "docker compose up --build",
-    "down": "docker compose down",
-    "logs": "docker compose logs -f api web",
-    "db:migrate": "docker compose exec api npm run db:migrate -w api --",
-    "lint": "npm run lint --workspaces",
-    "build": "npm run build --workspaces"
-  },
-  "allowScripts": {
-    "@prisma/engines@7.10.0": true,
-    "prisma@7.10.0": true,
-    "unrs-resolver": false
+    "up": "docker compose -f ops/compose.yaml up --build",
+    "down": "docker compose -f ops/compose.yaml down",
+    "logs": "docker compose -f ops/compose.yaml logs -f api worker studio",
+    "db:migrate": "docker compose -f ops/compose.yaml exec api pnpm --filter api db:migrate",
+    "db:seed": "docker compose -f ops/compose.yaml exec api pnpm --filter api db:seed",
+    "lint": "pnpm -r --if-present lint",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "test": "pnpm -r --if-present test",
+    "build": "pnpm -r --if-present build"
   }
 }

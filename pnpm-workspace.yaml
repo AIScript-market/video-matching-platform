@@ -1,0 +1,16 @@
+# apps/web은 파트너(Varev) 담당 영역이라 이 워크스페이스에서 제외한다. 웹은 apps/studio.
+packages:
+  - apps/api
+  - apps/worker
+  - apps/studio
+
+# 설치 시 빌드(lifecycle) 스크립트를 허용할 패키지
+allowBuilds:
+  prisma: true
+  '@prisma/engines': true
+  '@swc/core': true
+  esbuild: true
+  # 사용 통계 전송, 선택적 네이티브 가속 — 필요 없음
+  '@scarf/scarf': false
+  msgpackr-extract: false
+  unrs-resolver: false

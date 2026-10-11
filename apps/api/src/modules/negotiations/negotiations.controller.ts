@@ -1,7 +1,7 @@
 import { Body, Controller, Get, HttpCode, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { CurrentUser, JwtAuthGuard, Roles, RolesGuard } from '../../common/auth';
-import type { Viewer } from '../access/access-rules';
+import { CurrentUser, JwtAuthGuard, Roles, RolesGuard } from '../../core/auth/index.js';
+import type { Viewer } from '../access/access-rules.js';
 import {
   AcceptOfferResultDto,
   CreateMessageDto,
@@ -11,9 +11,9 @@ import {
   NegotiationDetailDto,
   NegotiationDto,
   OfferDto,
-} from './dto/negotiation.dto';
-import { NegotiationsService } from './negotiations.service';
-import { OffersService } from './offers.service';
+} from './dto/negotiation.dto.js';
+import { NegotiationsService } from './negotiations.service.js';
+import { OffersService } from './offers.service.js';
 
 @ApiTags('negotiations')
 @ApiBearerAuth()
