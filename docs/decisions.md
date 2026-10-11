@@ -174,3 +174,11 @@
 
 ### 테스트
 - 통합 테스트는 공유 DB에서 고유 접미사로 만들고 지운다. 정리 작업(`runMaintenance`)은 테스트에서 출연자 id로 범위를 한정해 다른 데이터를 건드리지 않는다.
+
+## 흥행 판단 모델 1단계 (Varev 쪽 Claude, feat/b-hit-model-foundation)
+기준 문서: [`docs/hit-model.md`](hit-model.md)
+- AI 요약에 PD 관점 커버리지(`coverage`)를 더했다. 기존 요약에는 없으므로 웹·API 모두 없을 수 있다고 가정한다.
+- **커버리지 점수는 작가 본인·비로그인·목록에서 뺀다.** 작가에게는 강점·고려할 점만 보인다. 점수에 맞춰 쓰는 것을 막기 위해서다.
+- 대본별 **학습 동의**(`trainingConsent`)는 선택, 기본 동의 안 함. 동의해도 원문은 학습 데이터로 내보내지 않는다.
+- 작품 성과(`WorkPerformanceSnapshot`)는 지금은 직접 입력. 유튜브 분석 API 연동은 채널을 직접 운영할 때.
+- 학습용 데이터는 관리자 API(`GET /admin/ml/training-set`)로만 꺼낸다.
