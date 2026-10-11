@@ -1,0 +1,104 @@
+# 전체 개발 환경: pnpm up  (= docker compose -f ops/compose.yaml up --build)
+# 루트의 docker-compose.yml / docker/ 는 파트너 영역이라 건드리지 않고 별도로 둔다.
+name: vmp
+
+x-node: &node
+  build:
+    context: ..
+    dockerfile: ops/dev.Dockerfile
+  image: vmp-dev
+  working_dir: /app
+  init: true
+  env_file:
+    - path: ../.env
+      required: false
+  volumes:
+    - ..:/app
+    # node_modules는 컨테이너 전용 볼륨 (macOS용 바이너리와 섞이지 않게)
+    - node_modules:/app/node_modules
+    - api_node_modules:/app/apps/api/node_modules
+    - worker_node_modules:/app/apps/worker/node_modules
+    - studio_node_modules:/app/apps/studio/node_modules
+    - studio_next:/app/apps/studio/.next
+    - pnpm_store:/pnpm-store
+
+x-db-url: &db-url postgresql://vmp:vmp_local_only@db:5432/vmp
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: vmp
+      POSTGRES_PASSWORD: vmp_local_only
+      POSTGRES_DB: vmp
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vmp -d vmp"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  # 시작할 때마다 의존성을 맞춘다 (바뀐 게 없으면 바로 끝난다)
+  install:
+    <<: *node
+    command: pnpm install --config.confirmModulesPurge=false
+
+  api:
+    <<: *node
+    # 마이그레이션 적용 → 시드(멱등) → 개발 서버
+    command: sh -c "pnpm --filter api db:deploy && pnpm --filter api db:seed && pnpm --filter api dev"
+    environment:
+      DATABASE_URL: *db-url
+      REDIS_URL: redis://redis:6379
+      PORT: 4000
+      WEB_ORIGIN: http://localhost:${STUDIO_PORT:-3000}
+    ports:
+      - "${API_PORT:-4000}:4000"
+    depends_on:
+      install: { condition: service_completed_successfully }
+      db: { condition: service_healthy }
+      redis: { condition: service_healthy }
+
+  worker:
+    <<: *node
+    command: pnpm --filter worker dev
+    environment:
+      DATABASE_URL: *db-url
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      install: { condition: service_completed_successfully }
+      api: { condition: service_started }
+
+  studio:
+    <<: *node
+    command: pnpm --filter studio dev
+    environment:
+      # Next.js가 /api/* 요청과 서버 렌더링 요청을 이 주소로 보낸다
+      API_INTERNAL_URL: http://api:4000
+      # 개발용 계정 전환 화면 (/dev/accounts, <계정>.localhost 주소)
+      NEXT_PUBLIC_DEV_ACCOUNTS: "true"
+    ports:
+      - "${STUDIO_PORT:-3000}:3000"
+    depends_on:
+      install: { condition: service_completed_successfully }
+      api: { condition: service_started }
+
+volumes:
+  db_data:
+  node_modules:
+  api_node_modules:
+  worker_node_modules:
+  studio_node_modules:
+  studio_next:
+  pnpm_store:

@@ -1,0 +1,30 @@
+{
+  "name": "studio",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "typecheck": "next typegen && tsc --noEmit",
+    "api:types": "openapi-typescript ../api/openapi.json -o src/lib/api-schema.d.ts",
+    "e2e": "playwright test"
+  },
+  "dependencies": {
+    "next": "16.4.0",
+    "openapi-fetch": "^0.17.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.64.0",
+    "@types/node": "^24.0.0",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.4.0",
+    "openapi-typescript": "^7.13.0",
+    "typescript": "^6.0.2"
+  }
+}

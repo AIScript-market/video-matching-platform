@@ -1,5 +1,5 @@
-// MVP 범위: 대본 작가와 영상 제작자 중개
-// 배우·성우, 라이선스, 정산 모델은 이후 단계에서 추가한다.
+// 계약 ERD (CLAUDE 계약 문서 기준). 컨벤션: @@map 없음(테이블명=모델명), id는 cuid,
+// 금액은 원 단위 Int, 시간은 UTC DateTime. 각자 자기 모델만 수정하고 마이그레이션 이름에 a-/b- 접두어.
 
 generator client {
   provider = "prisma-client"
@@ -11,71 +11,242 @@ datasource db {
 }
 
 enum Role {
-  WRITER // 대본 작가
-  PRODUCER // 영상 제작자
+  WRITER
+  PRODUCER
   ADMIN
 }
 
-model User {
-  id           String   @id @default(uuid())
-  email        String   @unique
-  passwordHash String
-  name         String
-  role         Role
-  bio          String?
-  portfolioUrl String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  scripts   Script[]
-  proposals Proposal[]
+enum ScriptStatus {
+  DRAFT
+  PUBLISHED
+  HIDDEN
 }
 
-enum ScriptStatus {
-  DRAFT // 작성 중, 비공개
-  OPEN // 공개, 제안 받는 중
-  MATCHED // 제작자와 매칭됨
+enum AccessRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum NegotiationStatus {
+  OPEN
+  AGREED
   CLOSED
 }
 
-model Script {
-  id        String       @id @default(uuid())
-  writerId  String
-  title     String
-  logline   String // 한 줄 소개
-  genre     String
-  content   String // 대본 본문 (MVP는 텍스트, 파일 업로드는 이후 단계)
-  summary   String? // AI 요약 (이후 단계)
-  status    ScriptStatus @default(DRAFT)
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
-
-  writer    User       @relation(fields: [writerId], references: [id])
-  proposals Proposal[]
-
-  @@index([status, createdAt])
-}
-
-enum ProposalStatus {
-  PENDING
+enum OfferStatus {
+  PROPOSED
+  COUNTERED
   ACCEPTED
   REJECTED
   WITHDRAWN
 }
 
-// 제작자가 대본에 보내는 제작 제안. 작가가 수락하면 매칭된다.
-model Proposal {
-  id         String         @id @default(uuid())
-  scriptId   String
-  producerId String
-  message    String
-  budget     Int? // 제안 금액 (원 단위 정수)
-  status     ProposalStatus @default(PENDING)
-  createdAt  DateTime       @default(now())
-  updatedAt  DateTime       @updatedAt
+enum DealStatus {
+  PENDING_CONTRACT
+  ACTIVE
+  TERMINATED
+}
 
-  script   Script @relation(fields: [scriptId], references: [id])
-  producer User   @relation(fields: [producerId], references: [id])
+enum LicenseStatus {
+  DRAFT
+  ACTIVE
+  SUSPENDED
+  TERMINATED
+}
+
+// 일반 계정(역할 없음)이 관리자에게 신청하는 권한. WRITER(대본 제공자) 또는 PRODUCER만
+enum RoleRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum LedgerEntryType {
+  REVENUE
+  PAYOUT
+  FEE
+  ADJUSTMENT
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  displayName  String
+  roles        Role[]
+  createdAt    DateTime @default(now())
+
+  scripts              Script[]
+  accessRequests       ScriptAccessRequest[]
+  accessLogs           ScriptAccessLog[]
+  writerNegotiations   Negotiation[]         @relation("NegotiationWriter")
+  producerNegotiations Negotiation[]         @relation("NegotiationProducer")
+  messages             Message[]
+  offers               Offer[]
+  licenses             License[]
+  ledgerEntries        LedgerEntry[]
+  scriptUploads        ScriptUpload[]
+  roleRequests         RoleRequest[]         @relation("RoleRequester")
+  decidedRoleRequests  RoleRequest[]         @relation("RoleDecider")
+}
+
+model Script {
+  id               String       @id @default(cuid())
+  authorId         String
+  author           User         @relation(fields: [authorId], references: [id])
+  title            String
+  logline          String
+  synopsis         String
+  genre            String
+  fullText         String       @db.Text
+  status           ScriptStatus @default(DRAFT)
+  rightsDeclared   Boolean      @default(false)
+  rightsDeclaredAt DateTime?
+  aiSummary        Json?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  accessRequests ScriptAccessRequest[]
+  accessLogs     ScriptAccessLog[]
+  negotiations   Negotiation[]
+  licenses       License[]
+  uploads        ScriptUpload[]
+}
+
+model ScriptAccessRequest {
+  id            String              @id @default(cuid())
+  scriptId      String
+  script        Script              @relation(fields: [scriptId], references: [id])
+  producerId    String
+  producer      User                @relation(fields: [producerId], references: [id])
+  status        AccessRequestStatus @default(PENDING)
+  ndaAcceptedAt DateTime
+  decidedAt     DateTime?
 
   @@unique([scriptId, producerId])
+}
+
+model ScriptAccessLog {
+  id       String   @id @default(cuid())
+  scriptId String
+  script   Script   @relation(fields: [scriptId], references: [id])
+  userId   String
+  user     User     @relation(fields: [userId], references: [id])
+  viewedAt DateTime @default(now())
+}
+
+model Negotiation {
+  id         String            @id @default(cuid())
+  scriptId   String
+  script     Script            @relation(fields: [scriptId], references: [id])
+  writerId   String
+  writer     User              @relation("NegotiationWriter", fields: [writerId], references: [id])
+  producerId String
+  producer   User              @relation("NegotiationProducer", fields: [producerId], references: [id])
+  status     NegotiationStatus @default(OPEN)
+  createdAt  DateTime          @default(now())
+
+  messages Message[]
+  offers   Offer[]
+  deal     Deal?
+
+  @@unique([scriptId, producerId])
+}
+
+model Message {
+  id            String      @id @default(cuid())
+  negotiationId String
+  negotiation   Negotiation @relation(fields: [negotiationId], references: [id])
+  senderId      String
+  sender        User        @relation(fields: [senderId], references: [id])
+  body          String
+  createdAt     DateTime    @default(now())
+}
+
+model Offer {
+  id               String      @id @default(cuid())
+  negotiationId    String
+  negotiation      Negotiation @relation(fields: [negotiationId], references: [id])
+  proposerId       String
+  proposer         User        @relation(fields: [proposerId], references: [id])
+  writerSharePct   Int
+  producerSharePct Int
+  upfrontFeeKrw    Int
+  termMonths       Int
+  exclusive        Boolean
+  notes            String?
+  status           OfferStatus @default(PROPOSED)
+  createdAt        DateTime    @default(now())
+}
+
+model Deal {
+  id              String      @id @default(cuid())
+  negotiationId   String      @unique
+  negotiation     Negotiation @relation(fields: [negotiationId], references: [id])
+  acceptedOfferId String
+  status          DealStatus  @default(PENDING_CONTRACT)
+  createdAt       DateTime    @default(now())
+
+  licenses      License[]
+  ledgerEntries LedgerEntry[]
+}
+
+model License {
+  id                String        @id @default(cuid())
+  dealId            String
+  deal              Deal          @relation(fields: [dealId], references: [id])
+  scriptId          String
+  script            Script        @relation(fields: [scriptId], references: [id])
+  licenseeId        String
+  licensee          User          @relation(fields: [licenseeId], references: [id])
+  scope             String        @db.Text
+  startsAt          DateTime?
+  endsAt            DateTime?
+  status            LicenseStatus @default(DRAFT)
+  terminationReason String?
+}
+
+model LedgerEntry {
+  id          String          @id @default(cuid())
+  dealId      String
+  deal        Deal            @relation(fields: [dealId], references: [id])
+  type        LedgerEntryType
+  amountKrw   Int
+  memo        String?
+  occurredAt  DateTime
+  createdById String
+  createdBy   User            @relation(fields: [createdById], references: [id])
+}
+
+model RoleRequest {
+  id          String            @id @default(cuid())
+  userId      String
+  user        User              @relation("RoleRequester", fields: [userId], references: [id])
+  role        Role
+  message     String?
+  status      RoleRequestStatus @default(PENDING)
+  createdAt   DateTime          @default(now())
+  decidedAt   DateTime?
+  decidedById String?
+  decidedBy   User?             @relation("RoleDecider", fields: [decidedById], references: [id])
+
+  @@index([status, createdAt])
+  @@index([userId])
+}
+
+// 대본 파일 업로드 기록 (관리자 로그용). 원본 파일은 저장하지 않고 추출한 본문만 Script.fullText에 넣는다
+model ScriptUpload {
+  id         String   @id @default(cuid())
+  scriptId   String
+  script     Script   @relation(fields: [scriptId], references: [id])
+  uploaderId String
+  uploader   User     @relation(fields: [uploaderId], references: [id])
+  filename   String
+  mimeType   String
+  sizeBytes  Int
+  charCount  Int
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
 }

@@ -14,3 +14,10 @@ apps/api/src/generated/
 
 # Next.js가 dev/build 때마다 다시 생성하는 파일
 apps/web/next-env.d.ts
+
+# OpenAPI 생성용 임시 빌드
+apps/api/.openapi-build/
+# Playwright 결과물
+apps/studio/test-results/
+apps/studio/playwright-report/
+apps/studio/next-env.d.ts
