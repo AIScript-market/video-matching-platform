@@ -3707,6 +3707,119 @@
           "admin"
         ]
       }
+    },
+    "/works/{id}/performance": {
+      "post": {
+        "operationId": "PerformanceController_record",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecordPerformanceDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PerformanceSnapshotDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "작품 성과 기록 (기획사·관리자, 공개한 작품만). 흥행 판단 모델의 정답 데이터",
+        "tags": [
+          "works"
+        ]
+      },
+      "get": {
+        "operationId": "PerformanceController_list",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PerformanceSnapshotDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "작품 성과 기록 (기획사, 출연자·보호자, 관리자)",
+        "tags": [
+          "works"
+        ]
+      }
+    },
+    "/admin/ml/training-set": {
+      "get": {
+        "operationId": "TrainingSetController_trainingSet",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TrainingRowDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "학습용 데이터 (관리자). 분석·학습에 동의한 대본의 커버리지와 작품 성과. 대본 원문은 포함하지 않는다",
+        "tags": [
+          "admin"
+        ]
+      }
     }
   },
   "info": {
@@ -4631,6 +4744,10 @@
           "rightsDeclared": {
             "type": "boolean",
             "description": "권리 보유 진술. 공개하려면 true여야 한다"
+          },
+          "trainingConsent": {
+            "type": "boolean",
+            "description": "흥행 판단 모델의 분석·학습에 이 대본을 써도 된다는 동의 (선택). 언제든 철회할 수 있다"
           }
         },
         "required": [
@@ -4639,6 +4756,99 @@
           "synopsis",
           "genre",
           "fullText"
+        ]
+      },
+      "CoverageScoresDto": {
+        "type": "object",
+        "properties": {
+          "hook": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 5,
+            "description": "첫 장면이 시청자를 붙잡는 힘"
+          },
+          "conflict": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 5,
+            "description": "갈등의 명확성"
+          },
+          "characters": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 5,
+            "description": "인물의 매력"
+          },
+          "pacing": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 5,
+            "description": "전개 속도"
+          },
+          "dialogue": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 5,
+            "description": "대사"
+          }
+        },
+        "required": [
+          "hook",
+          "conflict",
+          "characters",
+          "pacing",
+          "dialogue"
+        ]
+      },
+      "CoverageDto": {
+        "type": "object",
+        "properties": {
+          "scores": {
+            "description": "작가 본인·목록에서는 없음",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CoverageScoresDto"
+              }
+            ]
+          },
+          "productionDifficulty": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 5,
+            "description": "제작 난이도 (높을수록 어렵다)"
+          },
+          "estimatedCast": {
+            "type": "number"
+          },
+          "estimatedLocations": {
+            "type": "number"
+          },
+          "strengths": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "risks": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "comparableTitles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "productionDifficulty",
+          "estimatedCast",
+          "estimatedLocations",
+          "strengths",
+          "risks",
+          "comparableTitles"
         ]
       },
       "AiSummaryDto": {
@@ -4660,6 +4870,14 @@
               "12",
               "15",
               "19"
+            ]
+          },
+          "coverage": {
+            "description": "2026-10 이후 만든 요약에만 있다",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CoverageDto"
+              }
             ]
           },
           "model": {
@@ -4791,6 +5009,10 @@
           "rightsDeclared": {
             "type": "boolean"
           },
+          "trainingConsent": {
+            "type": "boolean",
+            "description": "분석·학습 활용 동의 (작가 본인에게만 의미 있음)"
+          },
           "rightsDeclaredAt": {
             "type": "string",
             "format": "date-time",
@@ -4829,6 +5051,7 @@
           "createdAt",
           "updatedAt",
           "rightsDeclared",
+          "trainingConsent",
           "rightsDeclaredAt",
           "fullText",
           "previewText",
@@ -4968,6 +5191,10 @@
           "rightsDeclared": {
             "type": "boolean",
             "description": "권리 보유 진술. 공개하려면 true여야 한다"
+          },
+          "trainingConsent": {
+            "type": "boolean",
+            "description": "흥행 판단 모델의 분석·학습에 이 대본을 써도 된다는 동의 (선택). 언제든 철회할 수 있다"
           }
         }
       },
@@ -7129,6 +7356,199 @@
         "required": [
           "uphold",
           "resolution"
+        ]
+      },
+      "RecordPerformanceDto": {
+        "type": "object",
+        "properties": {
+          "capturedAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "이 숫자를 확인한 시각 (ISO 8601)",
+            "example": "2026-10-11T00:00:00.000Z"
+          },
+          "views": {
+            "type": "number",
+            "description": "조회수"
+          },
+          "watchTimeMinutes": {
+            "type": "number",
+            "description": "총 시청 시간 (분)"
+          },
+          "avgViewDurationSec": {
+            "type": "number",
+            "description": "평균 시청 지속 시간 (초)"
+          },
+          "likes": {
+            "type": "number"
+          },
+          "comments": {
+            "type": "number"
+          },
+          "subscribersGained": {
+            "type": "number",
+            "description": "이 영상으로 늘어난 구독자"
+          },
+          "revenueKrw": {
+            "type": "number",
+            "description": "누적 수익 (원)"
+          }
+        },
+        "required": [
+          "capturedAt",
+          "views"
+        ]
+      },
+      "PerformanceSnapshotDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "workId": {
+            "type": "string"
+          },
+          "capturedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "views": {
+            "type": "number"
+          },
+          "watchTimeMinutes": {
+            "type": "number",
+            "nullable": true
+          },
+          "avgViewDurationSec": {
+            "type": "number",
+            "nullable": true
+          },
+          "likes": {
+            "type": "number",
+            "nullable": true
+          },
+          "comments": {
+            "type": "number",
+            "nullable": true
+          },
+          "subscribersGained": {
+            "type": "number",
+            "nullable": true
+          },
+          "revenueKrw": {
+            "type": "number",
+            "nullable": true
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "MANUAL",
+              "YOUTUBE_API"
+            ]
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "workId",
+          "capturedAt",
+          "views",
+          "watchTimeMinutes",
+          "avgViewDurationSec",
+          "likes",
+          "comments",
+          "subscribersGained",
+          "revenueKrw",
+          "source",
+          "createdAt"
+        ]
+      },
+      "TrainingWorkDto": {
+        "type": "object",
+        "properties": {
+          "workId": {
+            "type": "string"
+          },
+          "publishedAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "latest": {
+            "nullable": true,
+            "description": "가장 최근 성과 기록",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PerformanceSnapshotDto"
+              }
+            ]
+          },
+          "daysSincePublish": {
+            "type": "object",
+            "description": "공개 후 경과 일수 (최근 기록 기준)"
+          }
+        },
+        "required": [
+          "workId",
+          "publishedAt",
+          "latest",
+          "daysSincePublish"
+        ]
+      },
+      "TrainingRowDto": {
+        "type": "object",
+        "properties": {
+          "scriptId": {
+            "type": "string"
+          },
+          "genre": {
+            "type": "string"
+          },
+          "contentRating": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "ALL",
+              "12",
+              "15",
+              "19"
+            ]
+          },
+          "coverage": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CoverageDto"
+              }
+            ]
+          },
+          "summaryModel": {
+            "type": "string",
+            "nullable": true
+          },
+          "fullTextChars": {
+            "type": "number"
+          },
+          "works": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TrainingWorkDto"
+            }
+          }
+        },
+        "required": [
+          "scriptId",
+          "genre",
+          "contentRating",
+          "coverage",
+          "summaryModel",
+          "fullTextChars",
+          "works"
         ]
       }
     }

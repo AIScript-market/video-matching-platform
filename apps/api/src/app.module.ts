@@ -13,6 +13,7 @@ import { ScriptsModule } from './modules/scripts/scripts.module.js';
 import { CastingModule } from './modules/casting/casting.module.js';
 import { TalentModule } from './modules/talent/talent.module.js';
 import { WorksModule } from './modules/works/works.module.js';
+import { PerformanceModule } from './modules/performance/performance.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 
 @Module({
@@ -32,6 +33,7 @@ import { PrismaModule } from './prisma/prisma.module.js';
     TalentModule,
     CastingModule,
     WorksModule,
+    PerformanceModule,
   ],
 })
 export class AppModule {}

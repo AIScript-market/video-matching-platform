@@ -53,6 +53,13 @@ export class CreateScriptDto {
   @IsOptional()
   @IsBoolean()
   rightsDeclared?: boolean;
+
+  @ApiPropertyOptional({
+    description: '흥행 판단 모델의 분석·학습에 이 대본을 써도 된다는 동의 (선택). 언제든 철회할 수 있다',
+  })
+  @IsOptional()
+  @IsBoolean()
+  trainingConsent?: boolean;
 }
 
 export class UpdateScriptDto extends PartialType(CreateScriptDto) {}
@@ -103,10 +110,30 @@ export class AuthorDto {
   @ApiProperty() displayName!: string;
 }
 
+export class CoverageScoresDto {
+  @ApiProperty({ minimum: 1, maximum: 5, description: '첫 장면이 시청자를 붙잡는 힘' }) hook!: number;
+  @ApiProperty({ minimum: 1, maximum: 5, description: '갈등의 명확성' }) conflict!: number;
+  @ApiProperty({ minimum: 1, maximum: 5, description: '인물의 매력' }) characters!: number;
+  @ApiProperty({ minimum: 1, maximum: 5, description: '전개 속도' }) pacing!: number;
+  @ApiProperty({ minimum: 1, maximum: 5, description: '대사' }) dialogue!: number;
+}
+
+/** PD 관점 검토 의견 (AI). 점수는 작가 본인과 목록에서는 빠진다 (docs/hit-model.md) */
+export class CoverageDto {
+  @ApiPropertyOptional({ type: CoverageScoresDto, description: '작가 본인·목록에서는 없음' }) scores?: CoverageScoresDto;
+  @ApiProperty({ minimum: 1, maximum: 5, description: '제작 난이도 (높을수록 어렵다)' }) productionDifficulty!: number;
+  @ApiProperty() estimatedCast!: number;
+  @ApiProperty() estimatedLocations!: number;
+  @ApiProperty({ type: [String] }) strengths!: string[];
+  @ApiProperty({ type: [String] }) risks!: string[];
+  @ApiProperty({ type: [String] }) comparableTitles!: string[];
+}
+
 export class AiSummaryDto {
   @ApiProperty() summary!: string;
   @ApiProperty({ type: [String] }) tags!: string[];
   @ApiProperty({ enum: ['ALL', '12', '15', '19'] }) contentRating!: 'ALL' | '12' | '15' | '19';
+  @ApiPropertyOptional({ type: CoverageDto, description: '2026-10 이후 만든 요약에만 있다' }) coverage?: CoverageDto;
   @ApiProperty() model!: string;
   @ApiProperty({ format: 'date-time' }) generatedAt!: string;
 }
@@ -147,6 +174,7 @@ export class ViewerAccessDto {
 
 export class ScriptDetailDto extends ScriptSummaryDto {
   @ApiProperty() rightsDeclared!: boolean;
+  @ApiProperty({ description: '분석·학습 활용 동의 (작가 본인에게만 의미 있음)' }) trainingConsent!: boolean;
   @ApiProperty({ type: String, format: 'date-time', nullable: true }) rightsDeclaredAt!: Date | null;
   @ApiProperty({ nullable: true, type: String, description: '권한이 없으면 null' })
   fullText!: string | null;
