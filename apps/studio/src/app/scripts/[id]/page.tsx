@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { ErrorText, Modal, StatusBadge } from "@/components/ui";
 import { api, unwrap, type ScriptDetail } from "@/lib/api";
+import { ReviewMessage } from "@/components/review-message";
 import { useSession } from "@/lib/session";
 
 export default function ScriptDetailPage() {
@@ -161,6 +162,9 @@ export default function ScriptDetailPage() {
               </button>
             </>
           )}
+        </div>
+        {isProducer && viewer.canReadFullText && <ReviewMessage scriptId={script.id} writerName={script.author.displayName} />}
+        <div>
           <ErrorText error={error} />
         </div>
       </aside>

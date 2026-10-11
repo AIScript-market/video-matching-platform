@@ -122,6 +122,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/logs/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 메시지 로그 (제작자·작가 간 모든 메시지, 최신순) */
+        get: operations["BackofficeController_messageLogs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/logs/views": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 대본 전문 열람 로그 (최신순) */
+        get: operations["BackofficeController_viewLogs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/logs/uploads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 대본 파일 업로드 로그 (최신순) */
+        get: operations["BackofficeController_uploadLogs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/role-requests": {
         parameters: {
             query?: never;
@@ -242,6 +293,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/scripts/upload": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 파일로 새 대본 초안 만들기 (.txt, .md, .fountain, .docx, .pdf, 최대 5MB) */
+        post: operations["ScriptsController_upload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/scripts/{id}/upload": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 대본 전문을 업로드한 파일 내용으로 바꾸기 (작가 본인) */
+        post: operations["ScriptsController_replaceUpload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/scripts/{id}": {
         parameters: {
             query?: never;
@@ -356,6 +441,23 @@ export interface paths {
         put?: never;
         /** 협상 시작 (열람 승인된 제작자). 이미 있으면 기존 협상을 반환 */
         post: operations["NegotiationsController_start"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/scripts/{id}/contact": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 대본 검토 후 작가에게 메시지 보내기 (전문을 열람한 제작자). 협상 대화로 이어진다 */
+        post: operations["NegotiationsController_contact"];
         delete?: never;
         options?: never;
         head?: never;
@@ -593,6 +695,59 @@ export interface components {
             decidedAt: string | null;
             user: components["schemas"]["RequesterDto"];
         };
+        LogScriptDto: {
+            id: string;
+            title: string;
+        };
+        LogUserDto: {
+            id: string;
+            displayName: string;
+            email: string;
+            roles: ("WRITER" | "PRODUCER" | "ADMIN")[];
+        };
+        MessageLogDto: {
+            id: string;
+            body: string;
+            /** Format: date-time */
+            createdAt: string;
+            negotiationId: string;
+            /** @enum {string} */
+            negotiationStatus: "OPEN" | "AGREED" | "CLOSED";
+            script: components["schemas"]["LogScriptDto"];
+            sender: components["schemas"]["LogUserDto"];
+            /** @description 받는 사람 (협상의 다른 참여자) */
+            recipient: components["schemas"]["LogUserDto"];
+        };
+        MessageLogPageDto: {
+            items: components["schemas"]["MessageLogDto"][];
+            nextCursor: string | null;
+        };
+        ViewLogDto: {
+            id: string;
+            /** Format: date-time */
+            viewedAt: string;
+            script: components["schemas"]["LogScriptDto"];
+            user: components["schemas"]["LogUserDto"];
+        };
+        ViewLogPageDto: {
+            items: components["schemas"]["ViewLogDto"][];
+            nextCursor: string | null;
+        };
+        UploadLogDto: {
+            id: string;
+            /** Format: date-time */
+            createdAt: string;
+            filename: string;
+            mimeType: string;
+            sizeBytes: number;
+            charCount: number;
+            script: components["schemas"]["LogScriptDto"];
+            uploader: components["schemas"]["LogUserDto"];
+        };
+        UploadLogPageDto: {
+            items: components["schemas"]["UploadLogDto"][];
+            nextCursor: string | null;
+        };
         AdminUserDto: {
             id: string;
             email: string;
@@ -763,6 +918,14 @@ export interface components {
             /** Format: date-time */
             createdAt: string;
         };
+        MessageDto: {
+            id: string;
+            negotiationId: string;
+            senderId: string;
+            body: string;
+            /** Format: date-time */
+            createdAt: string;
+        };
         NegotiationDetailDto: {
             id: string;
             scriptId: string;
@@ -779,8 +942,18 @@ export interface components {
             latestOffer: components["schemas"]["OfferDto"] | null;
             /** @description 합의되어 생성된 딜 id */
             dealId: string | null;
+            /** @description 가장 최근 메시지 */
+            lastMessage: components["schemas"]["MessageDto"] | null;
             /** @description 제안 이력 (오래된 순) */
             offers: components["schemas"]["OfferDto"][];
+        };
+        ContactWriterDto: {
+            /** @description 검토 의견이나 제안하고 싶은 내용 */
+            body: string;
+        };
+        ContactResultDto: {
+            negotiationId: string;
+            message: components["schemas"]["MessageDto"];
         };
         NegotiationDto: {
             id: string;
@@ -798,14 +971,8 @@ export interface components {
             latestOffer: components["schemas"]["OfferDto"] | null;
             /** @description 합의되어 생성된 딜 id */
             dealId: string | null;
-        };
-        MessageDto: {
-            id: string;
-            negotiationId: string;
-            senderId: string;
-            body: string;
-            /** Format: date-time */
-            createdAt: string;
+            /** @description 가장 최근 메시지 */
+            lastMessage: components["schemas"]["MessageDto"] | null;
         };
         CreateMessageDto: {
             body: string;
@@ -1039,6 +1206,81 @@ export interface operations {
             };
         };
     };
+    BackofficeController_messageLogs: {
+        parameters: {
+            query?: {
+                /** @description 대본 제목, 사용자 이름·이메일 검색 */
+                q?: string;
+                /** @description 이전 응답의 nextCursor */
+                cursor?: string;
+                take?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageLogPageDto"];
+                };
+            };
+        };
+    };
+    BackofficeController_viewLogs: {
+        parameters: {
+            query?: {
+                /** @description 대본 제목, 사용자 이름·이메일 검색 */
+                q?: string;
+                /** @description 이전 응답의 nextCursor */
+                cursor?: string;
+                take?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ViewLogPageDto"];
+                };
+            };
+        };
+    };
+    BackofficeController_uploadLogs: {
+        parameters: {
+            query?: {
+                /** @description 대본 제목, 사용자 이름·이메일 검색 */
+                q?: string;
+                /** @description 이전 응답의 nextCursor */
+                cursor?: string;
+                take?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UploadLogPageDto"];
+                };
+            };
+        };
+    };
     BackofficeController_roleRequests: {
         parameters: {
             query?: {
@@ -1204,6 +1446,60 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["CreateScriptDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScriptDetailDto"];
+                };
+            };
+        };
+    };
+    ScriptsController_upload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /** Format: binary */
+                    file: string;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScriptDetailDto"];
+                };
+            };
+        };
+    };
+    ScriptsController_replaceUpload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /** Format: binary */
+                    file: string;
+                };
             };
         };
         responses: {
@@ -1395,6 +1691,31 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["NegotiationDetailDto"];
+                };
+            };
+        };
+    };
+    NegotiationsController_contact: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ContactWriterDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContactResultDto"];
                 };
             };
         };

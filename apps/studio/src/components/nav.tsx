@@ -27,6 +27,7 @@ export function Nav() {
           {user && link("/negotiations", "협상")}
           {user && link("/deals", "내 딜")}
           {has("ADMIN") && link("/admin", "관리자")}
+          {has("ADMIN") && link("/admin/logs", "활동 로그")}
           {user && link("/account", user.roles.length === 0 ? "권한 신청" : "내 계정")}
         </nav>
         {user ? (

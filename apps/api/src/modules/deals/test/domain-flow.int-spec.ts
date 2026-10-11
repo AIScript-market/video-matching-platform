@@ -119,6 +119,7 @@ run('도메인 흐름 (DB)', () => {
 
     const fullView = await scripts.get(created.id, producer);
     expect(fullView.fullText).toBe('S#1. 폐역 승강장 (밤)');
+    await scripts.get(created.id, producer); // 곧바로 다시 열어도 열람 기록은 한 번
     expect(await prisma.scriptAccessLog.count({ where: { scriptId: created.id, userId: producer.id } })).toBe(1);
 
     // 4. 협상 시작 (재호출해도 같은 협상) + 채팅

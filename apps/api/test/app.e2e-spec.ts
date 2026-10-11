@@ -160,9 +160,9 @@ run('API e2e', () => {
     const draft = await http
       .post('/scripts/upload')
       .set(W)
-      .attach('file', Buffer.from('S#1. 바다 (새벽)\r\n\r\n\r\n해원: 다시 왔어.'), { filename: '바다의 끝.txt', contentType: 'text/plain' })
+      .attach('file', Buffer.from('S#1. 바다 (새벽)\r\n\r\n\r\n해원: 다시 왔어.'), { filename: `바다의 끝 ${suffix}.txt`, contentType: 'text/plain' })
       .expect(201);
-    expect(draft.body).toMatchObject({ title: '바다의 끝', status: 'DRAFT', fullText: 'S#1. 바다 (새벽)\n\n해원: 다시 왔어.' });
+    expect(draft.body).toMatchObject({ title: `바다의 끝 ${suffix}`, status: 'DRAFT', fullText: 'S#1. 바다 (새벽)\n\n해원: 다시 왔어.' });
 
     // 로그라인·시놉시스·장르가 비어 있으면 공개 불가
     const publishFail = await http.post(`/scripts/${draft.body.id}/publish`).set(W).send({ rightsDeclared: true }).expect(400);
@@ -194,15 +194,15 @@ run('API e2e', () => {
 
     // 관리자 로그: 메시지·열람·업로드
     await http.get('/admin/logs/messages').set(W).expect(403);
-    const msgs = (await http.get('/admin/logs/messages?q=바다의 끝').set(ADMIN).expect(200)).body;
+    const msgs = (await http.get(`/admin/logs/messages?q=${encodeURIComponent(`바다의 끝 ${suffix}`)}`).set(ADMIN).expect(200)).body;
     expect(msgs.items.map((m: { body: string }) => m.body)).toEqual(['통화 가능할까요?', '검토했습니다. 2화 구성이 인상적이에요.']);
     expect(msgs.items[0].recipient.email).toBe(emails[3]);
     expect(msgs.items[0].sender.email).toBe(emails[4]);
     const views = (await http.get(`/admin/logs/views?q=${encodeURIComponent(emails[4])}`).set(ADMIN).expect(200)).body;
     expect(views.items).toHaveLength(1);
-    expect(views.items[0].script.title).toBe('바다의 끝');
+    expect(views.items[0].script.title).toBe(`바다의 끝 ${suffix}`);
     const uploads = (await http.get(`/admin/logs/uploads?q=${encodeURIComponent(emails[3])}`).set(ADMIN).expect(200)).body;
-    expect(uploads.items.map((u: { filename: string }) => u.filename)).toEqual(['v2.md', '바다의 끝.txt']);
+    expect(uploads.items.map((u: { filename: string }) => u.filename)).toEqual(['v2.md', `바다의 끝 ${suffix}.txt`]);
     const page1 = (await http.get('/admin/logs/messages?take=1').set(ADMIN).expect(200)).body;
     expect(page1.items).toHaveLength(1);
     expect(page1.nextCursor).toBeTruthy();

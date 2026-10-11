@@ -53,6 +53,7 @@ function Dashboard() {
 
   const pending = requests.filter((r) => r.status === "PENDING");
   const waitingOffers = negotiations.filter((n) => n.latestOffer?.status === "PROPOSED" && n.latestOffer.proposerId !== user?.id);
+  const newMessages = negotiations.filter((n) => n.lastMessage && n.lastMessage.senderId !== user?.id);
 
   return (
     <div className="stack">
@@ -63,6 +64,27 @@ function Dashboard() {
         </Link>
       </div>
       <ErrorText error={error} />
+
+      <section className="card stack" aria-label="받은 메시지">
+        <h2>받은 메시지 {newMessages.length > 0 && <span className="badge warn">{newMessages.length}</span>}</h2>
+        {newMessages.length === 0 ? (
+          <p className="muted small">답장을 기다리는 메시지가 없습니다.</p>
+        ) : (
+          newMessages.map((n) => (
+            <div key={n.id} className="spread">
+              <div style={{ minWidth: 0 }}>
+                <strong>{n.script.title}</strong> · {n.producer.displayName}
+                <div className="small muted" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 520 }}>
+                  “{n.lastMessage!.body}” · {dateTime(n.lastMessage!.createdAt)}
+                </div>
+              </div>
+              <Link href={`/negotiations/${n.id}`} className="button secondary">
+                답장하기
+              </Link>
+            </div>
+          ))
+        )}
+      </section>
 
       <section className="card stack">
         <h2>받은 제안 {waitingOffers.length > 0 && <span className="badge warn">{waitingOffers.length}</span>}</h2>

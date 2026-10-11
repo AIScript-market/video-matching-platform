@@ -2,8 +2,9 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { ScriptFileUpload } from "@/components/file-upload";
 import { ErrorText, StatusBadge } from "@/components/ui";
-import { api, unwrap, type ScriptDetail } from "@/lib/api";
+import { api, unwrap, uploadScriptFile, type ScriptDetail } from "@/lib/api";
 
 const EMPTY = { title: "", logline: "", synopsis: "", genre: "드라마", fullText: "" };
 
@@ -56,6 +57,15 @@ export function ScriptForm({ script }: { script?: ScriptDetail }) {
     });
 
   const locked = script?.status === "PUBLISHED";
+  const lines = form.fullText ? form.fullText.split("\n").length : 0;
+  const scenes = (form.fullText.match(/^S#\d+/gm) ?? []).length;
+
+  /** 다음 장면 번호로 "S#n. 장소 (시간)" 머리글을 본문 끝에 붙인다 */
+  const addScene = () =>
+    setForm((f) => ({
+      ...f,
+      fullText: `${f.fullText.trimEnd()}${f.fullText.trim() ? "\n\n" : ""}S#${scenes + 1}. 장소 (시간)\n\n`,
+    }));
 
   return (
     <form className="stack" onSubmit={(e) => (e.preventDefault(), save())}>
@@ -90,8 +100,26 @@ export function ScriptForm({ script }: { script?: ScriptDetail }) {
         </label>
         <label>
           대본 전문 (작가와 열람 승인된 제작자만 볼 수 있음)
-          <textarea required value={form.fullText} onChange={set("fullText")} style={{ minHeight: 260, fontFamily: "ui-monospace, monospace" }} />
+          <textarea required value={form.fullText} onChange={set("fullText")} style={{ minHeight: 320, fontFamily: "ui-monospace, monospace" }} />
         </label>
+        <div className="spread small muted">
+          <span>
+            {form.fullText.length.toLocaleString("ko-KR")}자 · {lines.toLocaleString("ko-KR")}줄 · 장면 {scenes}개
+          </span>
+          <button type="button" className="ghost" onClick={addScene}>
+            + 장면 머리글 추가
+          </button>
+        </div>
+        {script && (
+          <ScriptFileUpload
+            label="파일로 본문 바꾸기"
+            upload={(file) => uploadScriptFile(`/scripts/${script.id}/upload`, file)}
+            onDone={(updated) => {
+              setForm((f) => ({ ...f, fullText: updated.fullText ?? "" }));
+              setNotice("파일 내용으로 본문을 바꿨습니다.");
+            }}
+          />
+        )}
         <label className="check">
           <input type="checkbox" checked={rights} disabled={locked && rights} onChange={(e) => setRights(e.target.checked)} />
           <span>

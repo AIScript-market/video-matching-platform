@@ -36,6 +36,18 @@ export async function unwrap<T>(
   return data as T;
 }
 
+export const UPLOAD_ACCEPT = ".txt,.md,.fountain,.docx,.pdf";
+
+/** 대본 파일 업로드 (multipart). path 예: "/scripts/upload", "/scripts/{id}/upload" */
+export async function uploadScriptFile(path: string, file: File): Promise<ScriptDetail> {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(`/api${path}`, { method: "POST", body: form, credentials: "include" });
+  const body = await res.json().catch(() => undefined);
+  if (!res.ok) throw new Error(errorMessage(body, res.status === 413 ? "파일이 너무 큽니다 (최대 5MB)" : undefined));
+  return body as ScriptDetail;
+}
+
 export const won = (n: number) => `${n.toLocaleString("ko-KR")}원`;
 
 export const dateTime = (iso: string) =>

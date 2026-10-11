@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { LedgerTable } from "@/components/ledger-table";
 import { ErrorText, RequireAuth, ROLE_LABEL, RoleBadges, StatusBadge } from "@/components/ui";
@@ -77,7 +78,12 @@ function Admin() {
 
   return (
     <div className="stack">
-      <h1>관리자</h1>
+      <div className="spread">
+        <h1>관리자</h1>
+        <Link href="/admin/logs" className="button secondary">
+          활동 로그 (메시지·열람·업로드)
+        </Link>
+      </div>
       <ErrorText error={error} />
 
       <section className="card stack" aria-label="권한 신청 관리">

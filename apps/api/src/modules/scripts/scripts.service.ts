@@ -32,6 +32,8 @@ const PUBLIC_SELECT = {
   author: { select: { id: true, displayName: true } },
 } as const;
 
+export const VIEW_LOG_WINDOW_MS = 10 * 60 * 1000;
+
 export interface UploadedScriptFile {
   buffer: Buffer;
   originalname: string;
@@ -116,9 +118,7 @@ export class ScriptsService {
         select: { fullText: true },
       });
       fullText = row.fullText;
-      if (!isAuthor) {
-        await this.prisma.scriptAccessLog.create({ data: { scriptId: id, userId: viewer!.id } });
-      }
+      if (!isAuthor) await this.logView(id, viewer!.id);
     }
 
     const { authorId: _authorId, ...rest } = script;
@@ -180,6 +180,18 @@ export class ScriptsService {
     await this.logUpload(id, user.id, file, text);
     if (script.status === 'PUBLISHED' && text !== script.fullText) await this.aiJobs.enqueueSummarize(id);
     return this.get(id, user);
+  }
+
+  /**
+   * 전문 열람 기록. 화면이 다시 불러올 때마다 쌓이지 않도록
+   * 같은 사람이 같은 대본을 VIEW_LOG_WINDOW_MS 안에 다시 연 것은 한 번으로 본다.
+   */
+  private async logView(scriptId: string, userId: string) {
+    const recent = await this.prisma.scriptAccessLog.findFirst({
+      where: { scriptId, userId, viewedAt: { gte: new Date(Date.now() - VIEW_LOG_WINDOW_MS) } },
+      select: { id: true },
+    });
+    if (!recent) await this.prisma.scriptAccessLog.create({ data: { scriptId, userId } });
   }
 
   private logUpload(scriptId: string, uploaderId: string, file: UploadedScriptFile, text: string) {
