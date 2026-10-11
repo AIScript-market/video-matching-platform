@@ -41,6 +41,13 @@ function Dashboard() {
     void load();
   }, [load]);
 
+  // 요약을 만드는 중인 대본이 있으면 끝날 때까지 3초마다 다시 불러온다
+  useEffect(() => {
+    if (!scripts.some((s) => s.aiSummaryPending)) return;
+    const timer = setTimeout(load, 3000);
+    return () => clearTimeout(timer);
+  }, [scripts, load]);
+
   async function decide(id: string, action: "approve" | "reject") {
     try {
       if (action === "approve") await unwrap(api.POST("/access-requests/{id}/approve", { params: { path: { id } } }));
@@ -164,7 +171,8 @@ function Dashboard() {
                   <th>제목</th>
                   <th>장르</th>
                   <th>상태</th>
-                  <th>수정</th>
+                  <th>최근 수정</th>
+                  <th>AI 요약</th>
                   <th />
                 </tr>
               </thead>
@@ -178,7 +186,16 @@ function Dashboard() {
                     <td>
                       <StatusBadge status={s.status} />
                     </td>
-                    <td className="small">{dateTime(s.updatedAt)}</td>
+                    <td className="small">{dateTime(s.contentUpdatedAt)}</td>
+                    <td className="small">
+                      {s.aiSummaryPending ? (
+                        <span className="badge warn">생성 중</span>
+                      ) : s.aiSummary ? (
+                        dateTime(s.aiSummary.generatedAt)
+                      ) : (
+                        <span className="muted">없음</span>
+                      )}
+                    </td>
                     <td>
                       <Link href={`/dashboard/scripts/${s.id}`}>편집</Link>
                     </td>

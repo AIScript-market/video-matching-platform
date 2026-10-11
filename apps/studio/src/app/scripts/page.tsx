@@ -76,7 +76,9 @@ export default function ScriptsPage() {
             <Link key={s.id} href={`/scripts/${s.id}`} className="card stack" style={{ color: "inherit", textDecoration: "none" }}>
               <div className="spread">
                 <span className="badge">{s.genre}</span>
-                <span className="small muted">{s.author.displayName}</span>
+                <span className="small muted">
+                  {s.author.displayName} · {new Date(s.contentUpdatedAt).toLocaleDateString("ko-KR")} 수정
+                </span>
               </div>
               <h3>{s.title}</h3>
               <p>{s.logline}</p>
