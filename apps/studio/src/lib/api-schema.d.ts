@@ -1458,6 +1458,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/works/{id}/performance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 작품 성과 기록 (기획사, 출연자·보호자, 관리자) */
+        get: operations["PerformanceController_list"];
+        put?: never;
+        /** 작품 성과 기록 (기획사·관리자, 공개한 작품만). 흥행 판단 모델의 정답 데이터 */
+        post: operations["PerformanceController_record"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/ml/training-set": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 학습용 데이터 (관리자). 분석·학습에 동의한 대본의 커버리지와 작품 성과. 대본 원문은 포함하지 않는다 */
+        get: operations["TrainingSetController_trainingSet"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1710,12 +1745,39 @@ export interface components {
             previewText?: string;
             /** @description 권리 보유 진술. 공개하려면 true여야 한다 */
             rightsDeclared?: boolean;
+            /** @description 흥행 판단 모델의 분석·학습에 이 대본을 써도 된다는 동의 (선택). 언제든 철회할 수 있다 */
+            trainingConsent?: boolean;
+        };
+        CoverageScoresDto: {
+            /** @description 첫 장면이 시청자를 붙잡는 힘 */
+            hook: number;
+            /** @description 갈등의 명확성 */
+            conflict: number;
+            /** @description 인물의 매력 */
+            characters: number;
+            /** @description 전개 속도 */
+            pacing: number;
+            /** @description 대사 */
+            dialogue: number;
+        };
+        CoverageDto: {
+            /** @description 작가 본인·목록에서는 없음 */
+            scores?: components["schemas"]["CoverageScoresDto"];
+            /** @description 제작 난이도 (높을수록 어렵다) */
+            productionDifficulty: number;
+            estimatedCast: number;
+            estimatedLocations: number;
+            strengths: string[];
+            risks: string[];
+            comparableTitles: string[];
         };
         AiSummaryDto: {
             summary: string;
             tags: string[];
             /** @enum {string} */
             contentRating: "ALL" | "12" | "15" | "19";
+            /** @description 2026-10 이후 만든 요약에만 있다 */
+            coverage?: components["schemas"]["CoverageDto"];
             model: string;
             /** Format: date-time */
             generatedAt: string;
@@ -1760,6 +1822,8 @@ export interface components {
             /** Format: date-time */
             updatedAt: string;
             rightsDeclared: boolean;
+            /** @description 분석·학습 활용 동의 (작가 본인에게만 의미 있음) */
+            trainingConsent: boolean;
             /** Format: date-time */
             rightsDeclaredAt: string | null;
             /** @description 권한이 없으면 null */
@@ -1815,6 +1879,8 @@ export interface components {
             previewText?: string;
             /** @description 권리 보유 진술. 공개하려면 true여야 한다 */
             rightsDeclared?: boolean;
+            /** @description 흥행 판단 모델의 분석·학습에 이 대본을 써도 된다는 동의 (선택). 언제든 철회할 수 있다 */
+            trainingConsent?: boolean;
         };
         PublishScriptDto: {
             /** @description 아직 권리 보유를 진술하지 않았다면 여기서 true로 함께 진술할 수 있다 */
@@ -2428,6 +2494,62 @@ export interface components {
             /** @description true=신고 인정(삭제), false=기각(자동 비공개였다면 다시 공개) */
             uphold: boolean;
             resolution: string;
+        };
+        RecordPerformanceDto: {
+            /**
+             * Format: date-time
+             * @description 이 숫자를 확인한 시각 (ISO 8601)
+             * @example 2026-10-11T00:00:00.000Z
+             */
+            capturedAt: string;
+            /** @description 조회수 */
+            views: number;
+            /** @description 총 시청 시간 (분) */
+            watchTimeMinutes?: number;
+            /** @description 평균 시청 지속 시간 (초) */
+            avgViewDurationSec?: number;
+            likes?: number;
+            comments?: number;
+            /** @description 이 영상으로 늘어난 구독자 */
+            subscribersGained?: number;
+            /** @description 누적 수익 (원) */
+            revenueKrw?: number;
+        };
+        PerformanceSnapshotDto: {
+            id: string;
+            workId: string;
+            /** Format: date-time */
+            capturedAt: string;
+            views: number;
+            watchTimeMinutes: number | null;
+            avgViewDurationSec: number | null;
+            likes: number | null;
+            comments: number | null;
+            subscribersGained: number | null;
+            revenueKrw: number | null;
+            /** @enum {string} */
+            source: "MANUAL" | "YOUTUBE_API";
+            /** Format: date-time */
+            createdAt: string;
+        };
+        TrainingWorkDto: {
+            workId: string;
+            /** Format: date-time */
+            publishedAt: string | null;
+            /** @description 가장 최근 성과 기록 */
+            latest: components["schemas"]["PerformanceSnapshotDto"] | null;
+            /** @description 공개 후 경과 일수 (최근 기록 기준) */
+            daysSincePublish: Record<string, never>;
+        };
+        TrainingRowDto: {
+            scriptId: string;
+            genre: string;
+            /** @enum {string|null} */
+            contentRating: "ALL" | "12" | "15" | "19" | null;
+            coverage: components["schemas"]["CoverageDto"] | null;
+            summaryModel: string | null;
+            fullTextChars: number;
+            works: components["schemas"]["TrainingWorkDto"][];
         };
     };
     responses: never;
@@ -4552,6 +4674,71 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TakedownDto"];
+                };
+            };
+        };
+    };
+    PerformanceController_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PerformanceSnapshotDto"][];
+                };
+            };
+        };
+    };
+    PerformanceController_record: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecordPerformanceDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PerformanceSnapshotDto"];
+                };
+            };
+        };
+    };
+    TrainingSetController_trainingSet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrainingRowDto"][];
                 };
             };
         };

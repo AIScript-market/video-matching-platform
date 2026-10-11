@@ -30,6 +30,7 @@ export function ScriptForm({ script, onSaved }: { script?: ScriptDetail; onSaved
       : EMPTY,
   );
   const [rights, setRights] = useState(script?.rightsDeclared ?? false);
+  const [trainingConsent, setTrainingConsent] = useState(script?.trainingConsent ?? false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -53,12 +54,12 @@ export function ScriptForm({ script, onSaved }: { script?: ScriptDetail; onSaved
     run(async () => {
       if (script) {
         const saved = await unwrap(
-          api.PATCH("/scripts/{id}", { params: { path: { id: script.id } }, body: { ...form, rightsDeclared: rights } }),
+          api.PATCH("/scripts/{id}", { params: { path: { id: script.id } }, body: { ...form, rightsDeclared: rights, trainingConsent } }),
         );
         setNotice(saved.aiSummaryPending ? "저장했습니다. 바뀐 내용으로 AI 요약을 다시 만들고 있습니다." : "저장했습니다.");
         onSaved?.(saved);
       } else {
-        const created = await unwrap(api.POST("/scripts", { body: { ...form, rightsDeclared: rights } }));
+        const created = await unwrap(api.POST("/scripts", { body: { ...form, rightsDeclared: rights, trainingConsent } }));
         router.push(`/dashboard/scripts/${created.id}`);
       }
     });
@@ -185,6 +186,16 @@ export function ScriptForm({ script, onSaved }: { script?: ScriptDetail; onSaved
           <span>
             이 대본의 저작권 등 영상화에 필요한 권리를 본인이 보유하고 있으며, 타인의 권리를 침해하지 않음을 진술합니다.
             <span className="muted small"> (공개하려면 필수)</span>
+          </span>
+        </label>
+        <label className="check">
+          <input type="checkbox" checked={trainingConsent} onChange={(e) => setTrainingConsent(e.target.checked)} />
+          <span>
+            이 대본을 플랫폼의 흥행 판단 모델 분석·학습에 써도 됩니다.
+            <span className="muted small">
+              {" "}
+              (선택. 대본 원문은 학습 데이터로 내보내지 않고, AI가 뽑은 특징과 영상 성과만 씁니다. 언제든 끌 수 있습니다)
+            </span>
           </span>
         </label>
       </div>

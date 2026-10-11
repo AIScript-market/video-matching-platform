@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { TagList, WorkStatusBadge } from "@/components/casting-ui";
 import { ErrorText, RequireAuth } from "@/components/ui";
-import { api, dateTime, unwrap } from "@/lib/api";
+import { api, dateTime, unwrap, type Schemas } from "@/lib/api";
 import { TAKEDOWN_REASONS, type TakedownReason, type Work } from "@/lib/casting";
 import { useSession } from "@/lib/session";
 
@@ -92,6 +92,7 @@ function WorkDetail() {
       </section>
 
       {isStudio && work.status === "DRAFT" && <PublishForm workId={id} aiGenerated={work.aiGenerated} onDone={load} />}
+      {work.publishedAt && <PerformanceSection workId={id} canRecord={isStudio} />}
       {!isStudio && work.status !== "REMOVED" && <TakedownForm workId={id} onDone={load} />}
 
       <p className="small">
@@ -189,3 +190,99 @@ function TakedownForm({ workId, onDone }: { workId: string; onDone: () => void }
     </form>
   );
 }
+
+type Snapshot = Schemas["PerformanceSnapshotDto"];
+
+/** 작품 성과. 흥행 판단 모델의 정답 데이터가 된다 (지금은 직접 입력, 나중에 유튜브 분석 API) */
+function PerformanceSection({ workId, canRecord }: { workId: string; canRecord: boolean }) {
+  const [rows, setRows] = useState<Snapshot[]>([]);
+  const [views, setViews] = useState(0);
+  const [avgViewDurationSec, setAvg] = useState(0);
+  const [subscribersGained, setSubs] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(
+    () =>
+      unwrap(api.GET("/works/{id}/performance", { params: { path: { id: workId } } }))
+        .then(setRows)
+        .catch((err: Error) => setError(err.message)),
+    [workId],
+  );
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    try {
+      await unwrap(
+        api.POST("/works/{id}/performance", {
+          params: { path: { id: workId } },
+          body: { capturedAt: new Date().toISOString(), views, avgViewDurationSec, subscribersGained },
+        }),
+      );
+      await load();
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }
+
+  const num = (set: (n: number) => void) => (e: React.ChangeEvent<HTMLInputElement>) => set(Math.max(0, Math.round(Number(e.target.value) || 0)));
+
+  return (
+    <section className="card stack">
+      <h2>성과</h2>
+      {rows.length === 0 ? (
+        <p className="muted small">아직 기록이 없습니다.</p>
+      ) : (
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>확인 시각</th>
+                <th className="num">조회수</th>
+                <th className="num">평균 시청(초)</th>
+                <th className="num">구독 증가</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.id}>
+                  <td>{dateTime(r.capturedAt)}</td>
+                  <td className="num">{r.views.toLocaleString("ko-KR")}</td>
+                  <td className="num">{r.avgViewDurationSec ?? "-"}</td>
+                  <td className="num">{r.subscribersGained ?? "-"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {canRecord && (
+        <form className="row" onSubmit={submit} aria-label="성과 기록">
+          <label style={{ flex: 1, minWidth: 120 }}>
+            조회수
+            <input type="number" min={0} value={views} onChange={num(setViews)} />
+          </label>
+          <label style={{ flex: 1, minWidth: 120 }}>
+            평균 시청(초)
+            <input type="number" min={0} value={avgViewDurationSec} onChange={num(setAvg)} />
+          </label>
+          <label style={{ flex: 1, minWidth: 120 }}>
+            구독 증가
+            <input type="number" min={0} value={subscribersGained} onChange={num(setSubs)} />
+          </label>
+          <button type="submit" style={{ alignSelf: "end" }}>
+            지금 숫자 기록
+          </button>
+        </form>
+      )}
+      <p className="small muted" style={{ margin: 0 }}>
+        유튜브 스튜디오의 숫자를 옮겨 적습니다. 작가가 학습에 동의한 대본의 작품만 흥행 판단 모델의 학습에 쓰입니다.
+      </p>
+      <ErrorText error={error} />
+    </section>
+  );
+}
+
