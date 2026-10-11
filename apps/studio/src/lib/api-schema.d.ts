@@ -739,6 +739,725 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/identity-verification": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 내 본인인증 결과 (없으면 null) */
+        get: operations["TalentController_identity"];
+        put?: never;
+        /** 본인인증 (출연자, 보호자). 생년월일은 저장하지 않는다 */
+        post: operations["TalentController_verifyIdentity"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/talent/profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 출연자로 등록 (배우 또는 일반인). 관리자 계정은 불가 */
+        post: operations["TalentController_createProfile"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/talent/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 내 출연자 프로필과 남은 등록 단계 (등록 전이면 null) */
+        get: operations["TalentController_me"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** 출연 조건 수정 (허용 장면 유형, 최저 출연료 등) */
+        patch: operations["TalentController_update"];
+        trace?: never;
+    };
+    "/talent/me/assets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 얼굴 스캔·음성·동작 원본 업로드. 파일마다 따로 암호화해 저장한다 */
+        post: operations["TalentController_upload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/talent/me/assets/{assetId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** 원본 하나 삭제 (제작 기한이 남은 계약이 없을 때) */
+        delete: operations["TalentController_deleteAsset"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/talent/me/liveness": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 실시간 셀카로 본인 확인 (등록한 얼굴 스캔과 대조) */
+        post: operations["TalentController_liveness"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/talent/me/consent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 민감정보 처리·국외 처리 동의 (성년이 된 뒤 재동의도 여기서) */
+        post: operations["TalentController_consent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/talent/me/access-logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 내 원본을 누가 언제 내려받았는지 */
+        get: operations["TalentController_accessLogs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/talent/me/withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 등록 철회. 새 제안 차단, 7일 숙려 후(진행 중 계약은 제작 기한 후) 원본·모델 삭제 */
+        post: operations["TalentController_withdraw"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/talent/me/withdraw/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 철회 취소 (7일 이내) */
+        post: operations["TalentController_cancelWithdraw"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/talent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 캐스팅 목록 (등록을 마친 출연자만, 실명·원본 없음) */
+        get: operations["TalentController_directory"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/talent/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 출연자 공개 프로필 */
+        get: operations["TalentController_profile"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/likeness/assets/{assetId}/content": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 원본 내려받기 (본인, 또는 제작 기한 안의 디지털 출연 계약이 있는 기획사). 매번 기록 */
+        get: operations["TalentController_download"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/guardian/wards/{talentId}/consent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 법정대리인 동의 (미성년 출연자가 적은 이메일의 계정만) */
+        post: operations["TalentController_guardianConsent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/guardian/wards": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 내가 대리하는(또는 대리 요청을 받은) 미성년 출연자 */
+        get: operations["TalentController_wards"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/talent/guardian-checks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 보호자 관계 확인 대기 목록 (관리자) */
+        get: operations["TalentAdminController_pending"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/talent/{talentId}/guardian-verified": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 보호자 관계 확인 완료 (관리자, 가족관계증명서 확인 후) */
+        post: operations["TalentAdminController_verifyGuardian"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/deals/{dealId}/project": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 딜에 연결된 작품 (없으면 null) */
+        get: operations["CastingController_projectForDeal"];
+        put?: never;
+        /** 딜로 작품 만들기 (딜의 작가·제작자 = 기획사). 딜 하나에 작품 하나 */
+        post: operations["CastingController_createProject"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 내 기획사 작품 (관리자는 전체) */
+        get: operations["CastingController_listProjects"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 작품 상세 (기획사 구성원, 관리자) */
+        get: operations["CastingController_getProject"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{id}/roles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 작품의 배역 */
+        get: operations["CastingController_listRoles"];
+        put?: never;
+        /** 배역 등록. 미성년 배역에는 INTIMACY·SUBSTANCE를 붙일 수 없다 */
+        post: operations["CastingController_createRole"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/casting/roles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 공개 오디션: 캐스팅 중인 배역 */
+        get: operations["CastingController_openRoles"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/casting/roles/{roleId}/applications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 배역에 지원 (출연자). 허용하지 않은 장면 유형이 있는 배역에는 지원할 수 없다 */
+        post: operations["CastingController_apply"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/casting/roles/{roleId}/invitations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 출연자에게 출연 제안 시작 (기획사 구성원) */
+        post: operations["CastingController_invite"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/casting/negotiations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 내 캐스팅 협상 (출연자, 보호자, 기획사) */
+        get: operations["CastingController_listNegotiations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/casting/negotiations/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 캐스팅 협상 상세 + 제안 이력 */
+        get: operations["CastingController_getNegotiation"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/casting/negotiations/{id}/offers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 출연료 제안 / 역제안 (고정·회당·수익 배분·혼합) */
+        post: operations["CastingController_createOffer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/casting/offers/{id}/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 제안 수락 (상대방). 미성년자는 보호자 승인 후 계약이 된다 */
+        post: operations["CastingController_accept"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/casting/offers/{id}/guardian-decision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 보호자의 승인·거절 */
+        post: operations["CastingController_guardianDecision"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/casting/contracts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 내 출연 계약 (관리자는 전체) */
+        get: operations["CastingController_listContracts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/casting/contracts/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 출연 계약 상세 */
+        get: operations["CastingController_getContract"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/casting/contracts/{id}/early-termination-quote": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 조기 종료 보상액 안내 (출연자·보호자) */
+        get: operations["CastingController_quote"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/casting/contracts/{id}/terminate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 조기 종료 확정 (관리자, 보상 입금 확인 후). 이 계약으로 만든 작품을 내린다 */
+        post: operations["CastingAdminController_terminate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{id}/works": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 작품 목록 (기획사) */
+        get: operations["WorksController_list"];
+        put?: never;
+        /** 작품(회차·숏폼) 등록. 계약 범위 밖 장면 유형이면 거절 */
+        post: operations["WorksController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/works": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 내가 출연한 작품 (출연자, 보호자) */
+        get: operations["WorksController_listMine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/works/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 작품 상세 (기획사, 출연자, 보호자, 관리자) */
+        get: operations["WorksController_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/works/{id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 출연분 확인 (출연자, 미성년자는 보호자) */
+        post: operations["WorksController_approve"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/works/{id}/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 공개 (기획사). 계약·장면 유형·출연분 확인·AI 표시를 모두 통과해야 한다 */
+        post: operations["WorksController_publish"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/works/{id}/takedowns": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 작품 내림 요청 (출연자, 보호자, 관리자). 계약 위반 사유는 즉시 비공개 */
+        post: operations["WorksController_takedown"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/takedowns": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 내림 요청 목록 (관리자는 처리 대기 전체) */
+        get: operations["WorksController_listTakedowns"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/takedowns/{id}/settle": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 요청에 합의해 작품을 내림 (기획사) */
+        post: operations["WorksController_settle"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/takedowns/{id}/decide": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 내림 요청 판단 (관리자). 인정=삭제, 기각=다시 공개 */
+        post: operations["WorksAdminController_decide"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1290,6 +2009,425 @@ export interface components {
              * @description 생략하면 현재 시각 (UTC)
              */
             occurredAt?: string;
+        };
+        VerifyIdentityDto: {
+            /**
+             * @description 본인인증 provider가 돌려준 토큰. 개발용 가짜 provider는 `test:<실명>:<YYYY-MM-DD>`
+             * @example test:홍길동:1998-03-14
+             */
+            token: string;
+        };
+        IdentityDto: {
+            legalName: string;
+            isMinor: boolean;
+            /**
+             * Format: date-time
+             * @description 미성년자만: 만 19세가 되는 날
+             */
+            adultOn: string | null;
+            /** Format: date-time */
+            verifiedAt: string;
+        };
+        CreateTalentProfileDto: {
+            /**
+             * @description ACTOR=배우, GENERAL=일반인
+             * @enum {string}
+             */
+            kind: "ACTOR" | "GENERAL";
+            /** @example 한별 */
+            stageName: string;
+            bio?: string;
+            /** @description 출연을 허용하는 장면 유형 */
+            allowedTags: ("ROMANCE" | "INTIMACY" | "VIOLENCE" | "HORROR" | "DEATH" | "SUBSTANCE" | "PROFANITY")[];
+            /**
+             * @description 최저 출연료 (원)
+             * @default 0
+             */
+            minFeeKrw: number;
+            /** @description 미성년자: 보호자가 가입한(또는 가입할) 이메일 */
+            guardianEmail?: string;
+        };
+        LikenessAssetDto: {
+            id: string;
+            /** @enum {string} */
+            kind: "FACE_SCAN" | "VOICE" | "MOTION";
+            contentType: string;
+            sizeBytes: number;
+            sha256: string;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        TalentSelfDto: {
+            id: string;
+            userId: string;
+            stageName: string;
+            /** @enum {string} */
+            kind: "ACTOR" | "GENERAL";
+            bio: string | null;
+            allowedTags: ("ROMANCE" | "INTIMACY" | "VIOLENCE" | "HORROR" | "DEATH" | "SUBSTANCE" | "PROFANITY")[];
+            minFeeKrw: number;
+            /** @description 미성년자 여부 (계약에 보호자 승인 필요) */
+            isMinor: boolean;
+            /** @enum {string} */
+            status: "PENDING_VERIFICATION" | "ACTIVE" | "WITHDRAWING" | "WITHDRAWN";
+            /** @description 캐스팅 가능해지기까지 남은 단계 */
+            missingSteps: ("IDENTITY" | "FACE_SCAN" | "LIVENESS" | "CONSENT" | "ADULT_RECONSENT" | "GUARDIAN_LINK" | "GUARDIAN_CONSENT" | "GUARDIAN_VERIFIED")[];
+            assets: components["schemas"]["LikenessAssetDto"][];
+            guardianEmail: string | null;
+            guardianLinked: boolean;
+            /** Format: date-time */
+            withdrawRequestedAt: string | null;
+            /**
+             * Format: date-time
+             * @description 원본·모델이 삭제될 시각
+             */
+            purgeAfter: string | null;
+        };
+        UpdateTalentProfileDto: {
+            stageName?: string;
+            bio?: string;
+            allowedTags?: ("ROMANCE" | "INTIMACY" | "VIOLENCE" | "HORROR" | "DEATH" | "SUBSTANCE" | "PROFANITY")[];
+            minFeeKrw?: number;
+            guardianEmail?: string;
+        };
+        ConsentDto: {
+            /**
+             * @description 동의한 정책 버전
+             * @example likeness-policy-v1
+             */
+            policyVersion: string;
+            /**
+             * @description 얼굴·음성(민감정보) 처리에 동의
+             * @example true
+             */
+            sensitiveData: boolean;
+            /**
+             * @description 국외 처리(해외 AI 서비스) 고지를 확인
+             * @example true
+             */
+            crossBorder: boolean;
+        };
+        AccessLogEntryDto: {
+            id: string;
+            assetId: string;
+            userId: string;
+            userDisplayName: string;
+            contractId: string | null;
+            /** @enum {string} */
+            purpose: "SELF" | "PRODUCTION";
+            /** Format: date-time */
+            accessedAt: string;
+        };
+        TalentPublicDto: {
+            id: string;
+            userId: string;
+            stageName: string;
+            /** @enum {string} */
+            kind: "ACTOR" | "GENERAL";
+            bio: string | null;
+            allowedTags: ("ROMANCE" | "INTIMACY" | "VIOLENCE" | "HORROR" | "DEATH" | "SUBSTANCE" | "PROFANITY")[];
+            minFeeKrw: number;
+            /** @description 미성년자 여부 (계약에 보호자 승인 필요) */
+            isMinor: boolean;
+        };
+        WardDto: {
+            talentId: string;
+            stageName: string;
+            /** @enum {string} */
+            status: "PENDING_VERIFICATION" | "ACTIVE" | "WITHDRAWING" | "WITHDRAWN";
+            /** Format: date-time */
+            guardianConsentAt: string | null;
+            /** Format: date-time */
+            guardianVerifiedAt: string | null;
+        };
+        CreateProjectDto: {
+            /** @example 마지막 열차 (유튜브 6부작) */
+            title: string;
+        };
+        PartyDto: {
+            id: string;
+            displayName: string;
+        };
+        ProjectDto: {
+            id: string;
+            dealId: string;
+            scriptId: string;
+            scriptTitle: string;
+            title: string;
+            /** @description 기획사 구성원 (딜의 작가와 제작자) */
+            members: components["schemas"]["PartyDto"][];
+            /** Format: date-time */
+            createdAt: string;
+        };
+        CreateRoleDto: {
+            /** @example 정수 (역무원) */
+            name: string;
+            description?: string;
+            /**
+             * @description 만 19세 미만 인물 (학원물 학생 등)
+             * @default false
+             */
+            isMinorRole: boolean;
+            /** @description 이 배역에 들어가는 장면 유형 */
+            contentTags: ("ROMANCE" | "INTIMACY" | "VIOLENCE" | "HORROR" | "DEATH" | "SUBSTANCE" | "PROFANITY")[];
+        };
+        RoleDto: {
+            id: string;
+            projectId: string;
+            projectTitle: string;
+            name: string;
+            description: string | null;
+            isMinorRole: boolean;
+            contentTags: ("ROMANCE" | "INTIMACY" | "VIOLENCE" | "HORROR" | "DEATH" | "SUBSTANCE" | "PROFANITY")[];
+            /** @enum {string} */
+            status: "OPEN" | "CAST" | "CLOSED";
+            /** Format: date-time */
+            createdAt: string;
+        };
+        ApplyDto: {
+            /** @description 지원 메시지 */
+            message?: string;
+        };
+        CastingOfferDto: {
+            id: string;
+            negotiationId: string;
+            proposerId: string;
+            /** @enum {string} */
+            side: "STUDIO" | "TALENT";
+            /** @enum {string} */
+            feeType: "FLAT" | "PER_EPISODE" | "REVENUE_SHARE" | "HYBRID";
+            flatFeeKrw: number;
+            perEpisodeFeeKrw: number;
+            episodes: number | null;
+            revenueSharePct: number;
+            /** @enum {string} */
+            usage: "DIGITAL" | "LIVE" | "BOTH";
+            termMonths: number;
+            exclusive: boolean;
+            requiresTalentApproval: boolean;
+            productionDays: number;
+            earlyTerminationPct: number;
+            note: string | null;
+            /** @enum {string} */
+            status: "PROPOSED" | "COUNTERED" | "WITHDRAWN" | "PENDING_GUARDIAN" | "REJECTED_BY_GUARDIAN" | "ACCEPTED";
+            /** Format: date-time */
+            createdAt: string;
+        };
+        CastingNegotiationDto: {
+            id: string;
+            roleId: string;
+            roleName: string;
+            roleContentTags: ("ROMANCE" | "INTIMACY" | "VIOLENCE" | "HORROR" | "DEATH" | "SUBSTANCE" | "PROFANITY")[];
+            projectId: string;
+            projectTitle: string;
+            talentId: string;
+            talentStageName: string;
+            talentIsMinor: boolean;
+            /** @enum {string} */
+            initiatedBy: "STUDIO" | "TALENT";
+            message: string | null;
+            /** @enum {string} */
+            status: "OPEN" | "AGREED" | "CLOSED";
+            /**
+             * @description 요청한 사람이 이 협상에서 어느 쪽인지
+             * @enum {string}
+             */
+            viewerSide: "STUDIO" | "TALENT" | "GUARDIAN";
+            contractId: string | null;
+            /** @description 제안 이력 (오래된 순) */
+            offers: components["schemas"]["CastingOfferDto"][];
+            /** Format: date-time */
+            createdAt: string;
+        };
+        InviteDto: {
+            /** @description 제안할 출연자 id (캐스팅 목록의 id) */
+            talentId: string;
+            message?: string;
+        };
+        CreateCastingOfferDto: {
+            /**
+             * @description FLAT=고정, PER_EPISODE=회당, REVENUE_SHARE=수익 배분, HYBRID=고정+배분
+             * @enum {string}
+             */
+            feeType: "FLAT" | "PER_EPISODE" | "REVENUE_SHARE" | "HYBRID";
+            /** @description 고정 출연료 (원). FLAT, HYBRID */
+            flatFeeKrw?: number;
+            /** @description 회당 출연료 (원). PER_EPISODE */
+            perEpisodeFeeKrw?: number;
+            /** @description 회차 수. PER_EPISODE */
+            episodes?: number;
+            /** @description 작품 순수익 중 배분 비율(%). REVENUE_SHARE, HYBRID */
+            revenueSharePct?: number;
+            /**
+             * @description DIGITAL=디지털 출연, LIVE=실제 촬영, BOTH
+             * @enum {string}
+             */
+            usage: "DIGITAL" | "LIVE" | "BOTH";
+            /** @description 계약 기간 (개월). 이 기간 동안 작품이 공개된다 */
+            termMonths: number;
+            exclusive: boolean;
+            /**
+             * @description 출연분 확인권: 출연자가 확인해야 공개할 수 있다
+             * @default true
+             */
+            requiresTalentApproval: boolean;
+            /** @description 계약일부터 새 장면을 제작할 수 있는 기간 (일) */
+            productionDays: number;
+            /**
+             * @description 조기 종료 보상: 고정 출연료 반환 + 이 비율(%)
+             * @default 50
+             */
+            earlyTerminationPct: number;
+            note?: string;
+        };
+        CastingContractDto: {
+            id: string;
+            projectId: string;
+            projectTitle: string;
+            roleId: string;
+            roleName: string;
+            talentId: string;
+            talentStageName: string;
+            /** @enum {string} */
+            feeType: "FLAT" | "PER_EPISODE" | "REVENUE_SHARE" | "HYBRID";
+            flatFeeKrw: number;
+            perEpisodeFeeKrw: number;
+            episodes: number | null;
+            revenueSharePct: number;
+            /** @enum {string} */
+            usage: "DIGITAL" | "LIVE" | "BOTH";
+            contentTags: ("ROMANCE" | "INTIMACY" | "VIOLENCE" | "HORROR" | "DEATH" | "SUBSTANCE" | "PROFANITY")[];
+            exclusive: boolean;
+            requiresTalentApproval: boolean;
+            earlyTerminationPct: number;
+            /** Format: date-time */
+            guardianApprovedAt: string | null;
+            /** Format: date-time */
+            startsAt: string;
+            /**
+             * Format: date-time
+             * @description 이때까지 새 장면 제작 가능
+             */
+            productionEndsAt: string;
+            /**
+             * Format: date-time
+             * @description 이때까지 작품 공개 가능
+             */
+            endsAt: string;
+            /** @enum {string} */
+            status: "ACTIVE" | "TERMINATED" | "EXPIRED";
+            terminationReason: string | null;
+        };
+        AcceptCastingDto: {
+            /**
+             * @description 미성년자는 보호자 승인 전까지 PENDING_GUARDIAN
+             * @enum {string}
+             */
+            status: "CONTRACTED" | "PENDING_GUARDIAN" | "REJECTED_BY_GUARDIAN";
+            offer: components["schemas"]["CastingOfferDto"];
+            contract: components["schemas"]["CastingContractDto"] | null;
+        };
+        GuardianDecisionDto: {
+            /** @description true=승인, false=거절 */
+            approve: boolean;
+        };
+        EarlyTerminationQuoteDto: {
+            contractId: string;
+            /** @description 반환할 고정 출연료 (원) */
+            refundKrw: number;
+            /** @description 조기 종료 보상 (원) */
+            compensationKrw: number;
+            totalKrw: number;
+            /** @description 종료되면 내려가는 작품 */
+            affectedWorkIds: string[];
+        };
+        TerminateContractDto: {
+            /** @description 종료 사유 (보상금 입금 확인 등) */
+            reason: string;
+        };
+        CreateWorkDto: {
+            /** @example 마지막 열차 1화 */
+            title: string;
+            /** @description 이 작품에 실제로 들어간 장면 유형 */
+            contentTags: ("ROMANCE" | "INTIMACY" | "VIOLENCE" | "HORROR" | "DEATH" | "SUBSTANCE" | "PROFANITY")[];
+            /** @description 출연한 계약 id */
+            contractIds: string[];
+            /**
+             * @description AI로 만든 초상을 썼는지 (공개할 때 합성 콘텐츠 표시 필요)
+             * @default true
+             */
+            aiGenerated: boolean;
+        };
+        WorkAppearanceDto: {
+            contractId: string;
+            talentId: string;
+            talentStageName: string;
+            roleName: string;
+            requiresApproval: boolean;
+            /** Format: date-time */
+            approvedAt: string | null;
+        };
+        WorkDto: {
+            id: string;
+            projectId: string;
+            projectTitle: string;
+            title: string;
+            contentTags: ("ROMANCE" | "INTIMACY" | "VIOLENCE" | "HORROR" | "DEATH" | "SUBSTANCE" | "PROFANITY")[];
+            aiGenerated: boolean;
+            externalUrl: string | null;
+            /** @enum {string} */
+            status: "DRAFT" | "PUBLISHED" | "UNLISTED" | "REMOVED";
+            /** Format: date-time */
+            publishedAt: string | null;
+            appearances: components["schemas"]["WorkAppearanceDto"][];
+            /** Format: date-time */
+            createdAt: string;
+        };
+        PublishWorkDto: {
+            /** @example https://www.youtube.com/watch?v=xxxxxxxxxxx */
+            externalUrl: string;
+            /**
+             * @description AI 생성물 표시(유튜브 합성 콘텐츠 공개 설정 포함)를 했는지
+             * @example true
+             */
+            syntheticLabelApplied: boolean;
+        };
+        CreateTakedownDto: {
+            /**
+             * @description OUT_OF_SCOPE·PROHIBITED_CONTENT·NOT_APPROVED·IDENTITY_FRAUD·MINOR_PROTECTION은 즉시 비공개
+             * @enum {string}
+             */
+            reason: "OUT_OF_SCOPE" | "PROHIBITED_CONTENT" | "NOT_APPROVED" | "IDENTITY_FRAUD" | "MINOR_PROTECTION" | "PERSONALITY_HARM" | "PERSONAL_WITHDRAWAL";
+            /** @example 계약에 없는 베드신이 들어갔습니다 (3분 12초) */
+            details: string;
+        };
+        TakedownDto: {
+            id: string;
+            workId: string;
+            workTitle: string;
+            requesterId: string;
+            /** @enum {string} */
+            reason: "OUT_OF_SCOPE" | "PROHIBITED_CONTENT" | "NOT_APPROVED" | "IDENTITY_FRAUD" | "MINOR_PROTECTION" | "PERSONALITY_HARM" | "PERSONAL_WITHDRAWAL";
+            details: string;
+            interimUnlisted: boolean;
+            /** @enum {string} */
+            status: "OPEN" | "UPHELD" | "REJECTED" | "SETTLED";
+            /** Format: date-time */
+            reviewDueAt: string | null;
+            resolution: string | null;
+            /** Format: date-time */
+            decidedAt: string | null;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        SettleTakedownDto: {
+            /** @example 출연자 요청에 합의해 내림 */
+            resolution: string;
+        };
+        DecideTakedownDto: {
+            /** @description true=신고 인정(삭제), false=기각(자동 비공개였다면 다시 공개) */
+            uphold: boolean;
+            resolution: string;
         };
     };
     responses: never;
@@ -2384,6 +3522,1036 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LedgerEntryDto"];
+                };
+            };
+        };
+    };
+    TalentController_identity: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IdentityDto"];
+                };
+            };
+        };
+    };
+    TalentController_verifyIdentity: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VerifyIdentityDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IdentityDto"];
+                };
+            };
+        };
+    };
+    TalentController_createProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateTalentProfileDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TalentSelfDto"];
+                };
+            };
+        };
+    };
+    TalentController_me: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TalentSelfDto"];
+                };
+            };
+        };
+    };
+    TalentController_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateTalentProfileDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TalentSelfDto"];
+                };
+            };
+        };
+    };
+    TalentController_upload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /** @enum {string} */
+                    kind: "FACE_SCAN" | "VOICE" | "MOTION";
+                    /** Format: binary */
+                    file: string;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LikenessAssetDto"];
+                };
+            };
+        };
+    };
+    TalentController_deleteAsset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                assetId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TalentController_liveness: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /** Format: binary */
+                    selfie: string;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TalentSelfDto"];
+                };
+            };
+        };
+    };
+    TalentController_consent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConsentDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TalentSelfDto"];
+                };
+            };
+        };
+    };
+    TalentController_accessLogs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccessLogEntryDto"][];
+                };
+            };
+        };
+    };
+    TalentController_withdraw: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TalentSelfDto"];
+                };
+            };
+        };
+    };
+    TalentController_cancelWithdraw: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TalentSelfDto"];
+                };
+            };
+        };
+    };
+    TalentController_directory: {
+        parameters: {
+            query?: {
+                kind?: "ACTOR" | "GENERAL";
+                /** @description 이 장면 유형을 허용하는 출연자만 */
+                tag?: "ROMANCE" | "INTIMACY" | "VIOLENCE" | "HORROR" | "DEATH" | "SUBSTANCE" | "PROFANITY";
+                /** @description true면 미성년자만, false면 성인만 */
+                minor?: boolean;
+                take?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TalentPublicDto"][];
+                };
+            };
+        };
+    };
+    TalentController_profile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TalentPublicDto"];
+                };
+            };
+        };
+    };
+    TalentController_download: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                assetId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TalentController_guardianConsent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                talentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WardDto"];
+                };
+            };
+        };
+    };
+    TalentController_wards: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WardDto"][];
+                };
+            };
+        };
+    };
+    TalentAdminController_pending: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WardDto"][];
+                };
+            };
+        };
+    };
+    TalentAdminController_verifyGuardian: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                talentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WardDto"];
+                };
+            };
+        };
+    };
+    CastingController_projectForDeal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dealId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectDto"];
+                };
+            };
+        };
+    };
+    CastingController_createProject: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dealId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateProjectDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectDto"];
+                };
+            };
+        };
+    };
+    CastingController_listProjects: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectDto"][];
+                };
+            };
+        };
+    };
+    CastingController_getProject: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectDto"];
+                };
+            };
+        };
+    };
+    CastingController_listRoles: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoleDto"][];
+                };
+            };
+        };
+    };
+    CastingController_createRole: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateRoleDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoleDto"];
+                };
+            };
+        };
+    };
+    CastingController_openRoles: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoleDto"][];
+                };
+            };
+        };
+    };
+    CastingController_apply: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                roleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApplyDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CastingNegotiationDto"];
+                };
+            };
+        };
+    };
+    CastingController_invite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                roleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InviteDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CastingNegotiationDto"];
+                };
+            };
+        };
+    };
+    CastingController_listNegotiations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CastingNegotiationDto"][];
+                };
+            };
+        };
+    };
+    CastingController_getNegotiation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CastingNegotiationDto"];
+                };
+            };
+        };
+    };
+    CastingController_createOffer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateCastingOfferDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CastingOfferDto"];
+                };
+            };
+        };
+    };
+    CastingController_accept: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AcceptCastingDto"];
+                };
+            };
+        };
+    };
+    CastingController_guardianDecision: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GuardianDecisionDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AcceptCastingDto"];
+                };
+            };
+        };
+    };
+    CastingController_listContracts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CastingContractDto"][];
+                };
+            };
+        };
+    };
+    CastingController_getContract: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CastingContractDto"];
+                };
+            };
+        };
+    };
+    CastingController_quote: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EarlyTerminationQuoteDto"];
+                };
+            };
+        };
+    };
+    CastingAdminController_terminate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TerminateContractDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CastingContractDto"];
+                };
+            };
+        };
+    };
+    WorksController_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkDto"][];
+                };
+            };
+        };
+    };
+    WorksController_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateWorkDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkDto"];
+                };
+            };
+        };
+    };
+    WorksController_listMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkDto"][];
+                };
+            };
+        };
+    };
+    WorksController_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkDto"];
+                };
+            };
+        };
+    };
+    WorksController_approve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkDto"];
+                };
+            };
+        };
+    };
+    WorksController_publish: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PublishWorkDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkDto"];
+                };
+            };
+        };
+    };
+    WorksController_takedown: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateTakedownDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TakedownDto"];
+                };
+            };
+        };
+    };
+    WorksController_listTakedowns: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TakedownDto"][];
+                };
+            };
+        };
+    };
+    WorksController_settle: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SettleTakedownDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TakedownDto"];
+                };
+            };
+        };
+    };
+    WorksAdminController_decide: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DecideTakedownDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TakedownDto"];
                 };
             };
         };
