@@ -1,0 +1,40 @@
+import createClient from "openapi-fetch";
+import type { components, paths } from "./api-schema";
+
+export type Schemas = components["schemas"];
+export type ScriptSummary = Schemas["ScriptSummaryDto"];
+export type ScriptDetail = Schemas["ScriptDetailDto"];
+export type AccessRequest = Schemas["AccessRequestDto"];
+export type Negotiation = Schemas["NegotiationDto"];
+export type NegotiationDetail = Schemas["NegotiationDetailDto"];
+export type Offer = Schemas["OfferDto"];
+export type Message = Schemas["MessageDto"];
+export type Deal = Schemas["DealDto"];
+export type Ledger = Schemas["LedgerDto"];
+export type Me = Schemas["MeDto"];
+export type Role = Me["roles"][number];
+
+/** 같은 출처의 /api 로 보내면 next.config.ts의 rewrite가 API 서버로 넘긴다 */
+export const api = createClient<paths>({ baseUrl: "/api", credentials: "include" });
+
+/** Nest 오류 응답 { message: string | string[] } 을 사람이 읽을 문장으로 */
+export function errorMessage(error: unknown, fallback = "요청을 처리하지 못했습니다"): string {
+  const message = (error as { message?: unknown } | undefined)?.message;
+  if (Array.isArray(message)) return message.join("\n");
+  if (typeof message === "string") return message;
+  return fallback;
+}
+
+/** openapi-fetch 결과에서 data를 꺼내고, 실패면 오류 메시지로 throw */
+export async function unwrap<T>(
+  promise: Promise<{ data?: T; error?: unknown; response: Response }>,
+): Promise<T> {
+  const { data, error, response } = await promise;
+  if (error !== undefined || !response.ok) throw new Error(errorMessage(error));
+  return data as T;
+}
+
+export const won = (n: number) => `${n.toLocaleString("ko-KR")}원`;
+
+export const dateTime = (iso: string) =>
+  new Date(iso).toLocaleString("ko-KR", { dateStyle: "medium", timeStyle: "short" });
