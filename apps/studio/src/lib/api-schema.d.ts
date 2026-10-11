@@ -327,6 +327,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/scripts/{id}/preview/upload": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 미리보기 대본을 파일로 올리기 (작가 본인). 열람 승인 전 제작자에게 보인다 */
+        post: operations["ScriptsController_uploadPreview"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/scripts/{id}/summary/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** AI 요약 다시 만들기 (작가 본인). 내용이 바뀌면 자동으로도 다시 만든다 */
+        post: operations["ScriptsController_refreshSummary"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/scripts/{id}": {
         parameters: {
             query?: never;
@@ -737,6 +771,11 @@ export interface components {
             id: string;
             /** Format: date-time */
             createdAt: string;
+            /**
+             * @description FULL = 대본 전문, PREVIEW = 미리보기 대본
+             * @enum {string}
+             */
+            kind: "FULL" | "PREVIEW";
             filename: string;
             mimeType: string;
             sizeBytes: number;
@@ -787,6 +826,8 @@ export interface components {
             genre: string;
             /** @description 대본 전문 (작가·승인된 제작자에게만 공개) */
             fullText: string;
+            /** @description 미리보기 대본: 열람 승인 전 제작자에게 보여줄 일부분. 빈 문자열이면 미리보기 없음 */
+            previewText?: string;
             /** @description 권리 보유 진술. 공개하려면 true여야 한다 */
             rightsDeclared?: boolean;
         };
@@ -808,6 +849,7 @@ export interface components {
             /** @enum {string|null} */
             accessRequestStatus: "PENDING" | "APPROVED" | "REJECTED" | null;
             canReadFullText: boolean;
+            canReadPreview: boolean;
         };
         ScriptDetailDto: {
             id: string;
@@ -818,6 +860,18 @@ export interface components {
             /** @enum {string} */
             status: "DRAFT" | "PUBLISHED" | "HIDDEN";
             aiSummary: components["schemas"]["AiSummaryDto"] | null;
+            /** @description 내용이 바뀌어 새 AI 요약을 만드는 중 */
+            aiSummaryPending: boolean;
+            /**
+             * Format: date-time
+             * @description 마지막 AI 요약 요청 시각
+             */
+            aiSummaryRequestedAt: string | null;
+            /**
+             * Format: date-time
+             * @description 내용(제목·로그라인·시놉시스·장르·전문·미리보기)이 마지막으로 바뀐 시각
+             */
+            contentUpdatedAt: string;
             author: components["schemas"]["AuthorDto"];
             /** Format: date-time */
             createdAt: string;
@@ -828,6 +882,8 @@ export interface components {
             rightsDeclaredAt: string | null;
             /** @description 권한이 없으면 null */
             fullText: string | null;
+            /** @description 미리보기 대본. 없거나 볼 권한이 없으면 null */
+            previewText: string | null;
             viewer: components["schemas"]["ViewerAccessDto"];
         };
         ScriptSummaryDto: {
@@ -839,6 +895,18 @@ export interface components {
             /** @enum {string} */
             status: "DRAFT" | "PUBLISHED" | "HIDDEN";
             aiSummary: components["schemas"]["AiSummaryDto"] | null;
+            /** @description 내용이 바뀌어 새 AI 요약을 만드는 중 */
+            aiSummaryPending: boolean;
+            /**
+             * Format: date-time
+             * @description 마지막 AI 요약 요청 시각
+             */
+            aiSummaryRequestedAt: string | null;
+            /**
+             * Format: date-time
+             * @description 내용(제목·로그라인·시놉시스·장르·전문·미리보기)이 마지막으로 바뀐 시각
+             */
+            contentUpdatedAt: string;
             author: components["schemas"]["AuthorDto"];
             /** Format: date-time */
             createdAt: string;
@@ -859,6 +927,8 @@ export interface components {
             genre?: string;
             /** @description 대본 전문 (작가·승인된 제작자에게만 공개) */
             fullText?: string;
+            /** @description 미리보기 대본: 열람 승인 전 제작자에게 보여줄 일부분. 빈 문자열이면 미리보기 없음 */
+            previewText?: string;
             /** @description 권리 보유 진술. 공개하려면 true여야 한다 */
             rightsDeclared?: boolean;
         };
@@ -1502,6 +1572,55 @@ export interface operations {
                 };
             };
         };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScriptDetailDto"];
+                };
+            };
+        };
+    };
+    ScriptsController_uploadPreview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /** Format: binary */
+                    file: string;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScriptDetailDto"];
+                };
+            };
+        };
+    };
+    ScriptsController_refreshSummary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             200: {
                 headers: {

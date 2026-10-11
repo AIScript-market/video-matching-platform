@@ -6,14 +6,25 @@ import { ScriptFileUpload } from "@/components/file-upload";
 import { ErrorText, StatusBadge } from "@/components/ui";
 import { api, unwrap, uploadScriptFile, type ScriptDetail } from "@/lib/api";
 
-const EMPTY = { title: "", logline: "", synopsis: "", genre: "드라마", fullText: "" };
+const EMPTY = { title: "", logline: "", synopsis: "", genre: "드라마", fullText: "", previewText: "" };
+const PREVIEW_MAX = 50_000;
 
-/** 새 대본 작성과 기존 대본 수정·공개에 같이 쓴다 */
-export function ScriptForm({ script }: { script?: ScriptDetail }) {
+/**
+ * 새 대본 작성과 기존 대본 수정·공개에 같이 쓴다.
+ * 폼 값은 처음 받은 script로만 초기화하고, 이후 서버 상태(요약 진행 등)는 onSaved로 부모에 알린다.
+ */
+export function ScriptForm({ script, onSaved }: { script?: ScriptDetail; onSaved?: (s: ScriptDetail) => void }) {
   const router = useRouter();
   const [form, setForm] = useState(
     script
-      ? { title: script.title, logline: script.logline, synopsis: script.synopsis, genre: script.genre, fullText: script.fullText ?? "" }
+      ? {
+          title: script.title,
+          logline: script.logline,
+          synopsis: script.synopsis,
+          genre: script.genre,
+          fullText: script.fullText ?? "",
+          previewText: script.previewText ?? "",
+        }
       : EMPTY,
   );
   const [rights, setRights] = useState(script?.rightsDeclared ?? false);
@@ -39,9 +50,11 @@ export function ScriptForm({ script }: { script?: ScriptDetail }) {
   const save = () =>
     run(async () => {
       if (script) {
-        await unwrap(api.PATCH("/scripts/{id}", { params: { path: { id: script.id } }, body: { ...form, rightsDeclared: rights } }));
-        setNotice("저장했습니다.");
-        router.refresh();
+        const saved = await unwrap(
+          api.PATCH("/scripts/{id}", { params: { path: { id: script.id } }, body: { ...form, rightsDeclared: rights } }),
+        );
+        setNotice(saved.aiSummaryPending ? "저장했습니다. 바뀐 내용으로 AI 요약을 다시 만들고 있습니다." : "저장했습니다.");
+        onSaved?.(saved);
       } else {
         const created = await unwrap(api.POST("/scripts", { body: { ...form, rightsDeclared: rights } }));
         router.push(`/dashboard/scripts/${created.id}`);
@@ -116,10 +129,54 @@ export function ScriptForm({ script }: { script?: ScriptDetail }) {
             upload={(file) => uploadScriptFile(`/scripts/${script.id}/upload`, file)}
             onDone={(updated) => {
               setForm((f) => ({ ...f, fullText: updated.fullText ?? "" }));
-              setNotice("파일 내용으로 본문을 바꿨습니다.");
+              setNotice("파일 내용으로 본문을 바꿨습니다. AI 요약도 다시 만듭니다.");
+              onSaved?.(updated);
             }}
           />
         )}
+      </div>
+
+      <div className="card stack" aria-label="미리보기 대본 편집">
+        <h2 style={{ margin: 0 }}>미리보기 대본 (선택)</h2>
+        <p className="small muted">
+          전문 대신 <strong>영상 제작자에게 먼저 보여줄 일부분</strong>입니다. 공개된 대본에서 열람 승인 전 제작자에게 보이고, 일반 계정과
+          비로그인 방문자에게는 보이지 않습니다. 비워 두면 미리보기가 없습니다.
+        </p>
+        <label>
+          미리보기 본문
+          <textarea
+            value={form.previewText}
+            maxLength={PREVIEW_MAX}
+            onChange={set("previewText")}
+            placeholder="예: S#1~S#3 또는 핵심 장면 한두 개"
+            style={{ minHeight: 160, fontFamily: "ui-monospace, monospace" }}
+          />
+        </label>
+        <div className="spread small muted">
+          <span>
+            {form.previewText.length.toLocaleString("ko-KR")}자
+            {form.fullText.length > 0 && ` · 전문의 ${Math.round((form.previewText.length / form.fullText.length) * 100)}%`}
+          </span>
+          {form.previewText && (
+            <button type="button" className="ghost" onClick={() => setForm((f) => ({ ...f, previewText: "" }))}>
+              미리보기 비우기
+            </button>
+          )}
+        </div>
+        {script && (
+          <ScriptFileUpload
+            label="미리보기 파일 올리기"
+            upload={(file) => uploadScriptFile(`/scripts/${script.id}/preview/upload`, file)}
+            onDone={(updated) => {
+              setForm((f) => ({ ...f, previewText: updated.previewText ?? "" }));
+              setNotice("파일 내용으로 미리보기 대본을 바꿨습니다.");
+              onSaved?.(updated);
+            }}
+          />
+        )}
+      </div>
+
+      <div className="card stack">
         <label className="check">
           <input type="checkbox" checked={rights} disabled={locked && rights} onChange={(e) => setRights(e.target.checked)} />
           <span>

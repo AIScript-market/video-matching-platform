@@ -4,8 +4,9 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { ErrorText, Modal, StatusBadge } from "@/components/ui";
-import { api, unwrap, type ScriptDetail } from "@/lib/api";
+import { api, dateTime, unwrap, type ScriptDetail } from "@/lib/api";
 import { ReviewMessage } from "@/components/review-message";
+import { AiSummaryCard } from "@/components/ai-summary-card";
 import { useSession } from "@/lib/session";
 
 export default function ScriptDetailPage() {
@@ -33,9 +34,9 @@ export default function ScriptDetailPage() {
     void load();
   }, [load, user?.id]);
 
-  // 공개 직후에는 AI 요약이 아직 없으므로 생길 때까지 잠깐 다시 불러온다
+  // AI 요약을 만드는 중이면 끝날 때까지 3초마다 다시 불러온다
   useEffect(() => {
-    if (!script || script.aiSummary || script.status !== "PUBLISHED") return;
+    if (!script?.aiSummaryPending) return;
     const timer = setTimeout(load, 3000);
     return () => clearTimeout(timer);
   }, [script, load]);
@@ -65,7 +66,7 @@ export default function ScriptDetailPage() {
   }
 
   if (!script) return error ? <ErrorText error={error} /> : <p className="muted">불러오는 중…</p>;
-  const { viewer, aiSummary } = script;
+  const { viewer } = script;
   const isProducer = has("PRODUCER") && !viewer.isAuthor;
 
   return (
@@ -77,27 +78,12 @@ export default function ScriptDetailPage() {
           {viewer.isAuthor && <span className="badge plain">내 대본</span>}
         </div>
         <h1>{script.title}</h1>
-        <p className="muted">by {script.author.displayName}</p>
+        <p className="muted">
+          by {script.author.displayName} · <span className="small">최근 수정 {dateTime(script.contentUpdatedAt)}</span>
+        </p>
         <p style={{ fontSize: "1.1rem" }}>{script.logline}</p>
 
-        <section className="card stack">
-          <h2>AI 요약</h2>
-          {aiSummary ? (
-            <>
-              <p>{aiSummary.summary}</p>
-              <div className="tags">
-                {aiSummary.tags.map((t) => (
-                  <span key={t} className="tag">
-                    #{t}
-                  </span>
-                ))}
-                <span className="tag">예상 등급: {aiSummary.contentRating === "ALL" ? "전체관람가" : `${aiSummary.contentRating}세`}</span>
-              </div>
-            </>
-          ) : (
-            <p className="muted">{script.status === "PUBLISHED" ? "요약을 만드는 중입니다…" : "공개하면 AI 요약이 만들어집니다."}</p>
-          )}
-        </section>
+        <AiSummaryCard script={script} onUpdated={setScript} />
 
         <section className="card stack">
           <h2>시놉시스</h2>
@@ -114,6 +100,19 @@ export default function ScriptDetailPage() {
             <p className="muted">전문은 작가와 열람 승인을 받은 제작자만 볼 수 있습니다.</p>
           )}
         </section>
+
+        {script.previewText !== null && script.fullText === null && (
+          <section className="card stack" aria-label="미리보기 대본">
+            <h2>미리보기 대본</h2>
+            <p className="small muted">작가가 제작자에게 공개한 일부분입니다. 전문은 열람 승인 후에 볼 수 있습니다.</p>
+            <pre className="pre" style={{ fontFamily: "inherit", margin: 0 }}>
+              {script.previewText}
+            </pre>
+          </section>
+        )}
+        {script.previewText !== null && viewer.isAuthor && (
+          <p className="small muted">미리보기 대본이 있습니다. 열람 승인 전 영상 제작자에게 보입니다.</p>
+        )}
       </article>
 
       <aside className="stack">

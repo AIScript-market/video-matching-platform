@@ -92,20 +92,26 @@ model User {
 }
 
 model Script {
-  id               String       @id @default(cuid())
-  authorId         String
-  author           User         @relation(fields: [authorId], references: [id])
-  title            String
-  logline          String
-  synopsis         String
-  genre            String
-  fullText         String       @db.Text
-  status           ScriptStatus @default(DRAFT)
-  rightsDeclared   Boolean      @default(false)
-  rightsDeclaredAt DateTime?
-  aiSummary        Json?
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
+  id                   String       @id @default(cuid())
+  authorId             String
+  author               User         @relation(fields: [authorId], references: [id])
+  title                String
+  logline              String
+  synopsis             String
+  genre                String
+  fullText             String       @db.Text
+  status               ScriptStatus @default(DRAFT)
+  rightsDeclared       Boolean      @default(false)
+  rightsDeclaredAt     DateTime?
+  aiSummary            Json?
+  /// 마지막으로 AI 요약을 요청한 시각. aiSummary.generatedAt보다 나중이면 새 요약을 만드는 중
+  aiSummaryRequestedAt DateTime?
+  /// 제작자에게 열람 승인 전에 보여줄 일부분 (선택)
+  previewText          String?      @db.Text
+  /// 내용(제목·로그라인·시놉시스·장르·전문·미리보기)이 마지막으로 바뀐 시각. 공개·숨김 같은 상태 변경은 포함하지 않는다
+  contentUpdatedAt     DateTime     @default(now())
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
 
   accessRequests ScriptAccessRequest[]
   accessLogs     ScriptAccessLog[]
@@ -235,18 +241,24 @@ model RoleRequest {
   @@index([userId])
 }
 
+enum UploadKind {
+  FULL // 대본 전문
+  PREVIEW // 미리보기 대본
+}
+
 // 대본 파일 업로드 기록 (관리자 로그용). 원본 파일은 저장하지 않고 추출한 본문만 Script.fullText에 넣는다
 model ScriptUpload {
-  id         String   @id @default(cuid())
+  id         String     @id @default(cuid())
   scriptId   String
-  script     Script   @relation(fields: [scriptId], references: [id])
+  script     Script     @relation(fields: [scriptId], references: [id])
   uploaderId String
-  uploader   User     @relation(fields: [uploaderId], references: [id])
+  uploader   User       @relation(fields: [uploaderId], references: [id])
+  kind       UploadKind @default(FULL)
   filename   String
   mimeType   String
   sizeBytes  Int
   charCount  Int
-  createdAt  DateTime @default(now())
+  createdAt  DateTime   @default(now())
 
   @@index([createdAt])
 }

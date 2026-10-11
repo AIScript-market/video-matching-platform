@@ -56,6 +56,8 @@ export class ViewLogDto {
 export class UploadLogDto {
   @ApiProperty() id!: string;
   @ApiProperty({ format: 'date-time' }) createdAt!: Date;
+  @ApiProperty({ enum: ['FULL', 'PREVIEW'], description: 'FULL = 대본 전문, PREVIEW = 미리보기 대본' })
+  kind!: 'FULL' | 'PREVIEW';
   @ApiProperty() filename!: string;
   @ApiProperty() mimeType!: string;
   @ApiProperty() sizeBytes!: number;

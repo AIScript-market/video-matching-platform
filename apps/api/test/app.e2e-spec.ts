@@ -175,6 +175,14 @@ run('API e2e', () => {
     await http.post(`/scripts/${draft.body.id}/upload`).set(P).attach('file', Buffer.from('x'), 'x.txt').expect(404);
     await http.post(`/scripts/${draft.body.id}/publish`).set(W).send({ rightsDeclared: true }).expect(201);
 
+    // 미리보기 대본 업로드: 제작자에게만 보인다
+    await http.post(`/scripts/${draft.body.id}/preview/upload`).set(P).attach('file', Buffer.from('x'), 'p.txt').expect(403);
+    const withPreview = await http.post(`/scripts/${draft.body.id}/preview/upload`).set(W).attach('file', Buffer.from('S#1. 바다 (밤) 일부'), 'preview.txt').expect(201);
+    expect(withPreview.body.previewText).toBe('S#1. 바다 (밤) 일부');
+    const pView = (await http.get(`/scripts/${draft.body.id}`).set(P).expect(200)).body;
+    expect(pView).toMatchObject({ previewText: 'S#1. 바다 (밤) 일부', fullText: null });
+    expect((await http.get(`/scripts/${draft.body.id}`).expect(200)).body.previewText).toBeNull();
+
     // 제작자: 열람 승인 전·전문을 보기 전에는 메시지 불가 → 열람 후 메시지
     await http.post(`/scripts/${draft.body.id}/contact`).set(P).send({ body: '좋네요' }).expect(403);
     const ar = await http.post(`/scripts/${draft.body.id}/access-requests`).set(P).send({ ndaAccepted: true }).expect(201);
@@ -202,7 +210,11 @@ run('API e2e', () => {
     expect(views.items).toHaveLength(1);
     expect(views.items[0].script.title).toBe(`바다의 끝 ${suffix}`);
     const uploads = (await http.get(`/admin/logs/uploads?q=${encodeURIComponent(emails[3])}`).set(ADMIN).expect(200)).body;
-    expect(uploads.items.map((u: { filename: string }) => u.filename)).toEqual(['v2.md', `바다의 끝 ${suffix}.txt`]);
+    expect(uploads.items.map((u: { filename: string; kind: string }) => `${u.kind}:${u.filename}`)).toEqual([
+      'PREVIEW:preview.txt',
+      'FULL:v2.md',
+      `FULL:바다의 끝 ${suffix}.txt`,
+    ]);
     const page1 = (await http.get('/admin/logs/messages?take=1').set(ADMIN).expect(200)).body;
     expect(page1.items).toHaveLength(1);
     expect(page1.nextCursor).toBeTruthy();
