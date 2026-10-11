@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import uuid
+from datetime import UTC, datetime
 
 import numpy as np
 import psycopg
@@ -11,6 +12,11 @@ from psycopg.rows import dict_row
 
 from .labels import Outcome
 from .store import ModelVersion, ScriptText, StoredEmbedding
+
+
+def _utc(value: datetime) -> datetime:
+    """Prisma는 시각을 시간대 없는 UTC로 저장한다"""
+    return value.replace(tzinfo=UTC) if value.tzinfo is None else value
 
 
 def _new_id(prefix: str) -> str:
@@ -122,8 +128,8 @@ class PgStore:
                 script_id=r["script_id"],
                 genre=r["genre"],
                 work_id=r["work_id"],
-                published_at=r["publishedAt"],
-                captured_at=r["capturedAt"],
+                published_at=_utc(r["publishedAt"]),
+                captured_at=_utc(r["capturedAt"]),
                 views=r["views"],
                 likes=r["likes"],
                 positive_comments=r["positiveComments"],
@@ -150,7 +156,7 @@ class PgStore:
                     json.dumps(m.metrics),
                     m.artifact_path,
                     m.active,
-                    m.trained_at,
+                    m.trained_at.astimezone(UTC).replace(tzinfo=None),  # 시간대 없는 UTC 컬럼
                 ),
             )
 
@@ -168,5 +174,5 @@ class PgStore:
             metrics=r["metrics"],
             artifact_path=r["artifactPath"],
             active=r["active"],
-            trained_at=r["trainedAt"],
+            trained_at=_utc(r["trainedAt"]),
         )
