@@ -23,6 +23,25 @@
 | `hitmodel/api.py` | HTTP API (내부 전용) |
 | `hitmodel/pg_store.py` | PostgreSQL 읽기·쓰기. 테이블은 Prisma가 만든다 |
 
+## 가능성 검증 도구 (`research/`)
+
+크리에이터 제휴 파일럿 데이터로 "대본만 보고 같은 채널 안에서 잘될 영상을 가려낼 수 있는가"를 판정한다. 서비스와 따로 돌고, 제품 DB를 건드리지 않는다.
+계획과 판정 기준은 [docs/feasibility-study.md](../../docs/feasibility-study.md).
+
+| 파일 | 역할 |
+|---|---|
+| `research/studio_export.py` | 크리에이터가 내려받은 유튜브 스튜디오 표 데이터 CSV 읽기 (영어·한국어 열 이름) |
+| `research/dataset.py` | 채널 폴더 읽기, 채널 안 비교 정답 |
+| `research/feasibility.py` | 채널 빼고 맞히기·시간 순서 검증, 순열 검정, 판정, 표본 크기 |
+| `research/blind.py` | 블라인드 테스트 문제지·정답지, 채점 |
+| `research/synthetic.py` | 도구 확인용 가짜 데이터 |
+
+```bash
+python -m research synthetic research/out/demo-data && python -m research analyze research/out/demo-data
+```
+
+`research/data/`, `research/out/`은 저장소와 도커 이미지에 들어가지 않는다.
+
 ## HTTP API
 
 `ML_TOKEN`을 정하면 `/health` 말고는 `x-ml-token` 헤더가 필요하다. API 서버와 워커만 내부 네트워크로 부른다.
