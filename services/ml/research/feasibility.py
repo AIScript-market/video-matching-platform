@@ -314,10 +314,14 @@ def auc_se(a: float, n_pos: int, n_neg: int) -> float:
     return math.sqrt((a * (1 - a) + (n_pos - 1) * (q1 - a * a) + (n_neg - 1) * (q2 - a * a)) / (n_pos * n_neg))
 
 
-def detection_power(true_auc: float, n: int, hit_share: float = 0.2) -> float:
+# 실제 흔들림 ÷ 핸리–맥닐 근사 (합성 데이터 순열 검정에서 잰 값)
+SE_INFLATION = 1.5
+
+
+def detection_power(true_auc: float, n: int, hit_share: float = 0.2, inflation: float = SE_INFLATION) -> float:
     """참 AUC가 이 값일 때, n편을 맞혀 본 95% 신뢰구간 아래쪽이 0.5를 넘을 확률"""
     n_pos = max(1, round(n * hit_share))
-    return _phi((true_auc - 0.5) / auc_se(true_auc, n_pos, n - n_pos) - 1.96)
+    return _phi((true_auc - 0.5) / (inflation * auc_se(true_auc, n_pos, n - n_pos)) - 1.96)
 
 
 def power_table(sizes=(200, 300, 500, 1000, 2000), aucs=(0.55, 0.60, 0.65, 0.70)) -> list[dict]:
@@ -325,5 +329,5 @@ def power_table(sizes=(200, 300, 500, 1000, 2000), aucs=(0.55, 0.60, 0.65, 0.70)
     for n in sizes:
         n_pos = round(n * 0.2)
         power = {f"auc{a:.2f}": round(detection_power(a, n), 3) for a in aucs}
-        rows.append({"scripts": n, **power, "ciHalfWidthAt0.65": round(1.96 * auc_se(0.65, n_pos, n - n_pos), 3)})
+        rows.append({"scripts": n, **power, "ciHalfWidthAt0.65": round(1.96 * SE_INFLATION * auc_se(0.65, n_pos, n - n_pos), 3)})
     return rows
