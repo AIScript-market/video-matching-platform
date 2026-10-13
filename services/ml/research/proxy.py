@@ -188,6 +188,14 @@ def load_texts(works: list[ProxyWork], text_dir: Path, min_chars: int = 20_000) 
     return kept, texts
 
 
+def load_corpus(manifest: Path, text_dir: Path) -> tuple[list[ProxyWork], list[str]]:
+    """목록 + 본문. 본문이 빠져 영상화된 작품이나 안 된 작품만 남은 작가는 뺀다"""
+    works, texts = load_texts(informative(read_manifest(manifest)), text_dir)
+    keep = {w.work for w in informative(works)}
+    pairs = [(w, t) for w, t in zip(works, texts, strict=True) if w.work in keep]
+    return [w for w, _ in pairs], [t for _, t in pairs]
+
+
 # ---------- 분석 ----------
 
 
@@ -235,7 +243,7 @@ def feature_tests(x: np.ndarray, y: np.ndarray, groups: np.ndarray, names: list[
     return rows
 
 
-def _pool(texts: list[str], embedder: Embedder, segments: int = 20) -> np.ndarray:
+def pool_texts(texts: list[str], embedder: Embedder, segments: int = 20) -> np.ndarray:
     out = []
     for t in texts:
         size = max(1, len(t) // segments)
@@ -243,6 +251,23 @@ def _pool(texts: list[str], embedder: Embedder, segments: int = 20) -> np.ndarra
         v = vecs.mean(axis=0)
         out.append(v / (np.linalg.norm(v) or 1.0))
     return np.stack(out)
+
+
+def fold_predictor(pooled: np.ndarray, feats: np.ndarray, y: np.ndarray, groups: np.ndarray, embedder_name: str, seed: int = 0):
+    """작가 다섯 묶음으로 나눠, 학습에 안 쓴 작가의 점수를 내는 함수 (정답 yy를 바꿔 순열 검정에도 쓴다)"""
+    folds = channel_folds(groups.tolist(), seed=seed)
+    kw = {"embedder": embedder_name, "feature_names": STORY_FEATURES}
+    lam = choose_lambda(pooled, feats, y, seed=seed, **kw)
+
+    def predict(yy: np.ndarray, use_vectors: bool) -> np.ndarray:
+        def one(tr: np.ndarray, te: np.ndarray) -> np.ndarray:
+            vec = pooled if use_vectors else np.zeros((len(yy), 1))
+            m = fit_model(vec[tr], feats[tr], yy[tr], bootstrap=1, lam=lam, **kw)
+            return m.predict(vec[te], feats[te])[0]
+
+        return out_of_fold(one, yy, folds)
+
+    return predict, lam
 
 
 def analyze_proxy(
@@ -266,18 +291,8 @@ def analyze_proxy(
     names = [*STORY_FEATURES, "log_chars"]
     report["features"] = feature_tests(np.hstack([feats, log_chars]), y, groups, names, permutations=permutations, seed=seed)
 
-    pooled = _pool(texts, embedder)
-    folds = channel_folds(groups.tolist(), seed=seed)
-    kw = {"embedder": embedder.name, "feature_names": STORY_FEATURES}
-    lam = choose_lambda(pooled, feats, y, seed=seed, **kw)
-
-    def predict(yy: np.ndarray, use_vectors: bool) -> np.ndarray:
-        def one(tr: np.ndarray, te: np.ndarray) -> np.ndarray:
-            vec = pooled if use_vectors else np.zeros((len(y), 1))
-            m = fit_model(vec[tr], feats[tr], yy[tr], bootstrap=1, lam=lam, **kw)
-            return m.predict(vec[te], feats[te])[0]
-
-        return out_of_fold(one, yy, folds)
+    pooled = pool_texts(texts, embedder)
+    predict, lam = fold_predictor(pooled, feats, y, groups, embedder.name, seed=seed)
 
     models = {}
     for key, use_vectors in (("storyFeatures", False), ("storyFeaturesAndVector", True)):

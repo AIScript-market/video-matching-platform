@@ -393,4 +393,8 @@ def story_features(text: str, lang: str | None = None) -> dict[str, float]:
 
 def feature_matrix(texts: list[str], langs: list[str | None] | None = None) -> np.ndarray:
     langs = langs or [None] * len(texts)
-    return np.array([[story_features(t, lang)[k] for k in STORY_FEATURES] for t, lang in zip(texts, langs, strict=True)], dtype=float)
+    rows = []
+    for t, lang in zip(texts, langs, strict=True):
+        f = story_features(t, lang)  # 작품마다 한 번만 잰다
+        rows.append([f[k] for k in STORY_FEATURES])
+    return np.array(rows, dtype=float)

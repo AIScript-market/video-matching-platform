@@ -1,31 +1,36 @@
 """가능성 검증 명령. services/ml에서 실행한다.
 
-    python -m research synthetic research/out/demo-data           # 가짜 데이터로 흐름 확인 (저장소에 안 들어감)
-    python -m research check research/data                          # 파일럿 폴더 점검
-    python -m research analyze research/data                        # 분석 → research/out/report.{json,md}
-    python -m research power                                        # 필요한 대본 수
-    python -m research blind-packet research/data --out research/out/blind
-    python -m research blind-score research/out/blind/key.csv 답안1.csv 답안2.csv
+python -m research synthetic research/out/demo-data           # 가짜 데이터로 흐름 확인 (저장소에 안 들어감)
+python -m research check research/data                          # 파일럿 폴더 점검
+python -m research analyze research/data                        # 분석 → research/out/report.{json,md}
+python -m research power                                        # 필요한 대본 수
+python -m research blind-packet research/data --out research/out/blind
+python -m research blind-score research/out/blind/key.csv 답안1.csv 답안2.csv
 
-    # 대리 검증 (docs/hit-features.md): 공공 저작물 소설
-    python -m research proxy-manifest                               # 위키데이터 → research/data/proxy/manifest.csv
-    python -m research proxy-fetch                                  # 구텐베르크 미러에서 본문 (2초 간격)
-    python -m research proxy-analyze                                # → research/out/proxy-report.{json,md}
+# 대리 검증 (docs/hit-features.md): 공공 저작물 소설
+python -m research proxy-manifest                               # 위키데이터 → research/data/proxy/manifest.csv
+python -m research proxy-fetch                                  # 구텐베르크 미러에서 본문 (2초 간격)
+python -m research proxy-analyze                                # → research/out/proxy-report.{json,md}
+python -m research proxy-controls                               # 장르·길이 통제 → research/out/proxy-controls.json
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import math
 import sys
 from pathlib import Path
 
+import numpy as np
+
 from hitmodel.embedders import embedder_from_name
 
-from . import blind, proxy
+from . import blind, proxy, proxy_controls
 from .dataset import load_pilot
 from .feasibility import analyze as run_analysis
 from .feasibility import power_table
+from .story_features import STORY_FEATURES, feature_matrix
 from .synthetic import write_synthetic_pilot
 
 VERDICT_TEXT = {
@@ -135,6 +140,14 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--permutations", type=int, default=2000)
     p.add_argument("--model-permutations", type=int, default=99)
 
+    p = sub.add_parser("proxy-controls", help="요소의 신호가 장르·글 길이 때문인지 가르기")
+    p.add_argument("--manifest", type=Path, default=proxy_dir / "manifest.csv")
+    p.add_argument("--texts", type=Path, default=proxy_dir / "texts")
+    p.add_argument("--genres", type=Path, default=proxy_dir / "genres.json", help="없으면 위키데이터에서 받아 저장")
+    p.add_argument("--embedder", default="hash-ngram")
+    p.add_argument("--out", type=Path, default=Path("research/out"))
+    p.add_argument("--permutations", type=int, default=2000)
+
     args = parser.parse_args(argv)
     if args.cmd == "synthetic":
         write_synthetic_pilot(args.out, channels=args.channels, scripts_per_channel=args.scripts, signal=args.signal, seed=args.seed)
@@ -166,20 +179,35 @@ def main(argv: list[str] | None = None) -> int:
         works = works[: args.limit] if args.limit else works
         print(json.dumps(proxy.fetch_texts(works, args.out, mirror=args.mirror, delay=args.delay), ensure_ascii=False))
     elif args.cmd == "proxy-analyze":
-        works, texts = proxy.load_texts(proxy.informative(proxy.read_manifest(args.manifest)), args.texts)
-        works_ok = {w.work for w in proxy.informative(works)}  # 본문이 빠져 한쪽만 남은 작가는 다시 뺀다
-        pairs = [(w, t) for w, t in zip(works, texts, strict=True) if w.work in works_ok]
+        works, texts = proxy.load_corpus(args.manifest, args.texts)
         report = proxy.analyze_proxy(
-            [w for w, _ in pairs],
-            [t for _, t in pairs],
-            embedder_from_name(args.embedder),
-            permutations=args.permutations,
-            model_permutations=args.model_permutations,
+            works, texts, embedder_from_name(args.embedder), permutations=args.permutations, model_permutations=args.model_permutations
         )
         args.out.mkdir(parents=True, exist_ok=True)
         (args.out / "proxy-report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
         (args.out / "proxy-report.md").write_text(proxy.render_markdown(report), encoding="utf-8")
         print(f"작품 {report['works']}편, 작가 {report['authors']}명: {args.out / 'proxy-report.md'}")
+    elif args.cmd == "proxy-controls":
+        works, texts = proxy.load_corpus(args.manifest, args.texts)
+        if not args.genres.exists():
+            args.genres.write_text(json.dumps(proxy_controls.fetch_genres([w.work for w in works]), ensure_ascii=False, indent=0), encoding="utf-8")
+        raw = json.loads(args.genres.read_text(encoding="utf-8"))
+        genres = [proxy_controls.coarse_genre(raw.get(w.work)) for w in works]
+        x = feature_matrix(texts, ["en"] * len(texts))
+        log_chars = np.array([math.log1p(len(t)) for t in texts])
+        names = list(STORY_FEATURES)
+        controlled = proxy_controls.controlled_tests(x, names, works, genres, log_chars, permutations=args.permutations)
+        report = {
+            "works": len(works),
+            "genreRecorded": sum(g != proxy_controls.UNKNOWN for g in genres),
+            "genreEffect": proxy_controls.genre_effect(works, genres, permutations=args.permutations),
+            "controlled": controlled,
+            "summary": {n: proxy_controls.summarize(controlled, n) for n in names},
+            "models": proxy_controls.model_within_genre(works, texts, x, genres, embedder_from_name(args.embedder), permutations=args.permutations),
+        }
+        args.out.mkdir(parents=True, exist_ok=True)
+        (args.out / "proxy-controls.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+        print(f"작품 {len(works)}편 (장르 기록 {report['genreRecorded']}편): {args.out / 'proxy-controls.json'}")
     return 0
 
 
