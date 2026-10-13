@@ -6,6 +6,11 @@
     python -m research power                                        # 필요한 대본 수
     python -m research blind-packet research/data --out research/out/blind
     python -m research blind-score research/out/blind/key.csv 답안1.csv 답안2.csv
+
+    # 대리 검증 (docs/hit-features.md): 공공 저작물 소설
+    python -m research proxy-manifest                               # 위키데이터 → research/data/proxy/manifest.csv
+    python -m research proxy-fetch                                  # 구텐베르크 미러에서 본문 (2초 간격)
+    python -m research proxy-analyze                                # → research/out/proxy-report.{json,md}
 """
 
 from __future__ import annotations
@@ -17,7 +22,7 @@ from pathlib import Path
 
 from hitmodel.embedders import embedder_from_name
 
-from . import blind
+from . import blind, proxy
 from .dataset import load_pilot
 from .feasibility import analyze as run_analysis
 from .feasibility import power_table
@@ -110,6 +115,26 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("key", type=Path)
     p.add_argument("sheets", type=Path, nargs="+")
 
+    proxy_dir = Path("research/data/proxy")
+    p = sub.add_parser("proxy-manifest", help="위키데이터에서 공공 저작물 소설 목록과 영상화 횟수 받기")
+    p.add_argument("--out", type=Path, default=proxy_dir / "manifest.csv")
+    p.add_argument("--all", action="store_true", help="영상화 작품이 없는 작가까지 모두 저장")
+
+    p = sub.add_parser("proxy-fetch", help="구텐베르크 미러에서 본문 받기")
+    p.add_argument("--manifest", type=Path, default=proxy_dir / "manifest.csv")
+    p.add_argument("--out", type=Path, default=proxy_dir / "texts")
+    p.add_argument("--mirror", default=proxy.DEFAULT_MIRROR)
+    p.add_argument("--delay", type=float, default=2.0)
+    p.add_argument("--limit", type=int, default=0, help="앞에서부터 이만큼만 (0 = 전부)")
+
+    p = sub.add_parser("proxy-analyze", help="같은 작가 안에서 영상화된 작품과 아닌 작품 비교")
+    p.add_argument("--manifest", type=Path, default=proxy_dir / "manifest.csv")
+    p.add_argument("--texts", type=Path, default=proxy_dir / "texts")
+    p.add_argument("--out", type=Path, default=Path("research/out"))
+    p.add_argument("--embedder", default="hash-ngram")
+    p.add_argument("--permutations", type=int, default=2000)
+    p.add_argument("--model-permutations", type=int, default=99)
+
     args = parser.parse_args(argv)
     if args.cmd == "synthetic":
         write_synthetic_pilot(args.out, channels=args.channels, scripts_per_channel=args.scripts, signal=args.signal, seed=args.seed)
@@ -131,6 +156,30 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(blind.make_packet(scripts, embedder_from_name(args.embedder), args.out, items=args.items), ensure_ascii=False, indent=2))
     elif args.cmd == "blind-score":
         print(json.dumps(blind.score(args.key, args.sheets), ensure_ascii=False, indent=2))
+    elif args.cmd == "proxy-manifest":
+        works = proxy.fetch_manifest()
+        kept = works if args.all else proxy.informative(works)
+        proxy.write_manifest(kept, args.out)
+        print(f"작품 {len(works)}편 중 {len(kept)}편 저장 (영상화 {sum(w.adapted for w in kept)}편): {args.out}")
+    elif args.cmd == "proxy-fetch":
+        works = proxy.read_manifest(args.manifest)
+        works = works[: args.limit] if args.limit else works
+        print(json.dumps(proxy.fetch_texts(works, args.out, mirror=args.mirror, delay=args.delay), ensure_ascii=False))
+    elif args.cmd == "proxy-analyze":
+        works, texts = proxy.load_texts(proxy.informative(proxy.read_manifest(args.manifest)), args.texts)
+        works_ok = {w.work for w in proxy.informative(works)}  # 본문이 빠져 한쪽만 남은 작가는 다시 뺀다
+        pairs = [(w, t) for w, t in zip(works, texts, strict=True) if w.work in works_ok]
+        report = proxy.analyze_proxy(
+            [w for w, _ in pairs],
+            [t for _, t in pairs],
+            embedder_from_name(args.embedder),
+            permutations=args.permutations,
+            model_permutations=args.model_permutations,
+        )
+        args.out.mkdir(parents=True, exist_ok=True)
+        (args.out / "proxy-report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+        (args.out / "proxy-report.md").write_text(proxy.render_markdown(report), encoding="utf-8")
+        print(f"작품 {report['works']}편, 작가 {report['authors']}명: {args.out / 'proxy-report.md'}")
     return 0
 
 
