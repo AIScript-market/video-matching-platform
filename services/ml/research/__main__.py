@@ -26,7 +26,7 @@ import numpy as np
 
 from hitmodel.embedders import embedder_from_name
 
-from . import blind, proxy, proxy_controls
+from . import blind, proxy, proxy_controls, proxy_explore
 from .dataset import load_pilot
 from .feasibility import analyze as run_analysis
 from .feasibility import power_table
@@ -150,6 +150,14 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--out", type=Path, default=Path("research/out"))
     p.add_argument("--permutations", type=int, default=2000)
 
+    p = sub.add_parser("proxy-explore", help="벡터 흐름 요소와 특징 낱말 탐색 (작가 반반 나눠 확인)")
+    p.add_argument("--manifest", type=Path, default=proxy_dir / "manifest.csv")
+    p.add_argument("--texts", type=Path, default=proxy_dir / "texts")
+    p.add_argument("--catalog", type=Path, default=proxy_dir / "pg_catalog.csv")
+    p.add_argument("--out", type=Path, default=Path("research/out"))
+    p.add_argument("--embedder", default="hash-ngram")
+    p.add_argument("--permutations", type=int, default=2000)
+
     args = parser.parse_args(argv)
     if args.cmd == "synthetic":
         write_synthetic_pilot(args.out, channels=args.channels, scripts_per_channel=args.scripts, signal=args.signal, seed=args.seed)
@@ -224,6 +232,28 @@ def main(argv: list[str] | None = None) -> int:
         out_file = args.out / f"proxy-controls-{args.genre_source}.json"
         out_file.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
         print(f"작품 {len(works)}편 (장르 있음 {report['genreRecorded']}편, 출처 {args.genre_source}): {out_file}")
+    elif args.cmd == "proxy-explore":
+        works, texts = proxy.load_corpus(args.manifest, args.texts)
+        by_id = proxy_controls.read_catalog(args.catalog, [w.gutenberg for w in works])
+        tag_sets = [by_id.get(w.gutenberg, set()) for w in works]
+        genres = [proxy_controls.primary_genre(t) for t in tag_sets]
+        tags = proxy_controls.tag_matrix(tag_sets)
+        log_chars = np.array([math.log1p(len(t)) for t in texts])
+        traj = proxy_explore.trajectory_matrix(texts, embedder_from_name(args.embedder))
+        trajectory = proxy_controls.controlled_tests(
+            traj, proxy_explore.TRAJECTORY_FEATURES, works, genres, log_chars, permutations=args.permutations, tags=tags
+        )
+        vocab, freq = proxy_explore.word_counts(texts)
+        words = proxy_explore.held_out_words(freq, vocab, works, genres, permutations=args.permutations)
+        report = {
+            "works": len(works),
+            "vocab": len(vocab),
+            "trajectory": {n: proxy_controls.summarize(trajectory, n) for n in proxy_explore.TRAJECTORY_FEATURES},
+            "words": words,
+        }
+        args.out.mkdir(parents=True, exist_ok=True)
+        (args.out / "proxy-explore.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+        print(f"작품 {len(works)}편, 낱말 {len(vocab)}개: {args.out / 'proxy-explore.json'}")
     return 0
 
 
