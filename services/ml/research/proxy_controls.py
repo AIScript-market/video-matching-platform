@@ -1,6 +1,10 @@
 """대리 검증 통제: 요소의 신호가 장르·글 길이 때문인지 가른다.
 
-장르는 위키데이터 P136을 큰 갈래 9개로 묶는다. 장르 기록이 없는 작품은 "기록 없음"으로 둔다.
+장르 출처는 둘이다.
+- 구텐베르크 카탈로그(기본): 모든 작품에 사서가 붙인 주제·서가가 있다. 여러 갈래가 붙고, 대표 갈래 하나도 정한다.
+  "Movie Books"(영상화된 책) 서가와 베스트셀러·명작 목록은 정답이나 유명세가 새므로 쓰지 않는다.
+- 위키데이터 P136: 기록이 58%뿐이고 유명 작품 쪽으로 치우쳐 있다. 비교용으로 남긴다.
+장르가 없는 작품은 "기록 없음"으로 둔다.
 세 가지로 본다.
 1. 장르 자체: 같은 작가 안에서 장르가 영상화를 가르는가 (기록 유무가 영상화와 엮였는가도 함께)
 2. 같은 작가·같은 장르 안에서만 비교 (장르를 아는 작품만)
@@ -81,6 +85,52 @@ def coarse_genre(labels: list[str] | None) -> str:
     return OTHER
 
 
+# 구텐베르크 카탈로그(pg_catalog.csv, 공공 저작물)의 서가·주제로 붙이는 장르. 여러 갈래가 붙을 수 있다.
+# 서가는 이름이 같아야, 주제(미 의회도서관 주제명)는 이 말이 들어 있으면 그 갈래로 본다.
+CATALOG_GENRES: list[tuple[str, set[str], tuple[str, ...]]] = [
+    (
+        "범죄·추리",
+        {"category: crime, thrillers and mystery", "detective fiction", "crime fiction", "mystery fiction"},
+        ("detective and mystery", "private investigators", "crime --", "murder --", "spy stories", "criminals --"),
+    ),
+    ("공포·고딕", {"horror", "gothic fiction", "category: horror"}, ("horror tales", "ghost stories", "gothic", "supernatural")),
+    ("아동", {"category: children & young adult reading", "children's literature", "children's fiction"}, ("juvenile fiction",)),
+    ("SF·판타지", {"category: science-fiction & fantasy", "science fiction", "fantasy"}, ("science fiction", "fantasy")),
+    ("모험", {"category: adventure", "adventure", "western"}, ("adventure stories", "sea stories", "war stories", "western stories", "pirates")),
+    ("역사", {"category: historical novels", "historical fiction"}, ("historical fiction",)),
+    ("풍자·희극", {"category: humour", "humor"}, ("humorous stories", "satire")),
+    ("연애·가정", {"category: romance"}, ("love stories", "domestic fiction", "man-woman relationships", "courtship --")),
+    ("사회·심리·성장", set(), ("psychological fiction", "bildungsromans", "social classes", "didactic fiction", "social problems")),
+]
+# 장르가 아니라 결과(영상화)나 유명세를 뜻하는 서가. 정답이 새므로 쓰지 않는다
+LEAKY_SHELVES = {"movie books", "best books ever listings", "harvard classics", "contemporary reviews", "category: classics of literature"}
+
+
+def catalog_tags(shelves: str, subjects: str) -> set[str]:
+    shelf_set = {s.strip().lower() for s in shelves.split(";") if s.strip()}
+    shelf_set = {s for s in shelf_set if s not in LEAKY_SHELVES and not s.startswith(("bestsellers", "banned books"))}
+    subj = subjects.lower()
+    return {name for name, shelf_names, subject_words in CATALOG_GENRES if shelf_set & shelf_names or any(w in subj for w in subject_words)}
+
+
+def primary_genre(tags: set[str]) -> str:
+    """여러 갈래 중 CATALOG_GENRES 순서로 먼저 나오는 하나"""
+    return next((name for name, _, _ in CATALOG_GENRES if name in tags), UNKNOWN)
+
+
+def read_catalog(path, gutenberg_ids: list[str]) -> dict[str, set[str]]:
+    import csv
+
+    wanted = set(gutenberg_ids)
+    with open(path, encoding="utf-8", newline="") as f:
+        return {r["Text#"]: catalog_tags(r.get("Bookshelves") or "", r.get("Subjects") or "") for r in csv.DictReader(f) if r["Text#"] in wanted}
+
+
+def tag_matrix(tags: list[set[str]]) -> np.ndarray:
+    names = [name for name, _, _ in CATALOG_GENRES]
+    return np.array([[1.0 if n in t else 0.0 for n in names] for t in tags]).reshape(len(tags), len(names))
+
+
 def _dummies(values: list[str], drop: str | None = None) -> np.ndarray:
     levels = [v for v in sorted(set(values)) if v != drop]
     return np.array([[1.0 if v == lv else 0.0 for lv in levels] for v in values]).reshape(len(values), len(levels))
@@ -108,8 +158,16 @@ def genre_effect(works: list[ProxyWork], genres: list[str], permutations: int = 
 
 
 def controlled_tests(
-    x: np.ndarray, names: list[str], works: list[ProxyWork], genres: list[str], log_chars: np.ndarray, permutations: int = 2000, seed: int = 0
+    x: np.ndarray,
+    names: list[str],
+    works: list[ProxyWork],
+    genres: list[str],
+    log_chars: np.ndarray,
+    permutations: int = 2000,
+    seed: int = 0,
+    tags: np.ndarray | None = None,
 ) -> dict:
+    """genres는 작품마다 대표 갈래 하나. tags(작품 × 갈래 0/1)가 있으면 회귀 통제에는 여러 갈래를 모두 쓴다"""
     y = np.array([1.0 if w.adapted else 0.0 for w in works])
     authors = np.array([w.author for w in works])
     g = np.array(genres)
@@ -134,8 +192,10 @@ def controlled_tests(
     # 장르 기록이 없는 작품끼리만 (신호가 어느 쪽 작품에서 나오는지 보려고)
     out["unknownGenreSameAuthor"] = feature_tests(x[~known], y[~known], authors[~known], names, permutations=permutations, seed=seed)
     known_genres = [gg for gg, k in zip(genres, known, strict=True) if k]
+    genre_design = tags if tags is not None else _dummies(genres, drop=UNKNOWN)
+    known_design = tags[known] if tags is not None else _dummies(known_genres)
     out["knownGenreAdjusted"] = feature_tests(
-        residualize(x[known], authors[known], _dummies(known_genres), log_chars[known].reshape(-1, 1)),
+        residualize(x[known], authors[known], known_design, log_chars[known].reshape(-1, 1)),
         y[known],
         authors[known],
         names,
@@ -146,9 +206,7 @@ def controlled_tests(
     # 작가·장르·길이를 뺀 나머지 (모든 작품, 장르 기록 없음도 한 갈래로)
     lc = log_chars.reshape(-1, 1)
     out["lengthAdjusted"] = feature_tests(residualize(x, authors, lc), y, authors, names, permutations=permutations, seed=seed)
-    out["genreAndLengthAdjusted"] = feature_tests(
-        residualize(x, authors, _dummies(genres, drop=UNKNOWN), lc), y, authors, names, permutations=permutations, seed=seed
-    )
+    out["genreAndLengthAdjusted"] = feature_tests(residualize(x, authors, genre_design, lc), y, authors, names, permutations=permutations, seed=seed)
     return out
 
 

@@ -143,7 +143,9 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("proxy-controls", help="요소의 신호가 장르·글 길이 때문인지 가르기")
     p.add_argument("--manifest", type=Path, default=proxy_dir / "manifest.csv")
     p.add_argument("--texts", type=Path, default=proxy_dir / "texts")
-    p.add_argument("--genres", type=Path, default=proxy_dir / "genres.json", help="없으면 위키데이터에서 받아 저장")
+    p.add_argument("--genre-source", choices=["catalog", "wikidata"], default="catalog")
+    p.add_argument("--catalog", type=Path, default=proxy_dir / "pg_catalog.csv", help="구텐베르크 카탈로그 (gutenberg.org/cache/epub/feeds/pg_catalog.csv)")
+    p.add_argument("--genres", type=Path, default=proxy_dir / "genres.json", help="위키데이터 장르. 없으면 받아 저장")
     p.add_argument("--embedder", default="hash-ngram")
     p.add_argument("--out", type=Path, default=Path("research/out"))
     p.add_argument("--permutations", type=int, default=2000)
@@ -189,15 +191,23 @@ def main(argv: list[str] | None = None) -> int:
         print(f"작품 {report['works']}편, 작가 {report['authors']}명: {args.out / 'proxy-report.md'}")
     elif args.cmd == "proxy-controls":
         works, texts = proxy.load_corpus(args.manifest, args.texts)
-        if not args.genres.exists():
-            args.genres.write_text(json.dumps(proxy_controls.fetch_genres([w.work for w in works]), ensure_ascii=False, indent=0), encoding="utf-8")
-        raw = json.loads(args.genres.read_text(encoding="utf-8"))
-        genres = [proxy_controls.coarse_genre(raw.get(w.work)) for w in works]
+        tags = None
+        if args.genre_source == "catalog":
+            by_id = proxy_controls.read_catalog(args.catalog, [w.gutenberg for w in works])
+            tag_sets = [by_id.get(w.gutenberg, set()) for w in works]
+            genres = [proxy_controls.primary_genre(t) for t in tag_sets]
+            tags = proxy_controls.tag_matrix(tag_sets)
+        else:
+            if not args.genres.exists():
+                args.genres.write_text(json.dumps(proxy_controls.fetch_genres([w.work for w in works]), ensure_ascii=False, indent=0), encoding="utf-8")
+            raw = json.loads(args.genres.read_text(encoding="utf-8"))
+            genres = [proxy_controls.coarse_genre(raw.get(w.work)) for w in works]
         x = feature_matrix(texts, ["en"] * len(texts))
         log_chars = np.array([math.log1p(len(t)) for t in texts])
         names = list(STORY_FEATURES)
-        controlled = proxy_controls.controlled_tests(x, names, works, genres, log_chars, permutations=args.permutations)
+        controlled = proxy_controls.controlled_tests(x, names, works, genres, log_chars, permutations=args.permutations, tags=tags)
         report = {
+            "genreSource": args.genre_source,
             "works": len(works),
             "genreRecorded": sum(g != proxy_controls.UNKNOWN for g in genres),
             "genreEffect": proxy_controls.genre_effect(works, genres, permutations=args.permutations),
@@ -205,9 +215,15 @@ def main(argv: list[str] | None = None) -> int:
             "summary": {n: proxy_controls.summarize(controlled, n) for n in names},
             "models": proxy_controls.model_within_genre(works, texts, x, genres, embedder_from_name(args.embedder), permutations=args.permutations),
         }
+        if tags is not None:
+            y = np.array([1.0 if w.adapted else 0.0 for w in works])
+            tag_names = [name for name, _, _ in proxy_controls.CATALOG_GENRES]
+            report["tagEffect"] = proxy.feature_tests(tags, y, np.array([w.author for w in works]), tag_names, permutations=args.permutations)
+            report["tagCounts"] = {n: int(tags[:, i].sum()) for i, n in enumerate(tag_names)}
         args.out.mkdir(parents=True, exist_ok=True)
-        (args.out / "proxy-controls.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
-        print(f"작품 {len(works)}편 (장르 기록 {report['genreRecorded']}편): {args.out / 'proxy-controls.json'}")
+        out_file = args.out / f"proxy-controls-{args.genre_source}.json"
+        out_file.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+        print(f"작품 {len(works)}편 (장르 있음 {report['genreRecorded']}편, 출처 {args.genre_source}): {out_file}")
     return 0
 
 

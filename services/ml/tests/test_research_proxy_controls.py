@@ -1,7 +1,7 @@
 import numpy as np
 
 from research.proxy import ProxyWork
-from research.proxy_controls import UNKNOWN, coarse_genre, controlled_tests, residualize
+from research.proxy_controls import UNKNOWN, catalog_tags, coarse_genre, controlled_tests, primary_genre, residualize, tag_matrix
 
 
 def test_coarse_genre_priority_and_unknown():
@@ -36,3 +36,13 @@ def test_genre_confound_disappears_within_genre():
     assert out["baseline"][0]["p"] <= 0.01 and out["baseline"][0]["auc"] > 0.6
     assert out["sameAuthorSameGenre"]["tests"][0]["p"] > 0.05
     assert out["genreAndLengthAdjusted"][0]["p"] > 0.05
+
+
+def test_catalog_tags_skip_outcome_shelves():
+    shelves = "Movie Books; Best Books Ever Listings; Category: Adventure; Bestsellers, American, 1895-1923"
+    subjects = "Detective and mystery stories; Holmes, Sherlock (Fictitious character) -- Fiction"
+    tags = catalog_tags(shelves, subjects)
+    assert tags == {"범죄·추리", "모험"}  # "Movie Books"(영상화된 책)나 베스트셀러 목록은 장르로 쓰지 않는다
+    assert primary_genre(tags) == "범죄·추리"
+    assert catalog_tags("Movie Books", "") == set() and primary_genre(set()) == UNKNOWN
+    assert tag_matrix([tags, set()]).sum(axis=1).tolist() == [2.0, 0.0]
