@@ -32,7 +32,8 @@ from .story_features import STORY_FEATURES, VERSION, feature_matrix, strip_guten
 
 USER_AGENT = "vmp-research/0.1 (https://github.com/zerohoon123/video-matching-platform)"
 WIKIDATA_SPARQL = "https://query.wikidata.org/sparql"
-DEFAULT_MIRROR = "https://aleph.pglaf.org"
+# 공식 미러 목록에 있는 곳 중 빠른 곳 (aleph.pglaf.org는 25KB/s 정도로 느렸다)
+DEFAULT_MIRROR = "https://mirrors.xmission.com/gutenberg"
 # 한국에서 보호 기간이 끝난 범위: 1962년까지 사망한 저자
 MAX_AUTHOR_DEATH_YEAR = 1962
 MANIFEST_COLUMNS = ["work", "title", "author", "author_name", "died", "gutenberg", "adaptations", "file"]
@@ -161,6 +162,8 @@ def fetch_texts(works: list[ProxyWork], out_dir: Path, *, mirror: str = DEFAULT_
                     raw = r.read()
             except Exception:  # noqa: BLE001 - 없는 경로는 다음 후보로
                 continue
+            if raw.lstrip()[:15].lower().startswith((b"<!doctype", b"<html")):
+                continue  # 파일 대신 안내 페이지를 돌려주는 미러가 있다
             enc = "utf-8" if rel.endswith("-0.txt") or rel.endswith(f"{w.gutenberg}.txt") else "latin-1"
             target.write_text(raw.decode(enc, errors="replace"), encoding="utf-8")
             got += 1
@@ -317,8 +320,8 @@ def render_markdown(report: dict) -> str:
     for key, label in (("storyFeatures", "이야기 요소만"), ("storyFeaturesAndVector", "이야기 요소 + 벡터")):
         m = report["leaveAuthorsOut"][key]
         ci = m.get("ci", {})
-        lines.append(
-            f"| {label} | {m['auc']:.3f} | {ci.get('low', float('nan')):.3f}~{ci.get('high', float('nan')):.3f} | {m['lift']:.2f} | {m.get('permutationP')} |"
-        )
+        p = m.get("permutationP")
+        p_text = "-" if p is None else f"{p:.3f}"
+        lines.append(f"| {label} | {m['auc']:.3f} | {ci.get('low', float('nan')):.3f}~{ci.get('high', float('nan')):.3f} | {m['lift']:.2f} | {p_text} |")
     lines += ["", "`log_chars`(글 길이)는 비교용이다. 길이 차이만으로 설명되는 요소는 조심해서 읽는다.", ""]
     return "\n".join(lines)
