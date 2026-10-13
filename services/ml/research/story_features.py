@@ -254,12 +254,14 @@ NOT_NAMES = {
     "London",
 }
 GUTENBERG_START = re.compile(r"\*\*\*\s*START OF (?:THE|THIS) PROJECT GUTENBERG EBOOK[^\n]*\n", re.I)
+OLD_SMALL_PRINT_END = re.compile(r"\*END\*THE SMALL PRINT![^\n]*\n", re.I)
 GUTENBERG_END = re.compile(r"\*\*\*\s*END OF (?:THE|THIS) PROJECT GUTENBERG EBOOK", re.I)
 
 
 def strip_gutenberg(text: str) -> str:
     """구텐베르크 머리말·꼬리말(라이선스 안내)을 뗀다"""
-    m = GUTENBERG_START.search(text)
+    # 1990년대 파일은 "*END*THE SMALL PRINT!" 안내문 뒤에서 본문이 시작한다
+    m = GUTENBERG_START.search(text) or OLD_SMALL_PRINT_END.search(text)
     if m:
         text = text[m.end() :]
     m = GUTENBERG_END.search(text)
