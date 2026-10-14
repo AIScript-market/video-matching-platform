@@ -12,6 +12,12 @@ python -m research proxy-manifest                               # 위키데이�
 python -m research proxy-fetch                                  # 구텐베르크 미러에서 본문 (2초 간격)
 python -m research proxy-analyze                                # → research/out/proxy-report.{json,md}
 python -m research proxy-controls                               # 장르·길이 통제 → research/out/proxy-controls.json
+
+# 모델 비교 (docs/model-bench.md)
+python -m research bench-build                                  # 시험용 20% 잠그기 + 친구용 키트 → research/out/bench-kit
+python -m research bench-dev                                    # 개발용 80%에서 모델 비교 → research/out/bench-dev.json
+python -m research bench-test --task movies --models pca16-logit ridge-within   # 시험용에서 한 번만
+python -m research bench-score --task movies 친구예측.csv        # 친구가 보낸 시험용 예측 채점
 """
 
 from __future__ import annotations
@@ -26,7 +32,7 @@ import numpy as np
 
 from hitmodel.embedders import embedder_from_name
 
-from . import blind, cmu_movies, proxy, proxy_controls, proxy_explore, proxy_success, tv_episodes
+from . import blind, cmu_movies, model_bench, proxy, proxy_controls, proxy_explore, proxy_success, tv_episodes
 from .dataset import load_pilot
 from .feasibility import analyze as run_analysis
 from .feasibility import power_table
@@ -194,6 +200,28 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--raw", type=Path, default=cmu_dir / "raw")
     p.add_argument("--bge-cache", type=Path, default=cmu_dir / "bge-movies.npz")
     p.add_argument("--out", type=Path, default=Path("research/out"))
+    p.add_argument("--permutations", type=int, default=2000)
+
+    bench_tasks = ["movies", "tv", "novels"]
+    p = sub.add_parser("bench-build", help="시험용 20%를 잠그고 친구 컴퓨터용 키트(개발용 정답·시험용 글·벡터)를 쓴다")
+    p.add_argument("--tasks", nargs="+", choices=bench_tasks, default=bench_tasks)
+    p.add_argument("--out", type=Path, default=Path("research/out/bench-kit"))
+    p.add_argument("--locked", type=Path, default=Path("research/data/bench"))
+
+    p = sub.add_parser("bench-dev", help="개발용 80%에서 묶음 5겹으로 모델 비교")
+    p.add_argument("--tasks", nargs="+", choices=bench_tasks, default=bench_tasks)
+    p.add_argument("--models", nargs="+", choices=list(model_bench.MODELS), default=None)
+    p.add_argument("--out", type=Path, default=Path("research/out"))
+
+    p = sub.add_parser("bench-test", help="고른 모델을 시험용에서 한 번만 잰다 (같은 과제는 두 번째 실행을 거부)")
+    p.add_argument("--task", choices=bench_tasks, required=True)
+    p.add_argument("--models", nargs="+", choices=list(model_bench.MODELS), required=True)
+    p.add_argument("--out", type=Path, default=Path("research/out"))
+    p.add_argument("--permutations", type=int, default=2000)
+
+    p = sub.add_parser("bench-score", help="친구가 보낸 시험용 예측(id,score CSV)을 잠긴 정답으로 채점")
+    p.add_argument("--task", choices=bench_tasks, required=True)
+    p.add_argument("predictions", type=Path)
     p.add_argument("--permutations", type=int, default=2000)
 
     args = parser.parse_args(argv)
@@ -389,7 +417,43 @@ def main(argv: list[str] | None = None) -> int:
         name = "cmu-report.json" if vectors is not None else "cmu-report-novec.json"
         (args.out / name).write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
         print(f"영화 {report['movies']}편, 묶음 {report['strata']}개 (벡터 {'포함' if vectors is not None else '없음'}): {args.out / name}")
+    elif args.cmd == "bench-build":
+        rows = [model_bench.write_kit(_bench_task(name), args.out, args.locked) for name in args.tasks]
+        (args.out / "manifest.json").write_text(json.dumps(rows, ensure_ascii=False, indent=2), encoding="utf-8")
+        for r in rows:
+            sha = r["testLabelsSha256"][:16]
+            print(f"{r['task']}: 개발용 {r['dev']}행({r['devGroups']}묶음), 시험용 {r['test']}행({r['testGroups']}묶음), 잠긴 정답 sha256 {sha}…")
+    elif args.cmd == "bench-dev":
+        reports = {name: model_bench.run_dev(_bench_task(name), args.models) for name in args.tasks}
+        args.out.mkdir(parents=True, exist_ok=True)
+        (args.out / "bench-dev.json").write_text(json.dumps(reports, ensure_ascii=False, indent=2), encoding="utf-8")
+        print("고른 모델: " + ", ".join(f"{k} → {v['chosen']}" for k, v in reports.items()))
+    elif args.cmd == "bench-test":
+        path = args.out / f"bench-test-{args.task}.json"
+        if path.exists():
+            raise SystemExit(f"{path}가 이미 있습니다. 시험용은 한 번만 잽니다 (docs/model-bench.md)")
+        report = model_bench.run_test(_bench_task(args.task), args.models, permutations=args.permutations)
+        args.out.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+        for name, r in report["models"].items():
+            print(f"{name}: {r['auc']:.3f} ({r['ci95']['low']:.3f}–{r['ci95']['high']:.3f}), p={r['p']:.4f}")
+    elif args.cmd == "bench-score":
+        import csv
+
+        with args.predictions.open(encoding="utf-8", newline="") as f:
+            preds = {r["id"]: float(r["score"]) for r in csv.DictReader(f)}
+        r = model_bench.score_submission(_bench_task(args.task), preds, permutations=args.permutations)
+        print(json.dumps(r, ensure_ascii=False, indent=2))
     return 0
+
+
+def _bench_task(name: str) -> model_bench.Task:
+    if name == "movies":
+        return model_bench.build_movies(Path("research/data/cmu/raw"), Path("research/data/cmu/bge-movies.npz"))
+    if name == "tv":
+        return model_bench.build_tv(Path("research/data/tv/episodes.json"), Path("research/data/tv/bge-episodes.npz"))
+    d = Path("research/data/proxy")
+    return model_bench.build_novels(d / "manifest.csv", d / "texts", d / "pg_catalog.csv", d / "bge-segments.npz")
 
 
 if __name__ == "__main__":
