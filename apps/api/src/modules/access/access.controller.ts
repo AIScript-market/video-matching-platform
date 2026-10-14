@@ -14,7 +14,7 @@ export class AccessController {
 
   @Post('scripts/:id/access-requests')
   @UseGuards(CreatorGuard)
-  @ApiOperation({ summary: '전문 열람 요청 (프로필·이메일 공개 필요, NDA 동의 필수)' })
+  @ApiOperation({ summary: '전문 열람 요청 (프로필 공개 필요, NDA 동의 필수)' })
   @ApiOkResponse({ type: AccessRequestDto })
   request(@Param('id') scriptId: string, @CurrentUser() user: Viewer, @Body() dto: CreateAccessRequestDto) {
     return this.access.request(scriptId, user, dto);

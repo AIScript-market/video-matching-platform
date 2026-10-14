@@ -81,7 +81,7 @@ export default function ScriptDetailPage() {
 
   if (!script) return error ? <ErrorText error={error} /> : <p className="muted">불러오는 중…</p>;
   const { viewer } = script;
-  // 대본 제공·영상 제작은 프로필·이메일을 공개한 일반 계정이 한다
+  // 대본 제공·영상 제작은 프로필을 공개한 일반 계정이 한다
   const canAct = Boolean(user && !viewer.isAuthor && user.creatorReady);
 
   return (

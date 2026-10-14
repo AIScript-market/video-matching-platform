@@ -20,6 +20,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 공개 설정 (베타 여부, 켜진 기능, 가입 조건) */
+        get: operations["ConfigController_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/signup": {
         parameters: {
             query?: never;
@@ -474,7 +491,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** 전문 열람 요청 (프로필·이메일 공개 필요, NDA 동의 필수) */
+        /** 전문 열람 요청 (프로필 공개 필요, NDA 동의 필수) */
         post: operations["AccessController_request"];
         delete?: never;
         options?: never;
@@ -1616,11 +1633,34 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        FeatureFlagsDto: {
+            /** @description 출연자 등록·얼굴 스캔 */
+            talent: boolean;
+            /** @description 캐스팅·작품 공개 */
+            casting: boolean;
+            /** @description 흥행 판단·추천 */
+            hitModel: boolean;
+        };
+        PublicConfigDto: {
+            /** @description 초대제 비공개 베타 */
+            betaMode: boolean;
+            /** @description 가입에 초대 코드와 성인 확인이 필요한가 */
+            inviteRequired: boolean;
+            /** @description 코인을 살 수 있는가 (베타에서는 꺼짐) */
+            purchaseEnabled: boolean;
+            /** @description 가입하면 받는 코인 */
+            signupCoins: number;
+            features: components["schemas"]["FeatureFlagsDto"];
+        };
         SignupDto: {
             /** @example writer@example.com */
             email: string;
             password: string;
             displayName: string;
+            /** @description 베타 초대 코드 (베타에서만 필요) */
+            inviteCode?: string;
+            /** @description 만 19세 이상 확인 (베타에서만 필요. 계약 당사자가 되므로 성인만 받는다) */
+            adultConfirmed?: boolean;
         };
         MeDto: {
             id: string;
@@ -1633,7 +1673,7 @@ export interface components {
             bio: string | null;
             profilePublic: boolean;
             emailPublic: boolean;
-            /** @description 대본 제공·영상 제작 가능 (소개 작성 + 프로필·이메일 공개) */
+            /** @description 대본 제공·영상 제작 가능 (소개 작성 + 프로필 공개) */
             creatorReady: boolean;
             coinBalance: number;
         };
@@ -1663,6 +1703,8 @@ export interface components {
             packages: components["schemas"]["CoinPackageDto"][];
             /** @description 테스트 결제 여부 (실제 결제 미연동) */
             testPayments: boolean;
+            /** @description 코인을 살 수 있는가 (베타에서는 꺼짐) */
+            purchaseEnabled: boolean;
         };
         CoinTransactionDto: {
             id: string;
@@ -1701,7 +1743,7 @@ export interface components {
             email: string | null;
             profilePublic: boolean;
             emailPublic: boolean;
-            /** @description 대본 제공·영상 제작 가능 (프로필·이메일 공개) */
+            /** @description 대본 제공·영상 제작 가능 (소개 작성 + 프로필 공개) */
             creatorReady: boolean;
             /** Format: date-time */
             createdAt: string;
@@ -2801,6 +2843,25 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    ConfigController_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicConfigDto"];
+                };
             };
         };
     };

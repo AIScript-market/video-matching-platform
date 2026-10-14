@@ -15,6 +15,28 @@
         ]
       }
     },
+    "/config": {
+      "get": {
+        "operationId": "ConfigController_get",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicConfigDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "공개 설정 (베타 여부, 켜진 기능, 가입 조건)",
+        "tags": [
+          "config"
+        ]
+      }
+    },
     "/auth/signup": {
       "post": {
         "operationId": "IdentityController_signup",
@@ -1253,7 +1275,7 @@
             "bearer": []
           }
         ],
-        "summary": "전문 열람 요청 (프로필·이메일 공개 필요, NDA 동의 필수)",
+        "summary": "전문 열람 요청 (프로필 공개 필요, NDA 동의 필수)",
         "tags": [
           "access"
         ]
@@ -4077,6 +4099,59 @@
       }
     },
     "schemas": {
+      "FeatureFlagsDto": {
+        "type": "object",
+        "properties": {
+          "talent": {
+            "type": "boolean",
+            "description": "출연자 등록·얼굴 스캔"
+          },
+          "casting": {
+            "type": "boolean",
+            "description": "캐스팅·작품 공개"
+          },
+          "hitModel": {
+            "type": "boolean",
+            "description": "흥행 판단·추천"
+          }
+        },
+        "required": [
+          "talent",
+          "casting",
+          "hitModel"
+        ]
+      },
+      "PublicConfigDto": {
+        "type": "object",
+        "properties": {
+          "betaMode": {
+            "type": "boolean",
+            "description": "초대제 비공개 베타"
+          },
+          "inviteRequired": {
+            "type": "boolean",
+            "description": "가입에 초대 코드와 성인 확인이 필요한가"
+          },
+          "purchaseEnabled": {
+            "type": "boolean",
+            "description": "코인을 살 수 있는가 (베타에서는 꺼짐)"
+          },
+          "signupCoins": {
+            "type": "number",
+            "description": "가입하면 받는 코인"
+          },
+          "features": {
+            "$ref": "#/components/schemas/FeatureFlagsDto"
+          }
+        },
+        "required": [
+          "betaMode",
+          "inviteRequired",
+          "purchaseEnabled",
+          "signupCoins",
+          "features"
+        ]
+      },
       "SignupDto": {
         "type": "object",
         "properties": {
@@ -4092,6 +4167,14 @@
           "displayName": {
             "type": "string",
             "maxLength": 40
+          },
+          "inviteCode": {
+            "type": "string",
+            "description": "베타 초대 코드 (베타에서만 필요)"
+          },
+          "adultConfirmed": {
+            "type": "boolean",
+            "description": "만 19세 이상 확인 (베타에서만 필요. 계약 당사자가 되므로 성인만 받는다)"
           }
         },
         "required": [
@@ -4140,7 +4223,7 @@
           },
           "creatorReady": {
             "type": "boolean",
-            "description": "대본 제공·영상 제작 가능 (소개 작성 + 프로필·이메일 공개)"
+            "description": "대본 제공·영상 제작 가능 (소개 작성 + 프로필 공개)"
           },
           "coinBalance": {
             "type": "number"
@@ -4250,13 +4333,18 @@
           "testPayments": {
             "type": "boolean",
             "description": "테스트 결제 여부 (실제 결제 미연동)"
+          },
+          "purchaseEnabled": {
+            "type": "boolean",
+            "description": "코인을 살 수 있는가 (베타에서는 꺼짐)"
           }
         },
         "required": [
           "balance",
           "prices",
           "packages",
-          "testPayments"
+          "testPayments",
+          "purchaseEnabled"
         ]
       },
       "CoinTransactionDto": {
@@ -4403,7 +4491,7 @@
           },
           "creatorReady": {
             "type": "boolean",
-            "description": "대본 제공·영상 제작 가능 (프로필·이메일 공개)"
+            "description": "대본 제공·영상 제작 가능 (소개 작성 + 프로필 공개)"
           },
           "createdAt": {
             "format": "date-time",

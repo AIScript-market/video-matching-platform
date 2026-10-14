@@ -76,7 +76,7 @@ export function RequireAuth({ role, children }: { role?: Role; children: React.R
   return <>{children}</>;
 }
 
-/** 대본 제공·영상 제작 화면: 로그인 + 프로필·이메일 공개가 필요하다 */
+/** 대본 제공·영상 제작 화면: 로그인 + 프로필(소개 포함) 공개가 필요하다 */
 export function RequireCreator({ children }: { children: React.ReactNode }) {
   const { user } = useSession();
   return (
@@ -92,7 +92,7 @@ export function CreatorNotice() {
   return (
     <div className="card stack">
       <p>
-        대본 제공과 영상 제작을 하려면 <strong>프로필 소개를 쓰고, 프로필과 이메일을 공개</strong>해야 합니다. 상대방이 누구와 거래하는지 알 수 있게 하기 위해서입니다.
+        대본 제공과 영상 제작을 하려면 <strong>프로필 소개를 쓰고 프로필을 공개</strong>해야 합니다. 상대방이 누구와 거래하는지 알 수 있게 하기 위해서입니다.
       </p>
       <div className="row">
         <Link href="/account#profile" className="button">
