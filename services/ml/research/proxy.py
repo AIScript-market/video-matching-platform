@@ -210,25 +210,39 @@ def holm(p_values: list[float]) -> list[float]:
     return adjusted.tolist()
 
 
+def _midranks(v: np.ndarray) -> np.ndarray:
+    """1부터 시작하는 순위. 같은 값은 평균 순위"""
+    order = np.argsort(v, kind="mergesort")
+    ranks = np.empty(len(v))
+    ranks[order] = np.arange(1, len(v) + 1)
+    _, inverse, counts = np.unique(v, return_inverse=True, return_counts=True)
+    sums = np.bincount(inverse, weights=ranks)
+    return (sums / counts)[inverse]
+
+
 def feature_tests(x: np.ndarray, y: np.ndarray, groups: np.ndarray, names: list[str], permutations: int = 2000, seed: int = 0) -> list[dict]:
     """요소마다 같은 작가 안 AUC (0.5보다 크면 영상화된 작품 쪽이 값이 크다)와 양쪽 순열 검정.
 
     홀름 보정을 넘을 수 있으려면 순열 횟수가 (요소 수 ÷ 0.05)보다 커야 한다 (요소 19개면 380회 이상). 기본 2,000회.
     """
     rng = np.random.default_rng(seed)
-    # 정답 행렬: 0행은 실제 정답, 나머지는 작가 안에서 섞은 정답
-    labels = np.stack([y] + [permute_within(y, groups, rng) for _ in range(permutations)])
     members = [np.where(groups == g)[0] for g in np.unique(groups)]
+    # 정답 행렬: 0행은 실제 정답, 나머지는 작가 안에서 섞은 정답 (permute_within과 같은 순서로 섞는다)
+    labels = np.empty((permutations + 1, len(y)), dtype=np.float32)
+    labels[0] = y
+    for p in range(1, permutations + 1):
+        for idx in members:
+            labels[p, idx] = y[rng.permutation(idx)]
+    n1 = [labels[:, idx].sum(axis=1).astype(np.float64) for idx in members]
     rows = []
     for j, name in enumerate(names):
         wins = np.zeros(len(labels))
         pairs = np.zeros(len(labels))
-        for idx in members:
-            v = x[idx, j]
-            cmp = (v[:, None] > v[None, :]) + 0.5 * (v[:, None] == v[None, :])  # cmp[i, k] = i가 k보다 큰가
-            yy = labels[:, idx]
-            wins += np.einsum("pi,ik,pk->p", yy, cmp, 1 - yy)
-            pairs += yy.sum(axis=1) * (1 - yy).sum(axis=1)
+        for idx, pos in zip(members, n1, strict=True):
+            # 맨-휘트니: 성공작들의 평균 순위 합에서 n1(n1+1)/2를 빼면 이긴 쌍 수 (같은 값은 0.5)
+            r = _midranks(x[idx, j])
+            wins += labels[:, idx].astype(np.float64) @ r - pos * (pos + 1) / 2
+            pairs += pos * (len(idx) - pos)
         if pairs[0] == 0:
             continue
         aucs = wins / pairs
