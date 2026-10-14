@@ -194,6 +194,26 @@ def write_kit(task: Task, out_dir: Path, locked_dir: Path) -> dict:
     }
 
 
+KIT_FILES = ["README.md", "MODELS.md", "NOTICE.md", "bench_eval.py", "example_baseline.py", "embed.py"]
+KIT_VERSION = "v1"
+
+
+def pack_kit(out_dir: Path) -> Path:
+    """안내문·채점기·예제를 키트 폴더에 넣고 zip으로 묶는다 (시험용 정답은 들어가지 않는다)"""
+    import shutil
+    import zipfile
+
+    src = Path(__file__).parent / "bench_kit"
+    for name in KIT_FILES:
+        shutil.copyfile(src / name, out_dir / name)
+    zip_path = out_dir.parent / f"bench-kit-{KIT_VERSION}.zip"
+    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as z:
+        for f in sorted(out_dir.rglob("*")):
+            if f.is_file():
+                z.write(f, Path(f"bench-kit-{KIT_VERSION}") / f.relative_to(out_dir))
+    return zip_path
+
+
 # ---------- 학습기 ----------
 
 

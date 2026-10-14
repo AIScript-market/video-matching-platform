@@ -420,6 +420,8 @@ def main(argv: list[str] | None = None) -> int:
     elif args.cmd == "bench-build":
         rows = [model_bench.write_kit(_bench_task(name), args.out, args.locked) for name in args.tasks]
         (args.out / "manifest.json").write_text(json.dumps(rows, ensure_ascii=False, indent=2), encoding="utf-8")
+        zip_path = model_bench.pack_kit(args.out)
+        print(f"키트: {zip_path} ({zip_path.stat().st_size / 1e6:.0f}MB)")
         for r in rows:
             sha = r["testLabelsSha256"][:16]
             print(f"{r['task']}: 개발용 {r['dev']}행({r['devGroups']}묶음), 시험용 {r['test']}행({r['testGroups']}묶음), 잠긴 정답 sha256 {sha}…")
