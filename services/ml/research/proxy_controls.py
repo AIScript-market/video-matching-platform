@@ -166,9 +166,12 @@ def controlled_tests(
     permutations: int = 2000,
     seed: int = 0,
     tags: np.ndarray | None = None,
+    y: np.ndarray | None = None,
 ) -> dict:
-    """genres는 작품마다 대표 갈래 하나. tags(작품 × 갈래 0/1)가 있으면 회귀 통제에는 여러 갈래를 모두 쓴다"""
-    y = np.array([1.0 if w.adapted else 0.0 for w in works])
+    """genres는 작품마다 대표 갈래 하나. tags(작품 × 갈래 0/1)가 있으면 회귀 통제에는 여러 갈래를 모두 쓴다.
+    y를 주지 않으면 정답은 "영상화됐는가"다 (흥행 분석처럼 다른 정답을 쓸 때 y를 준다)."""
+    if y is None:
+        y = np.array([1.0 if w.adapted else 0.0 for w in works])
     authors = np.array([w.author for w in works])
     g = np.array(genres)
     out: dict = {"baseline": feature_tests(x, y, authors, names, permutations=permutations, seed=seed)}

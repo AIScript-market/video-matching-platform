@@ -26,7 +26,7 @@ import numpy as np
 
 from hitmodel.embedders import embedder_from_name
 
-from . import blind, proxy, proxy_controls, proxy_explore
+from . import blind, proxy, proxy_controls, proxy_explore, proxy_success
 from .dataset import load_pilot
 from .feasibility import analyze as run_analysis
 from .feasibility import power_table
@@ -167,6 +167,14 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--out", type=Path, default=Path("research/out"))
     p.add_argument("--permutations", type=int, default=2000)
 
+    p = sub.add_parser("proxy-success", help="영상화된 작품끼리 흥행을 가르는 요소 (재영상화·인지도·조회수 종합 점수)")
+    p.add_argument("--manifest", type=Path, default=proxy_dir / "manifest.csv")
+    p.add_argument("--texts", type=Path, default=proxy_dir / "texts")
+    p.add_argument("--catalog", type=Path, default=proxy_dir / "pg_catalog.csv")
+    p.add_argument("--bge-cache", type=Path, default=proxy_dir / "bge-segments.npz")
+    p.add_argument("--out", type=Path, default=Path("research/out"))
+    p.add_argument("--permutations", type=int, default=2000)
+
     args = parser.parse_args(argv)
     if args.cmd == "synthetic":
         write_synthetic_pilot(args.out, channels=args.channels, scripts_per_channel=args.scripts, signal=args.signal, seed=args.seed)
@@ -289,6 +297,36 @@ def main(argv: list[str] | None = None) -> int:
         args.out.mkdir(parents=True, exist_ok=True)
         (args.out / "proxy-bge.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
         print(f"작품 {len(works)}편: {args.out / 'proxy-bge.json'}")
+    elif args.cmd == "proxy-success":
+        works, texts = proxy.load_corpus(args.manifest, args.texts)
+        by_id = proxy_controls.read_catalog(args.catalog, [w.gutenberg for w in works])
+        tag_sets = [by_id.get(w.gutenberg, set()) for w in works]
+        genres = [proxy_controls.primary_genre(t) for t in tag_sets]
+        tags = proxy_controls.tag_matrix(tag_sets)
+        adapted = [w.work for w in works if w.adapted]
+        ads = proxy_success.load_or_fetch(proxy_dir / "adaptations.json", lambda: proxy_success.fetch_adaptations(adapted))
+        pv_path = proxy_dir / "pageviews.json"
+        cached = json.loads(pv_path.read_text(encoding="utf-8")) if pv_path.exists() else {}
+        pageviews = proxy_success.fetch_pageviews([a["enwiki"] for a in ads if a["enwiki"]], cached)
+        pv_path.write_text(json.dumps(pageviews, ensure_ascii=False), encoding="utf-8")
+        labels = proxy_success.success_labels(works, ads, pageviews)
+        # 보여 주기 지수: 1단계(영상화 여부)에서 찾은 낱말을 그대로 쓴다 (흥행 정답은 보지 않고 정한 요소)
+        vocab, freq = proxy_explore.word_counts(texts)
+        y_adapted = np.array([1.0 if w.adapted else 0.0 for w in works])
+        word_t = proxy_explore.distinctive_words(freq, y_adapted, np.array([w.author for w in works]), vocab)["t"]
+        pooled = None
+        if args.bge_cache.exists():
+            with np.load(args.bge_cache, allow_pickle=False) as f:
+                by_work = {str(i): v.mean(axis=0) for i, v in zip(f["ids"], f["vectors"], strict=True)}
+            if all(w.work in by_work for w in works):
+                pooled = np.stack([by_work[w.work] for w in works]).astype(np.float64)
+                pooled /= np.linalg.norm(pooled, axis=1, keepdims=True)
+        report = proxy_success.analyze_success(works, texts, labels, genres, tags, pooled, word_t, freq, permutations=args.permutations)
+        report["labels"] = labels
+        report["adaptationsCount"] = len(ads)
+        args.out.mkdir(parents=True, exist_ok=True)
+        (args.out / "proxy-success.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+        print(f"영상화 작품 {report['works']}편, 작가 {report['authors']}명, 흥행 {report['hits']}편: {args.out / 'proxy-success.json'}")
     return 0
 
 
