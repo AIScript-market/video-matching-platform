@@ -158,6 +158,15 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--embedder", default="hash-ngram")
     p.add_argument("--permutations", type=int, default=2000)
 
+    p = sub.add_parser("proxy-bge", help="bge-m3 장면 벡터로 벡터 흐름 요소와 벡터 모델 다시 보기 (CPU로 수 시간, 이어서 계산 가능)")
+    p.add_argument("--manifest", type=Path, default=proxy_dir / "manifest.csv")
+    p.add_argument("--texts", type=Path, default=proxy_dir / "texts")
+    p.add_argument("--catalog", type=Path, default=proxy_dir / "pg_catalog.csv")
+    p.add_argument("--cache", type=Path, default=proxy_dir / "bge-segments.npz")
+    p.add_argument("--sample-chars", type=int, default=2000)
+    p.add_argument("--out", type=Path, default=Path("research/out"))
+    p.add_argument("--permutations", type=int, default=2000)
+
     args = parser.parse_args(argv)
     if args.cmd == "synthetic":
         write_synthetic_pilot(args.out, channels=args.channels, scripts_per_channel=args.scripts, signal=args.signal, seed=args.seed)
@@ -254,6 +263,32 @@ def main(argv: list[str] | None = None) -> int:
         args.out.mkdir(parents=True, exist_ok=True)
         (args.out / "proxy-explore.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
         print(f"작품 {len(works)}편, 낱말 {len(vocab)}개: {args.out / 'proxy-explore.json'}")
+    elif args.cmd == "proxy-bge":
+        works, texts = proxy.load_corpus(args.manifest, args.texts)
+        by_id = proxy_controls.read_catalog(args.catalog, [w.gutenberg for w in works])
+        tag_sets = [by_id.get(w.gutenberg, set()) for w in works]
+        genres = [proxy_controls.primary_genre(t) for t in tag_sets]
+        tags = proxy_controls.tag_matrix(tag_sets)
+        log_chars = np.array([math.log1p(len(t)) for t in texts])
+        vectors = proxy_explore.embed_segments_cached(texts, [w.work for w in works], args.cache, sample_chars=args.sample_chars)
+        traj = proxy_explore.trajectory_from_vectors(vectors)
+        trajectory = proxy_controls.controlled_tests(
+            traj, proxy_explore.TRAJECTORY_FEATURES, works, genres, log_chars, permutations=args.permutations, tags=tags
+        )
+        pooled = vectors.mean(axis=1)
+        pooled /= np.linalg.norm(pooled, axis=1, keepdims=True)
+        feats = feature_matrix(texts, ["en"] * len(texts))
+        models = proxy_controls.model_within_genre(works, texts, feats, genres, None, permutations=args.permutations, pooled=pooled, embedder_name="bge-m3")
+        report = {
+            "embedder": "bge-m3",
+            "sampleChars": args.sample_chars,
+            "works": len(works),
+            "trajectory": {n: proxy_controls.summarize(trajectory, n) for n in proxy_explore.TRAJECTORY_FEATURES},
+            "models": models,
+        }
+        args.out.mkdir(parents=True, exist_ok=True)
+        (args.out / "proxy-bge.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+        print(f"작품 {len(works)}편: {args.out / 'proxy-bge.json'}")
     return 0
 
 

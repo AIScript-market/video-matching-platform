@@ -8,7 +8,9 @@
 from __future__ import annotations
 
 import re
+import time
 from collections import Counter
+from pathlib import Path
 
 import numpy as np
 
@@ -59,11 +61,60 @@ def trajectory_features(v: np.ndarray) -> dict[str, float]:
 
 
 def trajectory_matrix(texts: list[str], embedder: Embedder) -> np.ndarray:
+    return trajectory_from_vectors([segment_vectors(t, embedder) for t in texts])
+
+
+def trajectory_from_vectors(vectors) -> np.ndarray:
     rows = []
-    for t in texts:
-        f = trajectory_features(segment_vectors(t, embedder))
+    for v in vectors:
+        f = trajectory_features(np.asarray(v, dtype=np.float64))
         rows.append([f[k] for k in TRAJECTORY_FEATURES])
     return np.array(rows, dtype=float)
+
+
+def sample_segments(text: str, segments: int = SEGMENTS, sample_chars: int = 2000) -> list[str]:
+    """같은 길이 구간으로 나누고, 구간마다 앞쪽 sample_chars자만 쓴다 (큰 모델은 느려서)"""
+    size = max(1, len(text) // segments)
+    return [text[i * size : i * size + min(size, sample_chars)] for i in range(segments)]
+
+
+def embed_segments_cached(
+    texts: list[str],
+    ids: list[str],
+    cache: Path,
+    *,
+    model_name: str = "BAAI/bge-m3",
+    segments: int = SEGMENTS,
+    sample_chars: int = 2000,
+    batch_size: int = 8,
+    save_every: int = 10,
+    log=print,
+) -> np.ndarray:
+    """(작품, 구간, 차원) 벡터. 작품마다 캐시에 쌓아 두어, 중간에 멈춰도 이어서 계산한다"""
+    from sentence_transformers import SentenceTransformer  # 선택 의존성 (requirements-bge.txt)
+
+    done: dict[str, np.ndarray] = {}
+    if cache.exists():
+        with np.load(cache, allow_pickle=False) as f:
+            done = {str(i): v for i, v in zip(f["ids"], f["vectors"], strict=True)}
+    todo = [(i, t) for i, t in zip(ids, texts, strict=True) if i not in done]
+    if todo:
+        model = SentenceTransformer(model_name, device="cpu")
+        model.max_seq_length = 512
+        start = time.time()
+
+        def save() -> None:
+            cache.parent.mkdir(parents=True, exist_ok=True)
+            keys = list(done)
+            np.savez(cache, ids=np.array(keys), vectors=np.stack([done[k] for k in keys]).astype(np.float32))
+
+        for n, (i, t) in enumerate(todo, start=1):
+            done[i] = model.encode(sample_segments(t, segments, sample_chars), batch_size=batch_size, normalize_embeddings=True)
+            if n % save_every == 0 or n == len(todo):
+                save()
+                left = (time.time() - start) / n * (len(todo) - n)
+                log(f"{len(done)}/{len(ids)} 작품, 남은 시간 약 {left / 60:.0f}분")
+    return np.stack([done[i] for i in ids]).astype(np.float64)
 
 
 # ---------- 특징 낱말 ----------

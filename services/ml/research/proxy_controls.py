@@ -226,9 +226,17 @@ def summarize(controlled: dict, feature: str) -> dict:
 
 
 def model_within_genre(
-    works: list[ProxyWork], texts: list[str], feats: np.ndarray, genres: list[str], embedder: Embedder, permutations: int = 2000, seed: int = 0
+    works: list[ProxyWork],
+    texts: list[str],
+    feats: np.ndarray,
+    genres: list[str],
+    embedder: Embedder | None,
+    permutations: int = 2000,
+    seed: int = 0,
+    pooled: np.ndarray | None = None,
+    embedder_name: str | None = None,
 ) -> dict:
-    """작가 빼고 맞힌 모델 점수를 장르 안에서도 맞히는지 본다.
+    """작가 빼고 맞힌 모델 점수를 장르 안에서도 맞히는지 본다. pooled(작품 벡터)를 주면 embedder 대신 그걸 쓴다.
 
     점수는 그 작가를 빼고 학습한 모델이 낸 것이라, 그 작가의 정답을 섞는 순열 검정을 그대로 쓸 수 있다.
     """
@@ -237,7 +245,9 @@ def model_within_genre(
     g = np.array(genres)
     known = g != UNKNOWN
     strata = np.array([f"{a}|{gg}" for a, gg in zip(authors, g, strict=True)])
-    predict, _ = fold_predictor(pool_texts(texts, embedder), feats, y, authors, embedder.name, seed=seed)
+    if pooled is None:
+        pooled = pool_texts(texts, embedder)
+    predict, _ = fold_predictor(pooled, feats, y, authors, embedder_name or embedder.name, seed=seed)
     out: dict = {}
     for key, use_vectors in (("storyFeatures", False), ("storyFeaturesAndVector", True)):
         s = predict(y, use_vectors).reshape(-1, 1)
