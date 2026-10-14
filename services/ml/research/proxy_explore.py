@@ -88,6 +88,7 @@ def embed_segments_cached(
     sample_chars: int = 2000,
     batch_size: int = 8,
     save_every: int = 10,
+    works_per_call: int = 1,
     log=print,
 ) -> np.ndarray:
     """(작품, 구간, 차원) 벡터. 작품마다 캐시에 쌓아 두어, 중간에 멈춰도 이어서 계산한다"""
@@ -108,9 +109,17 @@ def embed_segments_cached(
             keys = list(done)
             np.savez(cache, ids=np.array(keys), vectors=np.stack([done[k] for k in keys]).astype(np.float32))
 
-        for n, (i, t) in enumerate(todo, start=1):
-            done[i] = model.encode(sample_segments(t, segments, sample_chars), batch_size=batch_size, normalize_embeddings=True)
-            if n % save_every == 0 or n == len(todo):
+        # works_per_call편의 구간을 한 번에 넣는다. CPU에서는 길이가 다른 글을 묶으면 짧은 글이 긴 글 길이로 채워져 오히려 느려서 기본은 1편
+        per_call = works_per_call
+        n = 0
+        for c in range(0, len(todo), per_call):
+            chunk = todo[c : c + per_call]
+            texts_flat = [s for _, t in chunk for s in sample_segments(t, segments, sample_chars)]
+            vecs = model.encode(texts_flat, batch_size=batch_size, normalize_embeddings=True)
+            for k, (i, _) in enumerate(chunk):
+                done[i] = vecs[k * segments : (k + 1) * segments]
+            before, n = n, n + len(chunk)
+            if n // save_every > before // save_every or n == len(todo):
                 save()
                 left = (time.time() - start) / n * (len(todo) - n)
                 log(f"{len(done)}/{len(ids)} 작품, 남은 시간 약 {left / 60:.0f}분")

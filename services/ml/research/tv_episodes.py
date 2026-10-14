@@ -353,3 +353,47 @@ def episode_labels(episodes: list[Episode]) -> list[dict]:
             for i, v in zip(idx, vals, strict=True):
                 out[i][f"{key}Hit"] = bool(v >= cut)
     return out
+
+
+# ---------- 분석 ----------
+
+
+def analyze_tv(episodes: list[Episode], labels: list[dict], vectors: np.ndarray | None = None, permutations: int = 2000, seed: int = 0) -> dict:
+    """같은 시리즈 안에서 흥행한 화와 아닌 화를 줄거리로 가르는가. 줄거리 길이는 언제나 뺀다 (인기 있는 화일수록 길게 쓰였을 수 있어서)"""
+    from .proxy import feature_tests, fold_predictor
+    from .proxy_controls import residualize
+    from .story_features import STORY_FEATURES, feature_matrix
+
+    texts = [e.summary for e in episodes]
+    x = feature_matrix(texts, ["en"] * len(texts))
+    log_words = np.array([math.log(len(t.split())) for t in texts])
+    series = np.array([e.series for e in episodes])
+    seasons = np.array([f"{e.series}|{e.season}" for e in episodes])
+    report: dict = {"episodes": len(episodes), "series": len(set(series.tolist()))}
+    for key in ("retention", "own"):
+        m = np.array([f"{key}Hit" in lab for lab in labels])
+        y = np.array([1.0 if labels[i].get(f"{key}Hit") else 0.0 for i in range(len(labels))])[m]
+        xs = residualize(x[m], series[m], log_words[m].reshape(-1, 1))
+        out: dict = {
+            "episodes": int(m.sum()),
+            "hits": int(y.sum()),
+            "summaryLength": feature_tests(log_words[m].reshape(-1, 1), y, series[m], ["log_words"], permutations=permutations, seed=seed)[0],
+            "featuresSameSeries": feature_tests(xs, y, series[m], list(STORY_FEATURES), permutations=permutations, seed=seed),
+            "featuresSameSeason": feature_tests(xs, y, seasons[m], list(STORY_FEATURES), permutations=permutations, seed=seed),
+        }
+        if vectors is not None:
+            predict, lam = fold_predictor(vectors[m], x[m], y, series[m], "bge-m3", seed=seed)
+            models = {}
+            for name, use_vectors in (("storyFeatures", False), ("storyFeaturesAndVector", True)):
+                s = predict(y, use_vectors)
+                ok = ~np.isnan(s)
+                # 모델 점수에서도 줄거리 길이 몫을 뺀 뒤 잰다
+                sr = residualize(s[ok].reshape(-1, 1), series[m][ok], log_words[m][ok].reshape(-1, 1))
+                models[name] = {
+                    "sameSeries": feature_tests(sr, y[ok], series[m][ok], [name], permutations=permutations, seed=seed)[0],
+                    "sameSeason": feature_tests(sr, y[ok], seasons[m][ok], [name], permutations=permutations, seed=seed)[0],
+                }
+            out["models"] = models
+            out["lambda"] = lam
+        report[key] = out
+    return report

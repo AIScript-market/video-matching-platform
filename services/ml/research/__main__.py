@@ -26,7 +26,7 @@ import numpy as np
 
 from hitmodel.embedders import embedder_from_name
 
-from . import blind, proxy, proxy_controls, proxy_explore, proxy_success
+from . import blind, cmu_movies, proxy, proxy_controls, proxy_explore, proxy_success, tv_episodes
 from .dataset import load_pilot
 from .feasibility import analyze as run_analysis
 from .feasibility import power_table
@@ -172,6 +172,27 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--texts", type=Path, default=proxy_dir / "texts")
     p.add_argument("--catalog", type=Path, default=proxy_dir / "pg_catalog.csv")
     p.add_argument("--bge-cache", type=Path, default=proxy_dir / "bge-segments.npz")
+    p.add_argument("--out", type=Path, default=Path("research/out"))
+    p.add_argument("--permutations", type=int, default=2000)
+
+    tv_dir = Path("research/data/tv")
+    p = sub.add_parser("tv-fetch", help="위키백과에서 미국 TV 시리즈 에피소드 줄거리·시청자 수 받기")
+    p.add_argument("--out", type=Path, default=tv_dir / "episodes.json")
+
+    p = sub.add_parser("tv-analyze", help="같은 시리즈 안에서 시청자를 붙잡은 화를 줄거리로 가르는가")
+    p.add_argument("--episodes", type=Path, default=tv_dir / "episodes.json")
+    p.add_argument("--bge-cache", type=Path, default=tv_dir / "bge-episodes.npz")
+    p.add_argument("--out", type=Path, default=Path("research/out"))
+    p.add_argument("--permutations", type=int, default=2000)
+
+    cmu_dir = Path("research/data/cmu")
+    p = sub.add_parser("cmu-embed", help="영화 줄거리를 bge-m3로 벡터화 (앞 3,000자, 이어서 계산 가능)")
+    p.add_argument("--raw", type=Path, default=cmu_dir / "raw")
+    p.add_argument("--cache", type=Path, default=cmu_dir / "bge-movies.npz")
+
+    p = sub.add_parser("cmu-analyze", help="같은 장르·같은 5년 안에서 줄거리로 흥행작을 가르는가")
+    p.add_argument("--raw", type=Path, default=cmu_dir / "raw")
+    p.add_argument("--bge-cache", type=Path, default=cmu_dir / "bge-movies.npz")
     p.add_argument("--out", type=Path, default=Path("research/out"))
     p.add_argument("--permutations", type=int, default=2000)
 
@@ -327,6 +348,47 @@ def main(argv: list[str] | None = None) -> int:
         args.out.mkdir(parents=True, exist_ok=True)
         (args.out / "proxy-success.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
         print(f"영상화 작품 {report['works']}편, 작가 {report['authors']}명, 흥행 {report['hits']}편: {args.out / 'proxy-success.json'}")
+    elif args.cmd == "tv-fetch":
+        episodes = tv_episodes.fetch_series()
+        tv_episodes.save(episodes, args.out)
+        print(f"에피소드 {len(episodes)}편: {args.out}")
+    elif args.cmd == "tv-analyze":
+        episodes = tv_episodes.usable(tv_episodes.load(args.episodes))
+        labels = tv_episodes.episode_labels(episodes)
+        vectors = None
+        if args.bge_cache.exists():
+            from .tv_embed import episode_id
+
+            with np.load(args.bge_cache, allow_pickle=False) as f:
+                by_id = {str(i): v[0] for i, v in zip(f["ids"], f["vectors"], strict=True)}
+            ids = [episode_id(e) for e in episodes]
+            if all(i in by_id for i in ids):
+                vectors = np.stack([by_id[i] for i in ids]).astype(np.float64)
+        report = tv_episodes.analyze_tv(episodes, labels, vectors, permutations=args.permutations)
+        report["withVectors"] = vectors is not None
+        args.out.mkdir(parents=True, exist_ok=True)
+        (args.out / "tv-report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+        print(f"에피소드 {report['episodes']}편, 시리즈 {report['series']}개 (벡터 {'포함' if vectors is not None else '없음'}): {args.out / 'tv-report.json'}")
+    elif args.cmd == "cmu-embed":
+        movies = cmu_movies.usable(cmu_movies.load_movies(args.raw))
+        v = proxy_explore.embed_segments_cached(
+            [m.summary for m in movies], [m.wiki_id for m in movies], args.cache, segments=1, sample_chars=3000, save_every=200
+        )
+        print(f"영화 {len(movies)}편 벡터화 완료: {v.shape}")
+    elif args.cmd == "cmu-analyze":
+        movies = cmu_movies.usable(cmu_movies.load_movies(args.raw))
+        vectors = None
+        if args.bge_cache.exists():
+            with np.load(args.bge_cache, allow_pickle=False) as f:
+                by_id = {str(i): v[0] for i, v in zip(f["ids"], f["vectors"], strict=True)}
+            if all(m.wiki_id in by_id for m in movies):
+                vectors = np.stack([by_id[m.wiki_id] for m in movies]).astype(np.float64)
+        report = cmu_movies.analyze_movies(movies, vectors, permutations=args.permutations)
+        report["withVectors"] = vectors is not None
+        args.out.mkdir(parents=True, exist_ok=True)
+        name = "cmu-report.json" if vectors is not None else "cmu-report-novec.json"
+        (args.out / name).write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+        print(f"영화 {report['movies']}편, 묶음 {report['strata']}개 (벡터 {'포함' if vectors is not None else '없음'}): {args.out / name}")
     return 0
 
 
