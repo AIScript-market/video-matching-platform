@@ -48,7 +48,7 @@ export class PublicProfileDto {
   @ApiProperty({ nullable: true, type: String, description: '이메일 공개 시에만' }) email!: string | null;
   @ApiProperty() profilePublic!: boolean;
   @ApiProperty() emailPublic!: boolean;
-  @ApiProperty({ description: '대본 제공·영상 제작 가능 (프로필·이메일 공개)' }) creatorReady!: boolean;
+  @ApiProperty({ description: '대본 제공·영상 제작 가능 (소개 작성 + 프로필 공개)' }) creatorReady!: boolean;
   @ApiProperty({ format: 'date-time' }) createdAt!: Date;
   @ApiProperty({ type: [ProfileScriptDto], description: '공개 대본' }) scripts!: ProfileScriptDto[];
 }

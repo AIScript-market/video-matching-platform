@@ -75,11 +75,12 @@ function ProfileSection() {
         {user!.creatorReady ? (
           <span className="badge ok">대본 제공·영상 제작 가능</span>
         ) : (
-          <span className="badge warn">프로필·이메일 공개 필요</span>
+          <span className="badge warn">프로필 공개 필요</span>
         )}
       </div>
       <p className="small muted">
-        대본을 올리거나 제작을 제안하려면 <strong>소개를 쓰고 프로필과 이메일을 공개</strong>해야 합니다. 공개 프로필에는 이름, 소개, 이메일, 공개한 대본이 보입니다.
+        대본을 올리거나 제작을 제안하려면 <strong>소개를 쓰고 프로필을 공개</strong>해야 합니다. 공개 프로필에는 이름, 소개, 공개한 대본이 보입니다.
+        이메일 공개는 선택입니다. 계약 전 연락은 플랫폼 메시지로 하는 것을 권합니다.
       </p>
       <label>
         이름(활동명)
@@ -163,7 +164,10 @@ function CoinSection() {
           <p className="small muted">
             메시지 {wallet.prices.MESSAGE}코인 · 미리보기 열람 {wallet.prices.PREVIEW_UNLOCK}코인(대본당 한 번) · 대본 파일 업로드 {wallet.prices.SCRIPT_UPLOAD}코인
           </p>
-          <div className="grid">
+          {!wallet.purchaseEnabled && (
+            <p className="notice small">베타 기간에는 코인을 살 수 없습니다. 코인이 더 필요하면 운영자에게 문의해 주세요.</p>
+          )}
+          {wallet.purchaseEnabled && <div className="grid">
             {wallet.packages.map((p) => (
               <div key={p.id} className="card stack">
                 <strong>{p.label}</strong>
@@ -171,8 +175,8 @@ function CoinSection() {
                 <button onClick={() => buy(p.id, p.label)}>구매</button>
               </div>
             ))}
-          </div>
-          {wallet.testPayments && (
+          </div>}
+          {wallet.purchaseEnabled && wallet.testPayments && (
             <p className="small muted">※ 지금은 실제 결제가 연결되어 있지 않아 테스트 결제로 바로 충전됩니다.</p>
           )}
         </>

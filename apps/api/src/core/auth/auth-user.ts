@@ -33,9 +33,10 @@ export const AUTH_USER_SELECT = {
 } as const;
 
 /**
- * 대본 제공·영상 제작을 할 수 있는가: 프로필(소개 포함)과 이메일을 공개해야 한다.
+ * 대본 제공·영상 제작을 할 수 있는가: 프로필(소개 포함)을 공개해야 한다.
+ * 이메일 공개는 필요 없다. 계약 전 연락은 플랫폼 메시지로만 한다 (직거래를 쉽게 만들지 않으려고, docs/business-model.md).
  * 관리자 계정은 운영용이라 창작 활동 대상이 아니다.
  */
-export function isCreatorReady(user: Pick<AuthUser, 'bio' | 'profilePublic' | 'emailPublic' | 'roles'>): boolean {
-  return !user.roles.includes('ADMIN') && user.profilePublic && user.emailPublic && Boolean(user.bio?.trim());
+export function isCreatorReady(user: Pick<AuthUser, 'bio' | 'profilePublic' | 'roles'>): boolean {
+  return !user.roles.includes('ADMIN') && user.profilePublic && Boolean(user.bio?.trim());
 }

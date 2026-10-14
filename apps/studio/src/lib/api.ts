@@ -16,6 +16,7 @@ export type Role = Me["roles"][number];
 export type Wallet = Schemas["WalletDto"];
 export type CoinTransaction = Schemas["CoinTransactionDto"];
 export type PublicProfile = Schemas["PublicProfileDto"];
+export type PublicConfig = Schemas["PublicConfigDto"];
 
 /** API 오류. code로 화면이 상황별 안내(프로필 공개, 코인 충전 등)를 띄운다 */
 export class ApiError extends Error {
