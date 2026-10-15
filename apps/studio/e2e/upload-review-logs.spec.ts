@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { coinBadge, creator, login, SEED, suffix as makeSuffix } from "./helpers";
+import { coinBadge, creator, login, requestAccessWithNda, SEED, suffix as makeSuffix } from "./helpers";
 
 test("대본가 파일 업로드 → 제작자 검토 후 메시지 → 관리자 로그", async ({ browser }) => {
   const id = makeSuffix();
@@ -33,10 +33,7 @@ test("대본가 파일 업로드 → 제작자 검토 후 메시지 → 관리�
 
   // 2. 제작자: 열람 요청 → 작가 승인 → 전문 검토 → 메시지
   await producer.goto(scriptUrl);
-  await producer.getByRole("button", { name: "전문 열람 요청" }).click();
-  const nda = producer.getByRole("dialog", { name: "비밀유지 동의 (NDA)" });
-  await nda.getByLabel("위 내용에 동의합니다").check();
-  await nda.getByRole("button", { name: "동의하고 요청" }).click();
+  await requestAccessWithNda(producer, "검토제작자");
   await writer.goto("/dashboard");
   await writer.getByRole("row", { name: new RegExp(`${title}.*검토제작자`) }).getByRole("button", { name: "승인" }).click();
 

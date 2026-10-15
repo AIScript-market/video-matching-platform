@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { coinBadge, creator, login, makeCreator, SEED, signup, suffix } from "./helpers";
+import { coinBadge, creator, login, makeCreator, requestAccessWithNda, SEED, signup, suffix } from "./helpers";
 
 test("계정 종류는 일반·관리자, 정지된 계정은 로그인할 수 없다", async ({ browser }) => {
   const nav = (page: import("@playwright/test").Page) => page.getByRole("navigation");
@@ -76,6 +76,7 @@ test("관리자 정지 → 이용·재가입 차단 → 해제, 탈퇴 → 같�
   await again.getByLabel("이름(활동명)").fill("재가입");
   await again.getByLabel("이메일").fill(badEmail);
   await again.getByLabel("비밀번호 (8자 이상)").fill("password1234");
+  await again.getByLabel(/개인정보 처리방침에 동의/).check();
   await again.getByRole("button", { name: "가입하기" }).click();
   await expect(again.getByText("정지된 이메일", { exact: false })).toBeVisible();
 
@@ -117,10 +118,7 @@ test("코인: 구매(테스트 결제), 메시지마다 차감, 부족하면 충
 
   // 제작자: 열람 요청 → 승인 → 협상 시작
   await producer.goto(scriptUrl);
-  await producer.getByRole("button", { name: "전문 열람 요청" }).click();
-  const nda = producer.getByRole("dialog", { name: "비밀유지 동의 (NDA)" });
-  await nda.getByLabel("위 내용에 동의합니다").check();
-  await nda.getByRole("button", { name: "동의하고 요청" }).click();
+  await requestAccessWithNda(producer, "제작자");
   await writer.goto("/dashboard");
   await writer.getByRole("row", { name: new RegExp(title) }).getByRole("button", { name: "승인" }).click();
   await producer.reload();

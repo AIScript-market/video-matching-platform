@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { creator, suffix as makeSuffix } from "./helpers";
+import { creator, login, requestAccessWithNda, SEED, signContract, suffix as makeSuffix } from "./helpers";
 
 const suffix = makeSuffix();
 
@@ -32,11 +32,7 @@ test("대본 제공자와 제작자가 대본으로 매칭되어 딜이 만들�
   await producer.getByRole("button", { name: "스릴러" }).click();
   await producer.getByRole("link", { name: new RegExp(title) }).click();
   await expect(producer.getByText("전문은 작가와 열람 승인을 받은 제작자만")).toBeVisible();
-  await producer.getByRole("button", { name: "전문 열람 요청" }).click();
-  const nda = producer.getByRole("dialog", { name: "비밀유지 동의 (NDA)" });
-  await expect(nda.getByRole("button", { name: "동의하고 요청" })).toBeDisabled();
-  await nda.getByLabel("위 내용에 동의합니다").check();
-  await nda.getByRole("button", { name: "동의하고 요청" }).click();
+  await requestAccessWithNda(producer, "제작자E2E");
   await expect(producer.getByText("작가의 승인을 기다리고 있습니다")).toBeVisible();
 
   // 4. 작가가 대시보드에서 승인
@@ -80,7 +76,59 @@ test("대본 제공자와 제작자가 대본으로 매칭되어 딜이 만들�
   await expect(producer.getByText("작가 55% / 제작자 45%").first()).toBeVisible();
   await expect(producer.getByText("영상화 권리 독점 이용")).toBeVisible();
 
+  const dealUrl = producer.url();
+
   // 8. 작가의 '내 딜'에도 보인다
   await writer.goto("/deals");
   await expect(writer.getByRole("link", { name: new RegExp(title) })).toBeVisible();
+
+  // 9. 대본 이용허락 계약: 작가·제작자가 서명하면 딜이 진행 중이 된다
+  await writer.goto(dealUrl);
+  const license = writer.getByRole("region", { name: "계약서" }).first();
+  await expect(license.getByText("광고 수익 배분: 작가 55% / 제작자 45%")).toBeVisible();
+  await signContract(writer, "작가E2E");
+  await expect(license.getByText("서명 대기")).toHaveCount(1);
+  await producer.reload();
+  await signContract(producer, "제작자E2E");
+  await expect(producer.getByText("서명 완료").first()).toBeVisible();
+  await producer.reload();
+  await expect(producer.getByText("진행 중").first()).toBeVisible();
+
+  // 10. 제작자: 채널 게시 계약 서명 → 영상 제출
+  const videos = producer.getByRole("region", { name: "채널 영상" });
+  await signContract(producer, "제작자E2E");
+  const submit = videos.getByRole("form", { name: "영상 제출" });
+  await submit.getByLabel("제목").fill(`${title} 1화`);
+  await submit.getByLabel(/검수용 영상 링크/).fill("https://drive.example.com/e2e-video");
+  await expect(submit.getByRole("button", { name: "제출하기" })).toBeDisabled();
+  for (const label of [/음원은 모두/, /소재는 모두/, /출연자 전원/, /유료 광고 포함/]) await submit.getByLabel(label).check();
+  await submit.getByRole("button", { name: "제출하기" }).click();
+  await expect(videos.getByText("검수 대기")).toBeVisible();
+
+  // 11. 관리자: 승인 → 게시 기록 → 지난달 확정 수익 기록
+  const admin = await login(browser, SEED.admin.email, SEED.admin.password);
+  await admin.goto("/admin/videos");
+  const card = admin.getByRole("region", { name: `${title} 1화` });
+  await card.getByRole("button", { name: "승인" }).click();
+  await admin.getByRole("button", { name: "게시 대기" }).click();
+  await card.getByPlaceholder("채널 이름").fill("스릴러 채널");
+  await card.getByPlaceholder(/YouTube 영상 번호/).fill(`e2e${suffix}`.padEnd(11, "x").slice(0, 11));
+  await card.getByRole("button", { name: "게시 기록" }).click();
+  await admin.getByRole("button", { name: "게시됨" }).click();
+  const d = new Date();
+  const lastMonth = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - 1, 1)).toISOString().slice(0, 7);
+  await card.getByPlaceholder("정산 월 YYYY-MM").fill(lastMonth);
+  await card.getByPlaceholder("확정 수익 (원)").fill("10001");
+  await card.getByRole("button", { name: "수익 기록" }).click();
+  await expect(admin.getByText(`${lastMonth} 수익을 기록했습니다`)).toBeVisible();
+
+  // 12. 정산서: 작가 55% 내림(5,500원), 제작자 나머지(4,501원) → 관리자가 작가 지급 기록
+  await admin.goto(dealUrl);
+  const settlement = admin.getByRole("region", { name: "정산" });
+  await expect(settlement.getByText("5,500원").first()).toBeVisible();
+  await expect(settlement.getByText("4,501원").first()).toBeVisible();
+  await settlement.getByRole("button", { name: "지급 기록" }).first().click();
+  await expect(settlement.getByText("지급 5,500원")).toBeVisible();
+  await writer.goto(dealUrl);
+  await expect(writer.getByRole("region", { name: "정산" }).getByText("지급 5,500원")).toBeVisible();
 });

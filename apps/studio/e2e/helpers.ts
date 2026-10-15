@@ -27,12 +27,32 @@ export async function signup(browser: Browser, opts: { name: string; email: stri
   await page.getByLabel("이름(활동명)").fill(opts.name);
   await page.getByLabel("이메일").fill(opts.email);
   await page.getByLabel("비밀번호 (8자 이상)").fill("password1234");
+  await page.getByLabel(/개인정보 처리방침에 동의/).check();
   await page.getByRole("button", { name: "가입하기" }).click();
   await expect(page.getByRole("heading", { name: "내 계정" })).toBeVisible();
   return page;
 }
 
-/** 내 계정에서 소개를 쓰고 프로필·이메일을 공개한다 (대본 제공·영상 제작 가능 상태) */
+/** 대본 상세에서 비밀유지 서약서를 읽고 이름을 입력해 서명하며 열람을 요청한다 */
+export async function requestAccessWithNda(page: Page, name: string) {
+  await page.getByRole("button", { name: "전문 열람 요청" }).click();
+  const nda = page.getByRole("dialog", { name: "비밀유지 서약서" });
+  await expect(nda.getByText("제1조 (목적)", { exact: false })).toBeVisible();
+  await expect(nda.getByRole("button", { name: "서명하고 요청" })).toBeDisabled();
+  await nda.getByLabel("서명할 이름 (활동명)").fill(name);
+  await nda.getByLabel(/모두 읽고 이해했으며/).check();
+  await nda.getByRole("button", { name: "서명하고 요청" }).click();
+}
+
+/** 계약서 화면(딜·계약 상세)에서 계약서에 적힌 이름으로 전자서명한다 */
+export async function signContract(page: Page, name: string) {
+  const form = page.getByRole("form", { name: "전자서명" }).first();
+  await form.getByLabel(/계약서에 적힌 이름/).fill(name);
+  await form.getByLabel(/모두 읽고 이해했으며/).check();
+  await form.getByRole("button", { name: "서명하기" }).click();
+}
+
+/** 내 계정에서 소개를 쓰고 프로필·이메일을 공개한다 (이메일 공개는 선택이지만 공개 프로필 확인용으로 켠다) */
 export async function makeCreator(page: Page, bio = "영상화를 기다리는 이야기를 씁니다.") {
   await page.goto("/account");
   const profile = page.getByRole("form", { name: "프로필" });
