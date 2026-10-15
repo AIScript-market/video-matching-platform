@@ -1,0 +1,11 @@
+# 도메인으로 들어온 요청을 웹(studio)으로 넘긴다. API는 웹의 /api/* rewrite를 거쳐서만 닿는다.
+{$SITE_DOMAIN} {
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+	reverse_proxy studio:3000
+}

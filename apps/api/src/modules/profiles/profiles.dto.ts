@@ -27,6 +27,18 @@ export class UpdateProfileDto {
   emailPublic?: boolean;
 }
 
+export class ChangePasswordDto {
+  @ApiProperty({ description: '지금 비밀번호' })
+  @IsString()
+  @MaxLength(128)
+  currentPassword!: string;
+
+  @ApiProperty({ minLength: 8, maxLength: 128 })
+  @IsString()
+  @Length(8, 128, { message: '새 비밀번호는 8~128자여야 합니다' })
+  newPassword!: string;
+}
+
 export class WithdrawDto {
   @ApiProperty({ description: '본인 확인용 비밀번호' })
   @IsString()
@@ -48,7 +60,7 @@ export class PublicProfileDto {
   @ApiProperty({ nullable: true, type: String, description: '이메일 공개 시에만' }) email!: string | null;
   @ApiProperty() profilePublic!: boolean;
   @ApiProperty() emailPublic!: boolean;
-  @ApiProperty({ description: '대본 제공·영상 제작 가능 (프로필·이메일 공개)' }) creatorReady!: boolean;
+  @ApiProperty({ description: '대본 제공·영상 제작 가능 (소개 작성 + 프로필 공개)' }) creatorReady!: boolean;
   @ApiProperty({ format: 'date-time' }) createdAt!: Date;
   @ApiProperty({ type: [ProfileScriptDto], description: '공개 대본' }) scripts!: ProfileScriptDto[];
 }

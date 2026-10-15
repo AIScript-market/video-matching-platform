@@ -107,6 +107,8 @@ export class ScriptsService {
         status: 'DRAFT',
         rightsDeclared: declared,
         rightsDeclaredAt: declared ? new Date() : null,
+        trainingConsent: dto.trainingConsent === true,
+        trainingConsentAt: dto.trainingConsent === true ? new Date() : null,
       },
     });
     await this.requestSummary(script.id);
@@ -149,7 +151,7 @@ export class ScriptsService {
   async get(id: string, viewer: Viewer | null): Promise<ScriptDetailDto> {
     const script = await this.prisma.script.findUnique({
       where: { id },
-      select: { ...PUBLIC_SELECT, authorId: true, rightsDeclared: true, rightsDeclaredAt: true },
+      select: { ...PUBLIC_SELECT, authorId: true, rightsDeclared: true, rightsDeclaredAt: true, trainingConsent: true },
     });
     if (!script || !canSeeScript({ ...script, authorStatus: script.author.status }, viewer)) {
       throw new NotFoundException('대본을 찾을 수 없습니다');
@@ -250,6 +252,11 @@ export class ScriptsService {
         ...(dto.rightsDeclared === true &&
           !script.rightsDeclared && { rightsDeclared: true, rightsDeclaredAt: new Date() }),
         ...(dto.rightsDeclared === false && { rightsDeclared: false, rightsDeclaredAt: null }),
+        ...(dto.trainingConsent !== undefined &&
+          dto.trainingConsent !== script.trainingConsent && {
+            trainingConsent: dto.trainingConsent,
+            trainingConsentAt: dto.trainingConsent ? new Date() : null,
+          }),
       },
     });
     if (summaryChanged) await this.requestSummary(id);

@@ -49,6 +49,7 @@ export class WalletDto {
   @ApiProperty({ type: CoinPricesDto }) prices!: CoinPricesDto;
   @ApiProperty({ type: [CoinPackageDto] }) packages!: CoinPackageDto[];
   @ApiProperty({ description: '테스트 결제 여부 (실제 결제 미연동)' }) testPayments!: boolean;
+  @ApiProperty({ description: '코인을 살 수 있는가 (베타에서는 꺼짐)' }) purchaseEnabled!: boolean;
 }
 
 export const COIN_TX_TYPES = ['SIGNUP_BONUS', 'PURCHASE', 'SPEND', 'ADMIN_ADJUST'] as const;

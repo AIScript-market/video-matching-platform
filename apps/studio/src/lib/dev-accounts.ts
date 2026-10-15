@@ -22,6 +22,10 @@ export const DEV_ACCOUNTS: DevAccount[] = [
   { key: "producer2", label: "최제작", role: "일반 (공개)", email: "producer2@vmp.dev", password: "producer1234!", note: "열람 요청·미리보기·메시지 · 100코인", landing: "/scripts" },
   { key: "member1", label: "정일반", role: "일반 (비공개)", email: "member1@vmp.dev", password: "member1234!", note: "프로필 비공개 — 공개 전에는 창작 활동 불가 · 10코인", landing: "/account" },
   { key: "suspended1", label: "강정지", role: "정지된 계정", email: "suspended1@vmp.dev", password: "member1234!", note: "로그인 불가, 같은 이메일 재가입 불가", landing: "/scripts" },
+  { key: "talent1", label: "최한별", role: "출연자 (배우)", email: "talent1@vmp.dev", password: "talent1234!", note: "\"마지막 열차\" 정수 역 계약 · 1화 출연분 확인 대기", landing: "/talent" },
+  { key: "talent2", label: "정도윤", role: "출연자 (일반인)", email: "talent2@vmp.dev", password: "talent1234!", note: "공개 오디션 \"마지막 승객\"에 지원 가능", landing: "/casting" },
+  { key: "kid1", label: "윤서아", role: "출연자 (아역 14세)", email: "kid1@vmp.dev", password: "talent1234!", note: "수아 역 제안이 보호자 승인 대기", landing: "/talent" },
+  { key: "guardian1", label: "윤보호", role: "보호자", email: "guardian1@vmp.dev", password: "guardian1234!", note: "서아의 법정대리인 — 제안 승인·출연분 확인", landing: "/guardian" },
 ];
 
 /** 현재 접속 주소의 포트를 유지한 채 계정 전용 하위 주소를 만든다 */

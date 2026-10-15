@@ -62,5 +62,16 @@ jobs:
       - run: pnpm typecheck
       - name: 테스트 (단위·DB 통합·Redis 통합·API e2e)
         run: pnpm test
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: services/ml/requirements-dev.txt
+      - name: 흥행 판단 모델 서비스 (services/ml) 린트·테스트
+        working-directory: services/ml
+        run: |
+          pip install -r requirements-dev.txt
+          ruff check .
+          pytest -q
       - name: 빌드
         run: pnpm build

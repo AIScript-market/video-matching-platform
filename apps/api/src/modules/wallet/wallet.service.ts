@@ -1,5 +1,6 @@
-import { BadRequestException, HttpException, HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, HttpException, HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
 import type { Prisma } from '../../generated/prisma/client.js';
+import { betaConfig } from '../../core/beta.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { COIN_PACKAGES, COIN_PRICES, COIN_USE_LABEL, type CoinUseName } from './coin-pricing.js';
 import type { CoinTransactionPageDto, WalletDto } from './wallet.dto.js';
@@ -72,11 +73,15 @@ export class WalletService {
       prices: { ...COIN_PRICES },
       packages: COIN_PACKAGES.map((p) => ({ ...p })),
       testPayments: true,
+      purchaseEnabled: !betaConfig().enabled,
     };
   }
 
   /** 코인 구매. 실제 결제는 아직 연동하지 않아 테스트 결제로 바로 충전한다 */
   async purchase(userId: string, packageId: string): Promise<WalletDto> {
+    if (betaConfig().enabled) {
+      throw new ForbiddenException({ message: '베타 기간에는 코인을 살 수 없습니다. 코인이 더 필요하면 운영자에게 문의해 주세요', error: 'BETA_NO_PURCHASE' });
+    }
     const pack = COIN_PACKAGES.find((p) => p.id === packageId);
     if (!pack) throw new BadRequestException('없는 코인 패키지입니다');
     await this.prisma.$transaction((tx) =>

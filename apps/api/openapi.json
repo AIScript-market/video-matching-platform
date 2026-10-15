@@ -15,6 +15,28 @@
         ]
       }
     },
+    "/config": {
+      "get": {
+        "operationId": "ConfigController_get",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicConfigDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "공개 설정 (베타 여부, 켜진 기능, 가입 조건)",
+        "tags": [
+          "config"
+        ]
+      }
+    },
     "/auth/signup": {
       "post": {
         "operationId": "IdentityController_signup",
@@ -305,6 +327,36 @@
           }
         ],
         "summary": "내 프로필 수정 (이름, 소개, 프로필·이메일 공개)",
+        "tags": [
+          "profiles"
+        ]
+      }
+    },
+    "/me/password": {
+      "patch": {
+        "operationId": "ProfilesController_changePassword",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangePasswordDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "비밀번호 변경 (지금 비밀번호 확인)",
         "tags": [
           "profiles"
         ]
@@ -1444,7 +1496,7 @@
             "bearer": []
           }
         ],
-        "summary": "전문 열람 요청 (프로필·이메일 공개 필요, NDA 동의 필수)",
+        "summary": "전문 열람 요청 (프로필 공개 필요, 비밀유지 서약서에 동의하면 서명 기록과 함께 서약서가 만들어진다)",
         "tags": [
           "access"
         ]
@@ -1576,6 +1628,263 @@
         "summary": "열람 요청 거절 (대본 작성자)",
         "tags": [
           "access"
+        ]
+      }
+    },
+    "/contracts": {
+      "get": {
+        "operationId": "ContractsController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ContractSummaryDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "내가 당사자인 계약 목록 (관리자는 전체)",
+        "tags": [
+          "contracts"
+        ]
+      }
+    },
+    "/contracts/channel-publishing": {
+      "post": {
+        "operationId": "ContractsController_channel",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContractDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "내 채널 게시 계약 (없으면 지금 버전으로 만든다. 영상 제출 전에 서명)",
+        "tags": [
+          "contracts"
+        ]
+      }
+    },
+    "/contracts/{id}": {
+      "get": {
+        "operationId": "ContractsController_get",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContractDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "계약서 보기 (당사자·관리자, 비밀유지 서약서는 작가도)",
+        "tags": [
+          "contracts"
+        ]
+      }
+    },
+    "/contracts/{id}/sign": {
+      "post": {
+        "operationId": "ContractsController_sign",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignContractDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContractDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "전자서명 (계약서에 적힌 이름 입력 + 동의). 서명 시각·접속 정보를 남긴다",
+        "tags": [
+          "contracts"
+        ]
+      }
+    },
+    "/deals/{id}/contract": {
+      "get": {
+        "operationId": "ContractsController_forDeal",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContractDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "딜의 대본 이용허락 계약서",
+        "tags": [
+          "contracts"
+        ]
+      }
+    },
+    "/scripts/{id}/nda-preview": {
+      "get": {
+        "operationId": "ContractsController_ndaPreview",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContractPreviewDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "열람 요청 전에 읽을 비밀유지 서약서 본문",
+        "tags": [
+          "contracts"
+        ]
+      }
+    },
+    "/admin/contracts/{id}/void": {
+      "post": {
+        "operationId": "ContractsController_void",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VoidContractDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContractDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "관리자: 계약 무효 처리 (서명 기록은 남는다)",
+        "tags": [
+          "contracts"
         ]
       }
     },
@@ -2118,6 +2427,2527 @@
           "ledger"
         ]
       }
+    },
+    "/deals/{id}/videos": {
+      "post": {
+        "operationId": "ChannelController_submit",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitVideoDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChannelVideoDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "영상 제출 (딜의 제작자, 딜 ACTIVE + 채널 게시 계약 서명 필요, 권리 항목 모두 확인)",
+        "tags": [
+          "channel"
+        ]
+      },
+      "get": {
+        "operationId": "ChannelController_list",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ChannelVideoDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "딜의 제출 영상 (참여자·관리자)",
+        "tags": [
+          "channel"
+        ]
+      }
+    },
+    "/deals/{id}/settlement": {
+      "get": {
+        "operationId": "ChannelController_settlement",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettlementDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "딜의 정산서 (영상·월별 확정 수익, 작가·제작자 몫, 지급 기록)",
+        "tags": [
+          "channel"
+        ]
+      }
+    },
+    "/admin/videos": {
+      "get": {
+        "operationId": "ChannelController_adminList",
+        "parameters": [
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "SUBMITTED",
+                "APPROVED",
+                "PUBLISHED",
+                "REJECTED",
+                "REMOVED"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ChannelVideoDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "관리자: 제출 영상 목록 (오래된 순)",
+        "tags": [
+          "channel"
+        ]
+      }
+    },
+    "/admin/videos/{id}/review": {
+      "post": {
+        "operationId": "ChannelController_review",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewVideoDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChannelVideoDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "관리자: 검수 (승인·거절)",
+        "tags": [
+          "channel"
+        ]
+      }
+    },
+    "/admin/videos/{id}/publish": {
+      "post": {
+        "operationId": "ChannelController_publish",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublishVideoDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChannelVideoDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "관리자: 채널에 올린 뒤 YouTube 영상 번호 기록",
+        "tags": [
+          "channel"
+        ]
+      }
+    },
+    "/admin/videos/{id}/remove": {
+      "post": {
+        "operationId": "ChannelController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RemoveVideoDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChannelVideoDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "관리자: 게시 중단 (이유는 제작자에게 보인다)",
+        "tags": [
+          "channel"
+        ]
+      }
+    },
+    "/admin/videos/{id}/revenues": {
+      "post": {
+        "operationId": "ChannelController_revenue",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecordRevenueDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevenueLineDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "관리자: 끝난 달 YouTube 확정 광고 수익 기록",
+        "tags": [
+          "channel"
+        ]
+      }
+    },
+    "/admin/revenues/{id}/payouts": {
+      "post": {
+        "operationId": "ChannelController_payout",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecordPayoutDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettlementDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "관리자: 지급 기록 (금액은 배분율로 자동 계산)",
+        "tags": [
+          "channel"
+        ]
+      }
+    },
+    "/identity-verification": {
+      "post": {
+        "operationId": "TalentController_verifyIdentity",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyIdentityDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdentityDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "본인인증 (출연자, 보호자). 생년월일은 저장하지 않는다",
+        "tags": [
+          "talent"
+        ]
+      },
+      "get": {
+        "operationId": "TalentController_identity",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdentityDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "내 본인인증 결과 (없으면 null)",
+        "tags": [
+          "talent"
+        ]
+      }
+    },
+    "/talent/profile": {
+      "post": {
+        "operationId": "TalentController_createProfile",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTalentProfileDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TalentSelfDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "출연자로 등록 (배우 또는 일반인). 관리자 계정은 불가",
+        "tags": [
+          "talent"
+        ]
+      }
+    },
+    "/talent/me": {
+      "get": {
+        "operationId": "TalentController_me",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TalentSelfDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "내 출연자 프로필과 남은 등록 단계 (등록 전이면 null)",
+        "tags": [
+          "talent"
+        ]
+      },
+      "patch": {
+        "operationId": "TalentController_update",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTalentProfileDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TalentSelfDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "출연 조건 수정 (허용 장면 유형, 최저 출연료 등)",
+        "tags": [
+          "talent"
+        ]
+      }
+    },
+    "/talent/me/assets": {
+      "post": {
+        "operationId": "TalentController_upload",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "kind",
+                  "file"
+                ],
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "FACE_SCAN",
+                      "VOICE",
+                      "MOTION"
+                    ]
+                  },
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LikenessAssetDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "얼굴 스캔·음성·동작 원본 업로드. 파일마다 따로 암호화해 저장한다",
+        "tags": [
+          "talent"
+        ]
+      }
+    },
+    "/talent/me/assets/{assetId}": {
+      "delete": {
+        "operationId": "TalentController_deleteAsset",
+        "parameters": [
+          {
+            "name": "assetId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "원본 하나 삭제 (제작 기한이 남은 계약이 없을 때)",
+        "tags": [
+          "talent"
+        ]
+      }
+    },
+    "/talent/me/liveness": {
+      "post": {
+        "operationId": "TalentController_liveness",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "selfie"
+                ],
+                "properties": {
+                  "selfie": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TalentSelfDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "실시간 셀카로 본인 확인 (등록한 얼굴 스캔과 대조)",
+        "tags": [
+          "talent"
+        ]
+      }
+    },
+    "/talent/me/consent": {
+      "post": {
+        "operationId": "TalentController_consent",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConsentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TalentSelfDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "민감정보 처리·국외 처리 동의 (성년이 된 뒤 재동의도 여기서)",
+        "tags": [
+          "talent"
+        ]
+      }
+    },
+    "/talent/me/access-logs": {
+      "get": {
+        "operationId": "TalentController_accessLogs",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AccessLogEntryDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "내 원본을 누가 언제 내려받았는지",
+        "tags": [
+          "talent"
+        ]
+      }
+    },
+    "/talent/me/withdraw": {
+      "post": {
+        "operationId": "TalentController_withdraw",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TalentSelfDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "등록 철회. 새 제안 차단, 7일 숙려 후(진행 중 계약은 제작 기한 후) 원본·모델 삭제",
+        "tags": [
+          "talent"
+        ]
+      }
+    },
+    "/talent/me/withdraw/cancel": {
+      "post": {
+        "operationId": "TalentController_cancelWithdraw",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TalentSelfDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "철회 취소 (7일 이내)",
+        "tags": [
+          "talent"
+        ]
+      }
+    },
+    "/talent": {
+      "get": {
+        "operationId": "TalentController_directory",
+        "parameters": [
+          {
+            "name": "kind",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ACTOR",
+                "GENERAL"
+              ]
+            }
+          },
+          {
+            "name": "tag",
+            "required": false,
+            "in": "query",
+            "description": "이 장면 유형을 허용하는 출연자만",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ROMANCE",
+                "INTIMACY",
+                "VIOLENCE",
+                "HORROR",
+                "DEATH",
+                "SUBSTANCE",
+                "PROFANITY"
+              ]
+            }
+          },
+          {
+            "name": "minor",
+            "required": false,
+            "in": "query",
+            "description": "true면 미성년자만, false면 성인만",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "take",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": 50,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TalentPublicDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "캐스팅 목록 (등록을 마친 출연자만, 실명·원본 없음)",
+        "tags": [
+          "talent"
+        ]
+      }
+    },
+    "/talent/{id}": {
+      "get": {
+        "operationId": "TalentController_profile",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TalentPublicDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "출연자 공개 프로필",
+        "tags": [
+          "talent"
+        ]
+      }
+    },
+    "/likeness/assets/{assetId}/content": {
+      "get": {
+        "operationId": "TalentController_download",
+        "parameters": [
+          {
+            "name": "assetId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "원본 내려받기 (본인, 또는 제작 기한 안의 디지털 출연 계약이 있는 기획사). 매번 기록",
+        "tags": [
+          "talent"
+        ]
+      }
+    },
+    "/guardian/wards/{talentId}/consent": {
+      "post": {
+        "operationId": "TalentController_guardianConsent",
+        "parameters": [
+          {
+            "name": "talentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WardDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "법정대리인 동의 (미성년 출연자가 적은 이메일의 계정만)",
+        "tags": [
+          "talent"
+        ]
+      }
+    },
+    "/guardian/wards": {
+      "get": {
+        "operationId": "TalentController_wards",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/WardDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "내가 대리하는(또는 대리 요청을 받은) 미성년 출연자",
+        "tags": [
+          "talent"
+        ]
+      }
+    },
+    "/admin/talent/guardian-checks": {
+      "get": {
+        "operationId": "TalentAdminController_pending",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/WardDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "보호자 관계 확인 대기 목록 (관리자)",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/talent/{talentId}/guardian-verified": {
+      "post": {
+        "operationId": "TalentAdminController_verifyGuardian",
+        "parameters": [
+          {
+            "name": "talentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WardDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "보호자 관계 확인 완료 (관리자, 가족관계증명서 확인 후)",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/deals/{dealId}/project": {
+      "post": {
+        "operationId": "CastingController_createProject",
+        "parameters": [
+          {
+            "name": "dealId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateProjectDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "딜로 작품 만들기 (딜의 작가·제작자 = 기획사). 딜 하나에 작품 하나",
+        "tags": [
+          "casting"
+        ]
+      },
+      "get": {
+        "operationId": "CastingController_projectForDeal",
+        "parameters": [
+          {
+            "name": "dealId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "딜에 연결된 작품 (없으면 null)",
+        "tags": [
+          "casting"
+        ]
+      }
+    },
+    "/projects": {
+      "get": {
+        "operationId": "CastingController_listProjects",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ProjectDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "내 기획사 작품 (관리자는 전체)",
+        "tags": [
+          "casting"
+        ]
+      }
+    },
+    "/projects/{id}": {
+      "get": {
+        "operationId": "CastingController_getProject",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "작품 상세 (기획사 구성원, 관리자)",
+        "tags": [
+          "casting"
+        ]
+      }
+    },
+    "/projects/{id}/roles": {
+      "post": {
+        "operationId": "CastingController_createRole",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateRoleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoleDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "배역 등록. 미성년 배역에는 INTIMACY·SUBSTANCE를 붙일 수 없다",
+        "tags": [
+          "casting"
+        ]
+      },
+      "get": {
+        "operationId": "CastingController_listRoles",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RoleDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "작품의 배역",
+        "tags": [
+          "casting"
+        ]
+      }
+    },
+    "/casting/roles": {
+      "get": {
+        "operationId": "CastingController_openRoles",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RoleDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "공개 오디션: 캐스팅 중인 배역",
+        "tags": [
+          "casting"
+        ]
+      }
+    },
+    "/casting/roles/{roleId}/applications": {
+      "post": {
+        "operationId": "CastingController_apply",
+        "parameters": [
+          {
+            "name": "roleId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApplyDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CastingNegotiationDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "배역에 지원 (출연자). 허용하지 않은 장면 유형이 있는 배역에는 지원할 수 없다",
+        "tags": [
+          "casting"
+        ]
+      }
+    },
+    "/casting/roles/{roleId}/invitations": {
+      "post": {
+        "operationId": "CastingController_invite",
+        "parameters": [
+          {
+            "name": "roleId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InviteDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CastingNegotiationDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "출연자에게 출연 제안 시작 (기획사 구성원)",
+        "tags": [
+          "casting"
+        ]
+      }
+    },
+    "/casting/negotiations": {
+      "get": {
+        "operationId": "CastingController_listNegotiations",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CastingNegotiationDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "내 캐스팅 협상 (출연자, 보호자, 기획사)",
+        "tags": [
+          "casting"
+        ]
+      }
+    },
+    "/casting/negotiations/{id}": {
+      "get": {
+        "operationId": "CastingController_getNegotiation",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CastingNegotiationDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "캐스팅 협상 상세 + 제안 이력",
+        "tags": [
+          "casting"
+        ]
+      }
+    },
+    "/casting/negotiations/{id}/offers": {
+      "post": {
+        "operationId": "CastingController_createOffer",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCastingOfferDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CastingOfferDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "출연료 제안 / 역제안 (고정·회당·수익 배분·혼합)",
+        "tags": [
+          "casting"
+        ]
+      }
+    },
+    "/casting/offers/{id}/accept": {
+      "post": {
+        "operationId": "CastingController_accept",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AcceptCastingDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "제안 수락 (상대방). 미성년자는 보호자 승인 후 계약이 된다",
+        "tags": [
+          "casting"
+        ]
+      }
+    },
+    "/casting/offers/{id}/guardian-decision": {
+      "post": {
+        "operationId": "CastingController_guardianDecision",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GuardianDecisionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AcceptCastingDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "보호자의 승인·거절",
+        "tags": [
+          "casting"
+        ]
+      }
+    },
+    "/casting/contracts": {
+      "get": {
+        "operationId": "CastingController_listContracts",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CastingContractDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "내 출연 계약 (관리자는 전체)",
+        "tags": [
+          "casting"
+        ]
+      }
+    },
+    "/casting/contracts/{id}": {
+      "get": {
+        "operationId": "CastingController_getContract",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CastingContractDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "출연 계약 상세",
+        "tags": [
+          "casting"
+        ]
+      }
+    },
+    "/casting/contracts/{id}/early-termination-quote": {
+      "get": {
+        "operationId": "CastingController_quote",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EarlyTerminationQuoteDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "조기 종료 보상액 안내 (출연자·보호자)",
+        "tags": [
+          "casting"
+        ]
+      }
+    },
+    "/admin/casting/contracts/{id}/terminate": {
+      "post": {
+        "operationId": "CastingAdminController_terminate",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TerminateContractDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CastingContractDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "조기 종료 확정 (관리자, 보상 입금 확인 후). 이 계약으로 만든 작품을 내린다",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/projects/{id}/works": {
+      "post": {
+        "operationId": "WorksController_create",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateWorkDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "작품(회차·숏폼) 등록. 계약 범위 밖 장면 유형이면 거절",
+        "tags": [
+          "works"
+        ]
+      },
+      "get": {
+        "operationId": "WorksController_list",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/WorkDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "작품 목록 (기획사)",
+        "tags": [
+          "works"
+        ]
+      }
+    },
+    "/works": {
+      "get": {
+        "operationId": "WorksController_listMine",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/WorkDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "내가 출연한 작품 (출연자, 보호자)",
+        "tags": [
+          "works"
+        ]
+      }
+    },
+    "/works/{id}": {
+      "get": {
+        "operationId": "WorksController_get",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "작품 상세 (기획사, 출연자, 보호자, 관리자)",
+        "tags": [
+          "works"
+        ]
+      }
+    },
+    "/works/{id}/approve": {
+      "post": {
+        "operationId": "WorksController_approve",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "출연분 확인 (출연자, 미성년자는 보호자)",
+        "tags": [
+          "works"
+        ]
+      }
+    },
+    "/works/{id}/publish": {
+      "post": {
+        "operationId": "WorksController_publish",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublishWorkDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "공개 (기획사). 계약·장면 유형·출연분 확인·AI 표시를 모두 통과해야 한다",
+        "tags": [
+          "works"
+        ]
+      }
+    },
+    "/works/{id}/takedowns": {
+      "post": {
+        "operationId": "WorksController_takedown",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTakedownDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TakedownDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "작품 내림 요청 (출연자, 보호자, 관리자). 계약 위반 사유는 즉시 비공개",
+        "tags": [
+          "works"
+        ]
+      }
+    },
+    "/takedowns": {
+      "get": {
+        "operationId": "WorksController_listTakedowns",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TakedownDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "내림 요청 목록 (관리자는 처리 대기 전체)",
+        "tags": [
+          "works"
+        ]
+      }
+    },
+    "/takedowns/{id}/settle": {
+      "post": {
+        "operationId": "WorksController_settle",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SettleTakedownDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TakedownDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "요청에 합의해 작품을 내림 (기획사)",
+        "tags": [
+          "works"
+        ]
+      }
+    },
+    "/admin/takedowns/{id}/decide": {
+      "post": {
+        "operationId": "WorksAdminController_decide",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecideTakedownDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TakedownDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "내림 요청 판단 (관리자). 인정=삭제, 기각=다시 공개",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/works/{id}/performance": {
+      "post": {
+        "operationId": "PerformanceController_record",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecordPerformanceDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PerformanceSnapshotDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "작품 성과 기록 (기획사·관리자, 공개한 작품만). 흥행 판단 모델의 정답 데이터",
+        "tags": [
+          "works"
+        ]
+      },
+      "get": {
+        "operationId": "PerformanceController_list",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PerformanceSnapshotDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "작품 성과 기록 (기획사, 출연자·보호자, 관리자)",
+        "tags": [
+          "works"
+        ]
+      }
+    },
+    "/admin/ml/training-set": {
+      "get": {
+        "operationId": "TrainingSetController_trainingSet",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TrainingRowDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "학습용 데이터 (관리자). 학습에 동의한 대본의 메타데이터와 작품 성과. 대본 원문은 포함하지 않는다",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/scripts/{id}/hit-insight": {
+      "get": {
+        "operationId": "HitModelController_insight",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HitInsightDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "흥행 판단 (영상 제작자·관리자). 작가 본인에게는 403",
+        "tags": [
+          "hit-model"
+        ]
+      }
+    },
+    "/recommendations/scripts": {
+      "get": {
+        "operationId": "HitModelController_recommendations",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecommendationsDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "영상 제작자용 대본 추천 (흥행 판단 모델 순서, 자기 대본 제외)",
+        "tags": [
+          "hit-model"
+        ]
+      }
+    },
+    "/ml/comment-sentiment": {
+      "post": {
+        "operationId": "HitModelController_sentiment",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommentSentimentRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommentSentimentDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "댓글 긍정·부정 개수 세기 (성과 입력 보조). 댓글은 저장하지 않는다",
+        "tags": [
+          "hit-model"
+        ]
+      }
+    },
+    "/admin/ml/status": {
+      "get": {
+        "operationId": "HitModelAdminController_status",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MlStatusDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "모델 상태: 임베더, 벡터 수, 학습 데이터 수 / 필요한 수, 활성 모델",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/ml/models": {
+      "get": {
+        "operationId": "HitModelAdminController_models",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/HitModelVersionDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "학습한 모델 버전 (최근 20개)",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/ml/train": {
+      "post": {
+        "operationId": "HitModelAdminController_train",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TrainRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrainResultDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "모델 학습. 시간 순서 검증에서 장르 평균 이상일 때만 활성화한다",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/ml/embed-stale": {
+      "post": {
+        "operationId": "HitModelAdminController_embedStale",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmbedStaleResultDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "벡터가 없거나 본문이 바뀐 대본을 벡터화",
+        "tags": [
+          "admin"
+        ]
+      }
     }
   },
   "info": {
@@ -2142,6 +4972,70 @@
       }
     },
     "schemas": {
+      "FeatureFlagsDto": {
+        "type": "object",
+        "properties": {
+          "talent": {
+            "type": "boolean",
+            "description": "출연자 등록·얼굴 스캔"
+          },
+          "casting": {
+            "type": "boolean",
+            "description": "캐스팅·작품 공개"
+          },
+          "hitModel": {
+            "type": "boolean",
+            "description": "흥행 판단·추천"
+          }
+        },
+        "required": [
+          "talent",
+          "casting",
+          "hitModel"
+        ]
+      },
+      "PublicConfigDto": {
+        "type": "object",
+        "properties": {
+          "betaMode": {
+            "type": "boolean",
+            "description": "초대제 비공개 베타"
+          },
+          "inviteRequired": {
+            "type": "boolean",
+            "description": "가입에 초대 코드와 성인 확인이 필요한가"
+          },
+          "purchaseEnabled": {
+            "type": "boolean",
+            "description": "코인을 살 수 있는가 (베타에서는 꺼짐)"
+          },
+          "signupCoins": {
+            "type": "number",
+            "description": "가입하면 받는 코인"
+          },
+          "termsVersion": {
+            "type": "string",
+            "description": "가입 화면의 약관·처리방침 버전"
+          },
+          "contactEmail": {
+            "type": "string",
+            "nullable": true,
+            "description": "운영자 문의 이메일 (CONTACT_EMAIL)"
+          },
+          "features": {
+            "$ref": "#/components/schemas/FeatureFlagsDto"
+          }
+        },
+        "required": [
+          "betaMode",
+          "inviteRequired",
+          "purchaseEnabled",
+          "signupCoins",
+          "termsVersion",
+          "contactEmail",
+          "features"
+        ]
+      },
       "SignupDto": {
         "type": "object",
         "properties": {
@@ -2157,6 +5051,18 @@
           "displayName": {
             "type": "string",
             "maxLength": 40
+          },
+          "inviteCode": {
+            "type": "string",
+            "description": "베타 초대 코드 (베타에서만 필요)"
+          },
+          "adultConfirmed": {
+            "type": "boolean",
+            "description": "만 19세 이상 확인 (베타에서만 필요. 계약 당사자가 되므로 성인만 받는다)"
+          },
+          "termsAccepted": {
+            "type": "boolean",
+            "description": "이용약관·개인정보 처리방침 동의 (베타에서는 필수, 동의하면 버전과 시각을 기록)"
           }
         },
         "required": [
@@ -2205,7 +5111,7 @@
           },
           "creatorReady": {
             "type": "boolean",
-            "description": "대본 제공·영상 제작 가능 (소개 작성 + 프로필·이메일 공개)"
+            "description": "대본 제공·영상 제작 가능 (소개 작성 + 프로필 공개)"
           },
           "coinBalance": {
             "type": "number"
@@ -2315,13 +5221,18 @@
           "testPayments": {
             "type": "boolean",
             "description": "테스트 결제 여부 (실제 결제 미연동)"
+          },
+          "purchaseEnabled": {
+            "type": "boolean",
+            "description": "코인을 살 수 있는가 (베타에서는 꺼짐)"
           }
         },
         "required": [
           "balance",
           "prices",
           "packages",
-          "testPayments"
+          "testPayments",
+          "purchaseEnabled"
         ]
       },
       "CoinTransactionDto": {
@@ -2468,7 +5379,7 @@
           },
           "creatorReady": {
             "type": "boolean",
-            "description": "대본 제공·영상 제작 가능 (프로필·이메일 공개)"
+            "description": "대본 제공·영상 제작 가능 (소개 작성 + 프로필 공개)"
           },
           "createdAt": {
             "format": "date-time",
@@ -2515,6 +5426,24 @@
             "description": "공개 프로필에 이메일 표시"
           }
         }
+      },
+      "ChangePasswordDto": {
+        "type": "object",
+        "properties": {
+          "currentPassword": {
+            "type": "string",
+            "description": "지금 비밀번호"
+          },
+          "newPassword": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 128
+          }
+        },
+        "required": [
+          "currentPassword",
+          "newPassword"
+        ]
       },
       "WithdrawDto": {
         "type": "object",
@@ -3328,6 +6257,10 @@
           "rightsDeclared": {
             "type": "boolean",
             "description": "권리 보유 진술. 공개하려면 true여야 한다"
+          },
+          "trainingConsent": {
+            "type": "boolean",
+            "description": "흥행 판단 모델의 학습 데이터로 이 대본(의 벡터)을 써도 된다는 동의 (선택). 언제든 철회할 수 있다"
           }
         },
         "required": [
@@ -3488,6 +6421,10 @@
           "rightsDeclared": {
             "type": "boolean"
           },
+          "trainingConsent": {
+            "type": "boolean",
+            "description": "학습 데이터 활용 동의 (작가 본인에게만 의미 있음)"
+          },
           "rightsDeclaredAt": {
             "type": "string",
             "format": "date-time",
@@ -3526,6 +6463,7 @@
           "createdAt",
           "updatedAt",
           "rightsDeclared",
+          "trainingConsent",
           "rightsDeclaredAt",
           "fullText",
           "previewText",
@@ -3665,6 +6603,10 @@
           "rightsDeclared": {
             "type": "boolean",
             "description": "권리 보유 진술. 공개하려면 true여야 한다"
+          },
+          "trainingConsent": {
+            "type": "boolean",
+            "description": "흥행 판단 모델의 학습 데이터로 이 대본(의 벡터)을 써도 된다는 동의 (선택). 언제든 철회할 수 있다"
           }
         }
       },
@@ -3686,6 +6628,11 @@
             "enum": [
               true
             ]
+          },
+          "signedName": {
+            "type": "string",
+            "description": "서약서에 서명할 이름 (생략하면 활동명)",
+            "maxLength": 40
           }
         },
         "required": [
@@ -3760,6 +6707,10 @@
           },
           "producer": {
             "$ref": "#/components/schemas/AccessProducerDto"
+          },
+          "ndaContractId": {
+            "type": "string",
+            "description": "이 요청과 함께 만든 비밀유지 서약서 (요청을 만들 때만 돌려준다)"
           }
         },
         "required": [
@@ -3771,6 +6722,256 @@
           "decidedAt",
           "script",
           "producer"
+        ]
+      },
+      "ContractPartyDto": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "WRITER",
+              "PRODUCER",
+              "PLATFORM"
+            ]
+          },
+          "userId": {
+            "type": "string",
+            "nullable": true
+          },
+          "legalName": {
+            "type": "string",
+            "description": "계약서에 적힌 이름"
+          },
+          "signedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "signedName": {
+            "type": "string",
+            "nullable": true,
+            "description": "서명할 때 직접 입력한 이름"
+          }
+        },
+        "required": [
+          "role",
+          "userId",
+          "legalName",
+          "signedAt",
+          "signedName"
+        ]
+      },
+      "ContractSummaryDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "NDA",
+              "SCRIPT_LICENSE",
+              "CHANNEL_PUBLISHING"
+            ]
+          },
+          "templateVersion": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "AWAITING_SIGNATURES",
+              "SIGNED",
+              "VOID"
+            ]
+          },
+          "dealId": {
+            "type": "string",
+            "nullable": true
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "signedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "parties": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ContractPartyDto"
+            }
+          },
+          "awaitingMySignature": {
+            "type": "boolean",
+            "description": "내가 아직 서명해야 하는가"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "templateVersion",
+          "title",
+          "status",
+          "dealId",
+          "createdAt",
+          "signedAt",
+          "parties",
+          "awaitingMySignature"
+        ]
+      },
+      "ContractDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "NDA",
+              "SCRIPT_LICENSE",
+              "CHANNEL_PUBLISHING"
+            ]
+          },
+          "templateVersion": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "AWAITING_SIGNATURES",
+              "SIGNED",
+              "VOID"
+            ]
+          },
+          "dealId": {
+            "type": "string",
+            "nullable": true
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "signedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "parties": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ContractPartyDto"
+            }
+          },
+          "awaitingMySignature": {
+            "type": "boolean",
+            "description": "내가 아직 서명해야 하는가"
+          },
+          "body": {
+            "type": "string",
+            "description": "고정된 계약서 본문 (마크다운)"
+          },
+          "bodySha256": {
+            "type": "string",
+            "description": "본문 SHA-256 (hex)"
+          },
+          "voidedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "voidReason": {
+            "type": "string",
+            "nullable": true
+          },
+          "signConsent": {
+            "type": "string",
+            "description": "서명 화면에 보여 줄 동의 문구"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "templateVersion",
+          "title",
+          "status",
+          "dealId",
+          "createdAt",
+          "signedAt",
+          "parties",
+          "awaitingMySignature",
+          "body",
+          "bodySha256",
+          "voidedAt",
+          "voidReason",
+          "signConsent"
+        ]
+      },
+      "SignContractDto": {
+        "type": "object",
+        "properties": {
+          "signedName": {
+            "type": "string",
+            "description": "서명자가 직접 입력한 이름 (계약서에 적힌 이름과 같아야 한다)",
+            "maxLength": 40
+          },
+          "agreed": {
+            "type": "boolean",
+            "description": "동의 문구에 동의. 반드시 true",
+            "enum": [
+              true
+            ]
+          }
+        },
+        "required": [
+          "signedName",
+          "agreed"
+        ]
+      },
+      "ContractPreviewDto": {
+        "type": "object",
+        "properties": {
+          "templateVersion": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          },
+          "signConsent": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "templateVersion",
+          "title",
+          "body",
+          "signConsent"
+        ]
+      },
+      "VoidContractDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "reason"
         ]
       },
       "ScriptRefDto": {
@@ -4386,6 +7587,2434 @@
         "required": [
           "type",
           "amountKrw"
+        ]
+      },
+      "RightsChecklistDto": {
+        "type": "object",
+        "properties": {
+          "musicCleared": {
+            "type": "boolean",
+            "description": "쓴 음원은 모두 이용 권한이 있다",
+            "enum": [
+              true
+            ]
+          },
+          "materialsCleared": {
+            "type": "boolean",
+            "description": "영상·이미지·폰트 등 소재는 모두 이용 권한이 있다",
+            "enum": [
+              true
+            ]
+          },
+          "performersConsented": {
+            "type": "boolean",
+            "description": "출연자 전원의 출연·초상 이용 동의를 받았다",
+            "enum": [
+              true
+            ]
+          },
+          "adDisclosureChecked": {
+            "type": "boolean",
+            "description": "광고가 있으면 \"유료 광고 포함\"을 표시했다 (없으면 없음을 확인)",
+            "enum": [
+              true
+            ]
+          },
+          "containsPaidPromotion": {
+            "type": "boolean",
+            "description": "영상에 유료 광고(협찬·PPL)가 들어 있는가"
+          },
+          "sources": {
+            "type": "string",
+            "description": "음원·소재 출처 (곡명·라이선스 등)",
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "musicCleared",
+          "materialsCleared",
+          "performersConsented",
+          "adDisclosureChecked",
+          "containsPaidPromotion"
+        ]
+      },
+      "SubmitVideoDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 5000
+          },
+          "sourceUrl": {
+            "type": "string",
+            "description": "검수용 영상 위치 (비공개 링크 등, https)"
+          },
+          "rights": {
+            "$ref": "#/components/schemas/RightsChecklistDto"
+          }
+        },
+        "required": [
+          "title",
+          "sourceUrl",
+          "rights"
+        ]
+      },
+      "ChannelVideoDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "dealId": {
+            "type": "string"
+          },
+          "producerId": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "sourceUrl": {
+            "type": "string"
+          },
+          "rightsChecklist": {
+            "$ref": "#/components/schemas/RightsChecklistDto"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "SUBMITTED",
+              "APPROVED",
+              "PUBLISHED",
+              "REJECTED",
+              "REMOVED"
+            ]
+          },
+          "reviewNote": {
+            "type": "string",
+            "nullable": true
+          },
+          "reviewedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "channelName": {
+            "type": "string",
+            "nullable": true
+          },
+          "youtubeVideoId": {
+            "type": "string",
+            "nullable": true
+          },
+          "publishedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "scriptTitle": {
+            "type": "string",
+            "description": "딜의 대본 제목"
+          }
+        },
+        "required": [
+          "id",
+          "dealId",
+          "producerId",
+          "title",
+          "description",
+          "sourceUrl",
+          "rightsChecklist",
+          "status",
+          "reviewNote",
+          "reviewedAt",
+          "channelName",
+          "youtubeVideoId",
+          "publishedAt",
+          "createdAt",
+          "scriptTitle"
+        ]
+      },
+      "PayoutDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "WRITER",
+              "PRODUCER"
+            ]
+          },
+          "amountKrw": {
+            "type": "number"
+          },
+          "paidAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "memo": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "role",
+          "amountKrw",
+          "paidAt",
+          "memo"
+        ]
+      },
+      "RevenueLineDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "videoId": {
+            "type": "string"
+          },
+          "videoTitle": {
+            "type": "string"
+          },
+          "month": {
+            "type": "string"
+          },
+          "amountKrw": {
+            "type": "number",
+            "description": "확정 광고 수익 (원)"
+          },
+          "writerKrw": {
+            "type": "number"
+          },
+          "producerKrw": {
+            "type": "number"
+          },
+          "platformKrw": {
+            "type": "number",
+            "description": "플랫폼 몫은 언제나 0 (채널 게시 계약 제3조)"
+          },
+          "payouts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PayoutDto"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "videoId",
+          "videoTitle",
+          "month",
+          "amountKrw",
+          "writerKrw",
+          "producerKrw",
+          "platformKrw",
+          "payouts"
+        ]
+      },
+      "SettlementDto": {
+        "type": "object",
+        "properties": {
+          "dealId": {
+            "type": "string"
+          },
+          "writerSharePct": {
+            "type": "number"
+          },
+          "producerSharePct": {
+            "type": "number"
+          },
+          "lines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RevenueLineDto"
+            }
+          },
+          "totalRevenueKrw": {
+            "type": "number"
+          },
+          "writerDueKrw": {
+            "type": "number"
+          },
+          "producerDueKrw": {
+            "type": "number"
+          },
+          "writerPaidKrw": {
+            "type": "number"
+          },
+          "producerPaidKrw": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "dealId",
+          "writerSharePct",
+          "producerSharePct",
+          "lines",
+          "totalRevenueKrw",
+          "writerDueKrw",
+          "producerDueKrw",
+          "writerPaidKrw",
+          "producerPaidKrw"
+        ]
+      },
+      "ReviewVideoDto": {
+        "type": "object",
+        "properties": {
+          "decision": {
+            "type": "string",
+            "enum": [
+              "APPROVED",
+              "REJECTED"
+            ]
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 1000,
+            "description": "거절하면 이유 (제작자에게 보인다)"
+          }
+        },
+        "required": [
+          "decision"
+        ]
+      },
+      "PublishVideoDto": {
+        "type": "object",
+        "properties": {
+          "channelName": {
+            "type": "string",
+            "description": "게시한 장르 채널 이름",
+            "maxLength": 100
+          },
+          "youtubeVideoId": {
+            "type": "string",
+            "description": "YouTube 영상 번호 (11자, watch?v= 뒤)"
+          }
+        },
+        "required": [
+          "channelName",
+          "youtubeVideoId"
+        ]
+      },
+      "RemoveVideoDto": {
+        "type": "object",
+        "properties": {
+          "note": {
+            "type": "string",
+            "maxLength": 1000,
+            "description": "내린 이유 (제작자에게 보인다)"
+          }
+        },
+        "required": [
+          "note"
+        ]
+      },
+      "RecordRevenueDto": {
+        "type": "object",
+        "properties": {
+          "month": {
+            "type": "string",
+            "description": "정산 월 YYYY-MM (끝난 달만)",
+            "example": "2026-09"
+          },
+          "amountKrw": {
+            "type": "number",
+            "description": "YouTube가 확정한 그 달 광고 수익 (원)",
+            "minimum": 0
+          },
+          "memo": {
+            "type": "string",
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "month",
+          "amountKrw"
+        ]
+      },
+      "RecordPayoutDto": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "WRITER",
+              "PRODUCER"
+            ]
+          },
+          "paidAt": {
+            "type": "string",
+            "description": "지급한 시각 (생략하면 지금)"
+          },
+          "memo": {
+            "type": "string",
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "role"
+        ]
+      },
+      "VerifyIdentityDto": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "description": "본인인증 provider가 돌려준 토큰. 개발용 가짜 provider는 `test:<실명>:<YYYY-MM-DD>`",
+            "example": "test:홍길동:1998-03-14"
+          }
+        },
+        "required": [
+          "token"
+        ]
+      },
+      "IdentityDto": {
+        "type": "object",
+        "properties": {
+          "legalName": {
+            "type": "string"
+          },
+          "isMinor": {
+            "type": "boolean"
+          },
+          "adultOn": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time",
+            "description": "미성년자만: 만 19세가 되는 날"
+          },
+          "verifiedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "legalName",
+          "isMinor",
+          "adultOn",
+          "verifiedAt"
+        ]
+      },
+      "CreateTalentProfileDto": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "ACTOR",
+              "GENERAL"
+            ],
+            "description": "ACTOR=배우, GENERAL=일반인"
+          },
+          "stageName": {
+            "type": "string",
+            "example": "한별"
+          },
+          "bio": {
+            "type": "string",
+            "maxLength": 2000
+          },
+          "allowedTags": {
+            "type": "array",
+            "description": "출연을 허용하는 장면 유형",
+            "items": {
+              "type": "string",
+              "enum": [
+                "ROMANCE",
+                "INTIMACY",
+                "VIOLENCE",
+                "HORROR",
+                "DEATH",
+                "SUBSTANCE",
+                "PROFANITY"
+              ]
+            }
+          },
+          "minFeeKrw": {
+            "type": "number",
+            "description": "최저 출연료 (원)",
+            "default": 0
+          },
+          "guardianEmail": {
+            "type": "string",
+            "description": "미성년자: 보호자가 가입한(또는 가입할) 이메일"
+          }
+        },
+        "required": [
+          "kind",
+          "stageName",
+          "allowedTags"
+        ]
+      },
+      "LikenessAssetDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "FACE_SCAN",
+              "VOICE",
+              "MOTION"
+            ]
+          },
+          "contentType": {
+            "type": "string"
+          },
+          "sizeBytes": {
+            "type": "number"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "contentType",
+          "sizeBytes",
+          "sha256",
+          "createdAt"
+        ]
+      },
+      "TalentSelfDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "stageName": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "ACTOR",
+              "GENERAL"
+            ]
+          },
+          "bio": {
+            "type": "string",
+            "nullable": true
+          },
+          "allowedTags": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "ROMANCE",
+                "INTIMACY",
+                "VIOLENCE",
+                "HORROR",
+                "DEATH",
+                "SUBSTANCE",
+                "PROFANITY"
+              ]
+            }
+          },
+          "minFeeKrw": {
+            "type": "number"
+          },
+          "isMinor": {
+            "type": "boolean",
+            "description": "미성년자 여부 (계약에 보호자 승인 필요)"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING_VERIFICATION",
+              "ACTIVE",
+              "WITHDRAWING",
+              "WITHDRAWN"
+            ]
+          },
+          "missingSteps": {
+            "type": "array",
+            "description": "캐스팅 가능해지기까지 남은 단계",
+            "items": {
+              "type": "string",
+              "enum": [
+                "IDENTITY",
+                "FACE_SCAN",
+                "LIVENESS",
+                "CONSENT",
+                "ADULT_RECONSENT",
+                "GUARDIAN_LINK",
+                "GUARDIAN_CONSENT",
+                "GUARDIAN_VERIFIED"
+              ]
+            }
+          },
+          "assets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LikenessAssetDto"
+            }
+          },
+          "guardianEmail": {
+            "type": "string",
+            "nullable": true
+          },
+          "guardianLinked": {
+            "type": "boolean"
+          },
+          "withdrawRequestedAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "purgeAfter": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time",
+            "description": "원본·모델이 삭제될 시각"
+          }
+        },
+        "required": [
+          "id",
+          "userId",
+          "stageName",
+          "kind",
+          "bio",
+          "allowedTags",
+          "minFeeKrw",
+          "isMinor",
+          "status",
+          "missingSteps",
+          "assets",
+          "guardianEmail",
+          "guardianLinked",
+          "withdrawRequestedAt",
+          "purgeAfter"
+        ]
+      },
+      "UpdateTalentProfileDto": {
+        "type": "object",
+        "properties": {
+          "stageName": {
+            "type": "string"
+          },
+          "bio": {
+            "type": "string"
+          },
+          "allowedTags": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "ROMANCE",
+                "INTIMACY",
+                "VIOLENCE",
+                "HORROR",
+                "DEATH",
+                "SUBSTANCE",
+                "PROFANITY"
+              ]
+            }
+          },
+          "minFeeKrw": {
+            "type": "number"
+          },
+          "guardianEmail": {
+            "type": "string"
+          }
+        }
+      },
+      "ConsentDto": {
+        "type": "object",
+        "properties": {
+          "policyVersion": {
+            "type": "string",
+            "description": "동의한 정책 버전",
+            "example": "likeness-policy-v1"
+          },
+          "sensitiveData": {
+            "type": "boolean",
+            "description": "얼굴·음성(민감정보) 처리에 동의",
+            "example": true
+          },
+          "crossBorder": {
+            "type": "boolean",
+            "description": "국외 처리(해외 AI 서비스) 고지를 확인",
+            "example": true
+          }
+        },
+        "required": [
+          "policyVersion",
+          "sensitiveData",
+          "crossBorder"
+        ]
+      },
+      "AccessLogEntryDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "assetId": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "userDisplayName": {
+            "type": "string"
+          },
+          "contractId": {
+            "type": "string",
+            "nullable": true
+          },
+          "purpose": {
+            "type": "string",
+            "enum": [
+              "SELF",
+              "PRODUCTION"
+            ]
+          },
+          "accessedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "assetId",
+          "userId",
+          "userDisplayName",
+          "contractId",
+          "purpose",
+          "accessedAt"
+        ]
+      },
+      "TalentPublicDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "stageName": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "ACTOR",
+              "GENERAL"
+            ]
+          },
+          "bio": {
+            "type": "string",
+            "nullable": true
+          },
+          "allowedTags": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "ROMANCE",
+                "INTIMACY",
+                "VIOLENCE",
+                "HORROR",
+                "DEATH",
+                "SUBSTANCE",
+                "PROFANITY"
+              ]
+            }
+          },
+          "minFeeKrw": {
+            "type": "number"
+          },
+          "isMinor": {
+            "type": "boolean",
+            "description": "미성년자 여부 (계약에 보호자 승인 필요)"
+          }
+        },
+        "required": [
+          "id",
+          "userId",
+          "stageName",
+          "kind",
+          "bio",
+          "allowedTags",
+          "minFeeKrw",
+          "isMinor"
+        ]
+      },
+      "WardDto": {
+        "type": "object",
+        "properties": {
+          "talentId": {
+            "type": "string"
+          },
+          "stageName": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING_VERIFICATION",
+              "ACTIVE",
+              "WITHDRAWING",
+              "WITHDRAWN"
+            ]
+          },
+          "guardianConsentAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "guardianVerifiedAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "talentId",
+          "stageName",
+          "status",
+          "guardianConsentAt",
+          "guardianVerifiedAt"
+        ]
+      },
+      "CreateProjectDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "example": "마지막 열차 (유튜브 6부작)"
+          }
+        },
+        "required": [
+          "title"
+        ]
+      },
+      "PartyDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "displayName"
+        ]
+      },
+      "ProjectDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "dealId": {
+            "type": "string"
+          },
+          "scriptId": {
+            "type": "string"
+          },
+          "scriptTitle": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "members": {
+            "description": "기획사 구성원 (딜의 작가와 제작자)",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PartyDto"
+            }
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "dealId",
+          "scriptId",
+          "scriptTitle",
+          "title",
+          "members",
+          "createdAt"
+        ]
+      },
+      "CreateRoleDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "정수 (역무원)"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 2000
+          },
+          "isMinorRole": {
+            "type": "boolean",
+            "description": "만 19세 미만 인물 (학원물 학생 등)",
+            "default": false
+          },
+          "contentTags": {
+            "type": "array",
+            "description": "이 배역에 들어가는 장면 유형",
+            "items": {
+              "type": "string",
+              "enum": [
+                "ROMANCE",
+                "INTIMACY",
+                "VIOLENCE",
+                "HORROR",
+                "DEATH",
+                "SUBSTANCE",
+                "PROFANITY"
+              ]
+            }
+          }
+        },
+        "required": [
+          "name",
+          "contentTags"
+        ]
+      },
+      "RoleDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "projectId": {
+            "type": "string"
+          },
+          "projectTitle": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "isMinorRole": {
+            "type": "boolean"
+          },
+          "contentTags": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "ROMANCE",
+                "INTIMACY",
+                "VIOLENCE",
+                "HORROR",
+                "DEATH",
+                "SUBSTANCE",
+                "PROFANITY"
+              ]
+            }
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "OPEN",
+              "CAST",
+              "CLOSED"
+            ]
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "projectId",
+          "projectTitle",
+          "name",
+          "description",
+          "isMinorRole",
+          "contentTags",
+          "status",
+          "createdAt"
+        ]
+      },
+      "ApplyDto": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "maxLength": 1000,
+            "description": "지원 메시지"
+          }
+        }
+      },
+      "CastingOfferDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "negotiationId": {
+            "type": "string"
+          },
+          "proposerId": {
+            "type": "string"
+          },
+          "side": {
+            "type": "string",
+            "enum": [
+              "STUDIO",
+              "TALENT"
+            ]
+          },
+          "feeType": {
+            "type": "string",
+            "enum": [
+              "FLAT",
+              "PER_EPISODE",
+              "REVENUE_SHARE",
+              "HYBRID"
+            ]
+          },
+          "flatFeeKrw": {
+            "type": "number"
+          },
+          "perEpisodeFeeKrw": {
+            "type": "number"
+          },
+          "episodes": {
+            "type": "number",
+            "nullable": true
+          },
+          "revenueSharePct": {
+            "type": "number"
+          },
+          "usage": {
+            "type": "string",
+            "enum": [
+              "DIGITAL",
+              "LIVE",
+              "BOTH"
+            ]
+          },
+          "termMonths": {
+            "type": "number"
+          },
+          "exclusive": {
+            "type": "boolean"
+          },
+          "requiresTalentApproval": {
+            "type": "boolean"
+          },
+          "productionDays": {
+            "type": "number"
+          },
+          "earlyTerminationPct": {
+            "type": "number"
+          },
+          "note": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PROPOSED",
+              "COUNTERED",
+              "WITHDRAWN",
+              "PENDING_GUARDIAN",
+              "REJECTED_BY_GUARDIAN",
+              "ACCEPTED"
+            ]
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "negotiationId",
+          "proposerId",
+          "side",
+          "feeType",
+          "flatFeeKrw",
+          "perEpisodeFeeKrw",
+          "episodes",
+          "revenueSharePct",
+          "usage",
+          "termMonths",
+          "exclusive",
+          "requiresTalentApproval",
+          "productionDays",
+          "earlyTerminationPct",
+          "note",
+          "status",
+          "createdAt"
+        ]
+      },
+      "CastingNegotiationDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "roleId": {
+            "type": "string"
+          },
+          "roleName": {
+            "type": "string"
+          },
+          "roleContentTags": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "ROMANCE",
+                "INTIMACY",
+                "VIOLENCE",
+                "HORROR",
+                "DEATH",
+                "SUBSTANCE",
+                "PROFANITY"
+              ]
+            }
+          },
+          "projectId": {
+            "type": "string"
+          },
+          "projectTitle": {
+            "type": "string"
+          },
+          "talentId": {
+            "type": "string"
+          },
+          "talentStageName": {
+            "type": "string"
+          },
+          "talentIsMinor": {
+            "type": "boolean"
+          },
+          "initiatedBy": {
+            "type": "string",
+            "enum": [
+              "STUDIO",
+              "TALENT"
+            ]
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "OPEN",
+              "AGREED",
+              "CLOSED"
+            ]
+          },
+          "viewerSide": {
+            "type": "string",
+            "enum": [
+              "STUDIO",
+              "TALENT",
+              "GUARDIAN"
+            ],
+            "description": "요청한 사람이 이 협상에서 어느 쪽인지"
+          },
+          "contractId": {
+            "type": "string",
+            "nullable": true
+          },
+          "offers": {
+            "description": "제안 이력 (오래된 순)",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CastingOfferDto"
+            }
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "roleId",
+          "roleName",
+          "roleContentTags",
+          "projectId",
+          "projectTitle",
+          "talentId",
+          "talentStageName",
+          "talentIsMinor",
+          "initiatedBy",
+          "message",
+          "status",
+          "viewerSide",
+          "contractId",
+          "offers",
+          "createdAt"
+        ]
+      },
+      "InviteDto": {
+        "type": "object",
+        "properties": {
+          "talentId": {
+            "type": "string",
+            "description": "제안할 출연자 id (캐스팅 목록의 id)"
+          },
+          "message": {
+            "type": "string",
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "talentId"
+        ]
+      },
+      "CreateCastingOfferDto": {
+        "type": "object",
+        "properties": {
+          "feeType": {
+            "type": "string",
+            "enum": [
+              "FLAT",
+              "PER_EPISODE",
+              "REVENUE_SHARE",
+              "HYBRID"
+            ],
+            "description": "FLAT=고정, PER_EPISODE=회당, REVENUE_SHARE=수익 배분, HYBRID=고정+배분"
+          },
+          "flatFeeKrw": {
+            "type": "number",
+            "description": "고정 출연료 (원). FLAT, HYBRID"
+          },
+          "perEpisodeFeeKrw": {
+            "type": "number",
+            "description": "회당 출연료 (원). PER_EPISODE"
+          },
+          "episodes": {
+            "type": "number",
+            "description": "회차 수. PER_EPISODE"
+          },
+          "revenueSharePct": {
+            "type": "number",
+            "description": "작품 순수익 중 배분 비율(%). REVENUE_SHARE, HYBRID"
+          },
+          "usage": {
+            "type": "string",
+            "enum": [
+              "DIGITAL",
+              "LIVE",
+              "BOTH"
+            ],
+            "description": "DIGITAL=디지털 출연, LIVE=실제 촬영, BOTH"
+          },
+          "termMonths": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 120,
+            "description": "계약 기간 (개월). 이 기간 동안 작품이 공개된다"
+          },
+          "exclusive": {
+            "type": "boolean"
+          },
+          "requiresTalentApproval": {
+            "type": "boolean",
+            "default": true,
+            "description": "출연분 확인권: 출연자가 확인해야 공개할 수 있다"
+          },
+          "productionDays": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 90,
+            "description": "계약일부터 새 장면을 제작할 수 있는 기간 (일)"
+          },
+          "earlyTerminationPct": {
+            "type": "number",
+            "default": 50,
+            "description": "조기 종료 보상: 고정 출연료 반환 + 이 비율(%)"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "feeType",
+          "usage",
+          "termMonths",
+          "exclusive",
+          "productionDays"
+        ]
+      },
+      "CastingContractDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "projectId": {
+            "type": "string"
+          },
+          "projectTitle": {
+            "type": "string"
+          },
+          "roleId": {
+            "type": "string"
+          },
+          "roleName": {
+            "type": "string"
+          },
+          "talentId": {
+            "type": "string"
+          },
+          "talentStageName": {
+            "type": "string"
+          },
+          "feeType": {
+            "type": "string",
+            "enum": [
+              "FLAT",
+              "PER_EPISODE",
+              "REVENUE_SHARE",
+              "HYBRID"
+            ]
+          },
+          "flatFeeKrw": {
+            "type": "number"
+          },
+          "perEpisodeFeeKrw": {
+            "type": "number"
+          },
+          "episodes": {
+            "type": "number",
+            "nullable": true
+          },
+          "revenueSharePct": {
+            "type": "number"
+          },
+          "usage": {
+            "type": "string",
+            "enum": [
+              "DIGITAL",
+              "LIVE",
+              "BOTH"
+            ]
+          },
+          "contentTags": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "ROMANCE",
+                "INTIMACY",
+                "VIOLENCE",
+                "HORROR",
+                "DEATH",
+                "SUBSTANCE",
+                "PROFANITY"
+              ]
+            }
+          },
+          "exclusive": {
+            "type": "boolean"
+          },
+          "requiresTalentApproval": {
+            "type": "boolean"
+          },
+          "earlyTerminationPct": {
+            "type": "number"
+          },
+          "guardianApprovedAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "startsAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "productionEndsAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "이때까지 새 장면 제작 가능"
+          },
+          "endsAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "이때까지 작품 공개 가능"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "TERMINATED",
+              "EXPIRED"
+            ]
+          },
+          "terminationReason": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "projectId",
+          "projectTitle",
+          "roleId",
+          "roleName",
+          "talentId",
+          "talentStageName",
+          "feeType",
+          "flatFeeKrw",
+          "perEpisodeFeeKrw",
+          "episodes",
+          "revenueSharePct",
+          "usage",
+          "contentTags",
+          "exclusive",
+          "requiresTalentApproval",
+          "earlyTerminationPct",
+          "guardianApprovedAt",
+          "startsAt",
+          "productionEndsAt",
+          "endsAt",
+          "status",
+          "terminationReason"
+        ]
+      },
+      "AcceptCastingDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "CONTRACTED",
+              "PENDING_GUARDIAN",
+              "REJECTED_BY_GUARDIAN"
+            ],
+            "description": "미성년자는 보호자 승인 전까지 PENDING_GUARDIAN"
+          },
+          "offer": {
+            "$ref": "#/components/schemas/CastingOfferDto"
+          },
+          "contract": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CastingContractDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "status",
+          "offer",
+          "contract"
+        ]
+      },
+      "GuardianDecisionDto": {
+        "type": "object",
+        "properties": {
+          "approve": {
+            "type": "boolean",
+            "description": "true=승인, false=거절"
+          }
+        },
+        "required": [
+          "approve"
+        ]
+      },
+      "EarlyTerminationQuoteDto": {
+        "type": "object",
+        "properties": {
+          "contractId": {
+            "type": "string"
+          },
+          "refundKrw": {
+            "type": "number",
+            "description": "반환할 고정 출연료 (원)"
+          },
+          "compensationKrw": {
+            "type": "number",
+            "description": "조기 종료 보상 (원)"
+          },
+          "totalKrw": {
+            "type": "number"
+          },
+          "affectedWorkIds": {
+            "description": "종료되면 내려가는 작품",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "contractId",
+          "refundKrw",
+          "compensationKrw",
+          "totalKrw",
+          "affectedWorkIds"
+        ]
+      },
+      "TerminateContractDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "maxLength": 1000,
+            "description": "종료 사유 (보상금 입금 확인 등)"
+          }
+        },
+        "required": [
+          "reason"
+        ]
+      },
+      "CreateWorkDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "example": "마지막 열차 1화"
+          },
+          "contentTags": {
+            "type": "array",
+            "description": "이 작품에 실제로 들어간 장면 유형",
+            "items": {
+              "type": "string",
+              "enum": [
+                "ROMANCE",
+                "INTIMACY",
+                "VIOLENCE",
+                "HORROR",
+                "DEATH",
+                "SUBSTANCE",
+                "PROFANITY"
+              ]
+            }
+          },
+          "contractIds": {
+            "description": "출연한 계약 id",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "aiGenerated": {
+            "type": "boolean",
+            "default": true,
+            "description": "AI로 만든 초상을 썼는지 (공개할 때 합성 콘텐츠 표시 필요)"
+          }
+        },
+        "required": [
+          "title",
+          "contentTags",
+          "contractIds"
+        ]
+      },
+      "WorkAppearanceDto": {
+        "type": "object",
+        "properties": {
+          "contractId": {
+            "type": "string"
+          },
+          "talentId": {
+            "type": "string"
+          },
+          "talentStageName": {
+            "type": "string"
+          },
+          "roleName": {
+            "type": "string"
+          },
+          "requiresApproval": {
+            "type": "boolean"
+          },
+          "approvedAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "contractId",
+          "talentId",
+          "talentStageName",
+          "roleName",
+          "requiresApproval",
+          "approvedAt"
+        ]
+      },
+      "WorkDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "projectId": {
+            "type": "string"
+          },
+          "projectTitle": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "contentTags": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "ROMANCE",
+                "INTIMACY",
+                "VIOLENCE",
+                "HORROR",
+                "DEATH",
+                "SUBSTANCE",
+                "PROFANITY"
+              ]
+            }
+          },
+          "aiGenerated": {
+            "type": "boolean"
+          },
+          "externalUrl": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "PUBLISHED",
+              "UNLISTED",
+              "REMOVED"
+            ]
+          },
+          "publishedAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "appearances": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WorkAppearanceDto"
+            }
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "projectId",
+          "projectTitle",
+          "title",
+          "contentTags",
+          "aiGenerated",
+          "externalUrl",
+          "status",
+          "publishedAt",
+          "appearances",
+          "createdAt"
+        ]
+      },
+      "PublishWorkDto": {
+        "type": "object",
+        "properties": {
+          "externalUrl": {
+            "type": "string",
+            "example": "https://www.youtube.com/watch?v=xxxxxxxxxxx"
+          },
+          "syntheticLabelApplied": {
+            "type": "boolean",
+            "description": "AI 생성물 표시(유튜브 합성 콘텐츠 공개 설정 포함)를 했는지",
+            "example": true
+          }
+        },
+        "required": [
+          "externalUrl",
+          "syntheticLabelApplied"
+        ]
+      },
+      "CreateTakedownDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "enum": [
+              "OUT_OF_SCOPE",
+              "PROHIBITED_CONTENT",
+              "NOT_APPROVED",
+              "IDENTITY_FRAUD",
+              "MINOR_PROTECTION",
+              "PERSONALITY_HARM",
+              "PERSONAL_WITHDRAWAL"
+            ],
+            "description": "OUT_OF_SCOPE·PROHIBITED_CONTENT·NOT_APPROVED·IDENTITY_FRAUD·MINOR_PROTECTION은 즉시 비공개"
+          },
+          "details": {
+            "type": "string",
+            "maxLength": 2000,
+            "example": "계약에 없는 베드신이 들어갔습니다 (3분 12초)"
+          }
+        },
+        "required": [
+          "reason",
+          "details"
+        ]
+      },
+      "TakedownDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "workId": {
+            "type": "string"
+          },
+          "workTitle": {
+            "type": "string"
+          },
+          "requesterId": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string",
+            "enum": [
+              "OUT_OF_SCOPE",
+              "PROHIBITED_CONTENT",
+              "NOT_APPROVED",
+              "IDENTITY_FRAUD",
+              "MINOR_PROTECTION",
+              "PERSONALITY_HARM",
+              "PERSONAL_WITHDRAWAL"
+            ]
+          },
+          "details": {
+            "type": "string"
+          },
+          "interimUnlisted": {
+            "type": "boolean"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "OPEN",
+              "UPHELD",
+              "REJECTED",
+              "SETTLED"
+            ]
+          },
+          "reviewDueAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "resolution": {
+            "type": "string",
+            "nullable": true
+          },
+          "decidedAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "workId",
+          "workTitle",
+          "requesterId",
+          "reason",
+          "details",
+          "interimUnlisted",
+          "status",
+          "reviewDueAt",
+          "resolution",
+          "decidedAt",
+          "createdAt"
+        ]
+      },
+      "SettleTakedownDto": {
+        "type": "object",
+        "properties": {
+          "resolution": {
+            "type": "string",
+            "maxLength": 2000,
+            "example": "출연자 요청에 합의해 내림"
+          }
+        },
+        "required": [
+          "resolution"
+        ]
+      },
+      "DecideTakedownDto": {
+        "type": "object",
+        "properties": {
+          "uphold": {
+            "type": "boolean",
+            "description": "true=신고 인정(삭제), false=기각(자동 비공개였다면 다시 공개)"
+          },
+          "resolution": {
+            "type": "string",
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "uphold",
+          "resolution"
+        ]
+      },
+      "RecordPerformanceDto": {
+        "type": "object",
+        "properties": {
+          "capturedAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "이 숫자를 확인한 시각 (ISO 8601)",
+            "example": "2026-10-11T00:00:00.000Z"
+          },
+          "views": {
+            "type": "number",
+            "description": "조회수"
+          },
+          "watchTimeMinutes": {
+            "type": "number",
+            "description": "총 시청 시간 (분)"
+          },
+          "avgViewDurationSec": {
+            "type": "number",
+            "description": "평균 시청 지속 시간 (초)"
+          },
+          "likes": {
+            "type": "number"
+          },
+          "comments": {
+            "type": "number"
+          },
+          "positiveComments": {
+            "type": "number",
+            "description": "긍정 댓글 수"
+          },
+          "channelSubscribers": {
+            "type": "number",
+            "description": "영상 공개 시점의 채널 구독자 수"
+          },
+          "subscribersGained": {
+            "type": "number",
+            "description": "이 영상으로 늘어난 구독자"
+          },
+          "revenueKrw": {
+            "type": "number",
+            "description": "누적 수익 (원)"
+          }
+        },
+        "required": [
+          "capturedAt",
+          "views"
+        ]
+      },
+      "PerformanceSnapshotDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "workId": {
+            "type": "string"
+          },
+          "capturedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "views": {
+            "type": "number"
+          },
+          "watchTimeMinutes": {
+            "type": "number",
+            "nullable": true
+          },
+          "avgViewDurationSec": {
+            "type": "number",
+            "nullable": true
+          },
+          "likes": {
+            "type": "number",
+            "nullable": true
+          },
+          "comments": {
+            "type": "number",
+            "nullable": true
+          },
+          "positiveComments": {
+            "type": "number",
+            "nullable": true
+          },
+          "channelSubscribers": {
+            "type": "number",
+            "nullable": true
+          },
+          "subscribersGained": {
+            "type": "number",
+            "nullable": true
+          },
+          "revenueKrw": {
+            "type": "number",
+            "nullable": true
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "MANUAL",
+              "YOUTUBE_API"
+            ]
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "workId",
+          "capturedAt",
+          "views",
+          "watchTimeMinutes",
+          "avgViewDurationSec",
+          "likes",
+          "comments",
+          "positiveComments",
+          "channelSubscribers",
+          "subscribersGained",
+          "revenueKrw",
+          "source",
+          "createdAt"
+        ]
+      },
+      "TrainingWorkDto": {
+        "type": "object",
+        "properties": {
+          "workId": {
+            "type": "string"
+          },
+          "publishedAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "latest": {
+            "nullable": true,
+            "description": "가장 최근 성과 기록",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PerformanceSnapshotDto"
+              }
+            ]
+          },
+          "daysSincePublish": {
+            "type": "object",
+            "description": "공개 후 경과 일수 (최근 기록 기준)"
+          }
+        },
+        "required": [
+          "workId",
+          "publishedAt",
+          "latest",
+          "daysSincePublish"
+        ]
+      },
+      "TrainingRowDto": {
+        "type": "object",
+        "properties": {
+          "scriptId": {
+            "type": "string"
+          },
+          "genre": {
+            "type": "string"
+          },
+          "contentRating": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "ALL",
+              "12",
+              "15",
+              "19"
+            ]
+          },
+          "fullTextChars": {
+            "type": "number"
+          },
+          "works": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TrainingWorkDto"
+            }
+          }
+        },
+        "required": [
+          "scriptId",
+          "genre",
+          "contentRating",
+          "fullTextChars",
+          "works"
+        ]
+      },
+      "SimilarWorkDto": {
+        "type": "object",
+        "properties": {
+          "scriptId": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "workTitle": {
+            "type": "string",
+            "nullable": true,
+            "description": "그 대본으로 만든 공개 작품 (첫 편)"
+          },
+          "similarity": {
+            "type": "number",
+            "description": "벡터 코사인 유사도 (-1~1)"
+          },
+          "hit": {
+            "type": "boolean",
+            "description": "채널 크기를 보정한 성과가 상위 20%였는가"
+          },
+          "percentile": {
+            "type": "number",
+            "description": "학습 데이터 안에서의 성과 백분위 (0~1)"
+          }
+        },
+        "required": [
+          "scriptId",
+          "title",
+          "workTitle",
+          "similarity",
+          "hit",
+          "percentile"
+        ]
+      },
+      "HitInsightDto": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "MODEL",
+              "NEIGHBORS",
+              "NOT_READY",
+              "NOT_EMBEDDED"
+            ],
+            "description": "MODEL: 모델 확률 / NEIGHBORS: 모델 학습 전, 비슷한 성공작만 / NOT_READY: 정답 데이터 부족"
+          },
+          "embedder": {
+            "type": "string",
+            "description": "벡터를 만든 임베더"
+          },
+          "trainingPairs": {
+            "type": "number",
+            "description": "정답(작품 성과)이 있는 학습 동의 대본 수"
+          },
+          "requiredPairs": {
+            "type": "number",
+            "description": "모델 학습에 필요한 수"
+          },
+          "modelVersion": {
+            "type": "string"
+          },
+          "scriptId": {
+            "type": "string"
+          },
+          "probability": {
+            "type": "number",
+            "description": "상위 20% 성과일 확률 (MODEL)"
+          },
+          "low": {
+            "type": "number",
+            "description": "확률 범위 하단 (부트스트랩 10%)"
+          },
+          "high": {
+            "type": "number",
+            "description": "확률 범위 상단 (부트스트랩 90%)"
+          },
+          "neighborSignal": {
+            "type": "number",
+            "description": "비슷한 작품의 유사도 가중 성공률 (NEIGHBORS, 참고 신호)"
+          },
+          "neighbors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SimilarWorkDto"
+            }
+          }
+        },
+        "required": [
+          "mode",
+          "embedder",
+          "trainingPairs",
+          "requiredPairs",
+          "scriptId",
+          "neighbors"
+        ]
+      },
+      "RecommendedScriptDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "logline": {
+            "type": "string"
+          },
+          "genre": {
+            "type": "string"
+          },
+          "authorName": {
+            "type": "string"
+          },
+          "score": {
+            "type": "number",
+            "nullable": true,
+            "description": "MODEL이면 확률, NEIGHBORS면 참고 신호, NOT_READY면 null"
+          },
+          "probability": {
+            "type": "number"
+          },
+          "low": {
+            "type": "number"
+          },
+          "high": {
+            "type": "number"
+          },
+          "neighbors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SimilarWorkDto"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "logline",
+          "genre",
+          "authorName",
+          "score",
+          "neighbors"
+        ]
+      },
+      "RecommendationsDto": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "MODEL",
+              "NEIGHBORS",
+              "NOT_READY",
+              "NOT_EMBEDDED"
+            ],
+            "description": "MODEL: 모델 확률 / NEIGHBORS: 모델 학습 전, 비슷한 성공작만 / NOT_READY: 정답 데이터 부족"
+          },
+          "embedder": {
+            "type": "string",
+            "description": "벡터를 만든 임베더"
+          },
+          "trainingPairs": {
+            "type": "number",
+            "description": "정답(작품 성과)이 있는 학습 동의 대본 수"
+          },
+          "requiredPairs": {
+            "type": "number",
+            "description": "모델 학습에 필요한 수"
+          },
+          "modelVersion": {
+            "type": "string"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RecommendedScriptDto"
+            }
+          }
+        },
+        "required": [
+          "mode",
+          "embedder",
+          "trainingPairs",
+          "requiredPairs",
+          "items"
+        ]
+      },
+      "CommentSentimentRequestDto": {
+        "type": "object",
+        "properties": {
+          "comments": {
+            "maxItems": 2000,
+            "description": "유튜브 댓글 등 (저장하지 않는다)",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "comments"
+        ]
+      },
+      "CommentSentimentDto": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "number"
+          },
+          "positive": {
+            "type": "number"
+          },
+          "negative": {
+            "type": "number"
+          },
+          "neutral": {
+            "type": "number"
+          },
+          "version": {
+            "type": "string",
+            "description": "분류기 버전"
+          }
+        },
+        "required": [
+          "total",
+          "positive",
+          "negative",
+          "neutral",
+          "version"
+        ]
+      },
+      "ActiveModelDto": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "string"
+          },
+          "embedder": {
+            "type": "string"
+          },
+          "trainedAt": {
+            "type": "string"
+          },
+          "metrics": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "version",
+          "embedder",
+          "trainedAt",
+          "metrics"
+        ]
+      },
+      "MlStatusDto": {
+        "type": "object",
+        "properties": {
+          "embedder": {
+            "type": "string"
+          },
+          "embeddedScripts": {
+            "type": "number"
+          },
+          "trainingPairs": {
+            "type": "number"
+          },
+          "requiredPairs": {
+            "type": "number"
+          },
+          "neighborMin": {
+            "type": "number"
+          },
+          "sentiment": {
+            "type": "string"
+          },
+          "activeModel": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ActiveModelDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "embedder",
+          "embeddedScripts",
+          "trainingPairs",
+          "requiredPairs",
+          "neighborMin",
+          "sentiment",
+          "activeModel"
+        ]
+      },
+      "HitModelVersionDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "embedder": {
+            "type": "string"
+          },
+          "algorithm": {
+            "type": "string"
+          },
+          "labelDefinition": {
+            "type": "string"
+          },
+          "trainingPairs": {
+            "type": "number"
+          },
+          "metrics": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "trainedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "version",
+          "embedder",
+          "algorithm",
+          "labelDefinition",
+          "trainingPairs",
+          "metrics",
+          "active",
+          "trainedAt"
+        ]
+      },
+      "TrainRequestDto": {
+        "type": "object",
+        "properties": {
+          "forceActivate": {
+            "type": "boolean",
+            "description": "장르 평균보다 못해도 활성화한다"
+          }
+        }
+      },
+      "TrainResultDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "TRAINED",
+              "NOT_ENOUGH_DATA"
+            ]
+          },
+          "trainingPairs": {
+            "type": "number"
+          },
+          "requiredPairs": {
+            "type": "number"
+          },
+          "embedder": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "activated": {
+            "type": "boolean",
+            "description": "시간 순서 검증에서 장르 평균 이상이라 활성화했는가"
+          },
+          "metrics": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "note": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "trainingPairs",
+          "requiredPairs",
+          "embedder"
+        ]
+      },
+      "EmbedStaleResultDto": {
+        "type": "object",
+        "properties": {
+          "embedder": {
+            "type": "string"
+          },
+          "embedded": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "embedder",
+          "embedded"
         ]
       }
     }

@@ -1,5 +1,6 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { ContractsService } from '../contracts/contracts.service.js';
 import type { Viewer } from '../access/access-rules.js';
 import type { AcceptOfferResultDto, CreateOfferDto, OfferDto } from './dto/negotiation.dto.js';
 import { isParticipant, NegotiationsService } from './negotiations.service.js';
@@ -16,6 +17,7 @@ export class OffersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly negotiations: NegotiationsService,
+    private readonly contracts: ContractsService,
   ) {}
 
   /** 새 제안. 기존 PROPOSED 제안은 역제안(COUNTERED) 또는 대체(WITHDRAWN) 처리된다. */
@@ -50,7 +52,8 @@ export class OffersService {
 
   /**
    * 수락 = 매칭. 한 트랜잭션에서
-   * 제안 ACCEPTED → 협상 AGREED → Deal(PENDING_CONTRACT) + License(DRAFT) 생성.
+   * 제안 ACCEPTED → 협상 AGREED → Deal(PENDING_CONTRACT) + License(DRAFT) + 대본 이용허락 계약(서명 대기) 생성.
+   * 작가·제작자가 계약서에 모두 서명하면 딜과 라이선스가 ACTIVE가 된다 (ContractsService.sign).
    * 독점 조건이면 같은 대본의 다른 진행 중 협상을 종료한다.
    */
   async accept(offerId: string, user: Viewer): Promise<AcceptOfferResultDto> {
@@ -86,6 +89,26 @@ export class OffersService {
           licenseeId: offer.negotiation.producerId,
           scope: buildLicenseScope(offer),
           status: 'DRAFT',
+        },
+      });
+      const parties = await tx.negotiation.findUniqueOrThrow({
+        where: { id: offer.negotiationId },
+        select: {
+          script: { select: { id: true, title: true } },
+          writer: { select: { id: true, displayName: true } },
+          producer: { select: { id: true, displayName: true } },
+        },
+      });
+      await this.contracts.createScriptLicense(tx, {
+        dealId: deal.id,
+        ...parties,
+        terms: {
+          writerSharePct: offer.writerSharePct,
+          producerSharePct: offer.producerSharePct,
+          upfrontFeeKrw: offer.upfrontFeeKrw,
+          termMonths: offer.termMonths,
+          exclusive: offer.exclusive,
+          notes: offer.notes,
         },
       });
       if (offer.exclusive) {

@@ -37,6 +37,7 @@ run('API e2e', () => {
       })
     ).map((n) => n.id);
     const deals = (await prisma.deal.findMany({ where: { negotiationId: { in: negs } }, select: { id: true } })).map((d) => d.id);
+    await prisma.contract.deleteMany({ where: { OR: [{ dealId: { in: deals } }, { parties: { some: { userId: { in: ids } } } }] } });
     await prisma.ledgerEntry.deleteMany({ where: { dealId: { in: deals } } });
     await prisma.license.deleteMany({ where: { dealId: { in: deals } } });
     await prisma.deal.deleteMany({ where: { id: { in: deals } } });
@@ -54,7 +55,7 @@ run('API e2e', () => {
     await app.close();
   });
 
-  /** 일반 가입 → (선택) 프로필·이메일 공개 */
+  /** 일반 가입 → (선택) 프로필 공개 */
   async function signup(name: string, opts: { creator?: boolean } = {}) {
     const http = request(app.getHttpServer());
     const res = await http
@@ -64,7 +65,7 @@ run('API e2e', () => {
     createdUserIds.add(res.body.user.id);
     const auth = { Authorization: `Bearer ${res.body.accessToken}` };
     if (opts.creator) {
-      await http.patch('/me/profile').set(auth).send({ bio: `${name} 소개`, profilePublic: true, emailPublic: true }).expect(204);
+      await http.patch('/me/profile').set(auth).send({ bio: `${name} 소개`, profilePublic: true }).expect(204);
     }
     return { id: res.body.user.id as string, auth, user: res.body.user };
   }
@@ -94,15 +95,16 @@ run('API e2e', () => {
     expect((await http.get('/me').set(W).expect(200)).body.passwordHash).toBeUndefined();
     await http.get('/me').expect(401);
 
-    // 프로필·이메일을 공개하기 전에는 대본 작성 불가
+    // 프로필을 공개하기 전에는 대본 작성 불가
     const blocked = await http.post('/scripts').set(W).send({ title: 't', logline: 'l', synopsis: 's', genre: 'g', fullText: 'f' }).expect(403);
     expect(blocked.body.error).toBe('PROFILE_NOT_PUBLIC');
     await http.patch('/me/profile').set(W).send({ profilePublic: true }).expect(400); // 소개 없이 공개 불가
     await http.get(`/users/${writer.id}`).expect(404); // 비공개 프로필
     await http.patch('/me/profile').set(W).send({ bio: '미스터리 작가입니다', profilePublic: true }).expect(204);
-    expect((await http.get('/me').set(W)).body.creatorReady).toBe(false); // 이메일도 공개해야 한다
-    await http.patch('/me/profile').set(W).send({ emailPublic: true }).expect(204);
+    // 이메일은 공개하지 않아도 된다 (계약 전 연락은 플랫폼 메시지로만)
     expect((await http.get('/me').set(W)).body.creatorReady).toBe(true);
+    expect((await http.get(`/users/${writer.id}`).expect(200)).body).toMatchObject({ email: null, creatorReady: true });
+    await http.patch('/me/profile').set(W).send({ emailPublic: true }).expect(204);
     const profile = (await http.get(`/users/${writer.id}`).expect(200)).body;
     expect(profile).toMatchObject({ bio: '미스터리 작가입니다', email: email('writer'), creatorReady: true });
 

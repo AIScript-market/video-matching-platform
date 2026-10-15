@@ -57,4 +57,23 @@ describe('processSummarize', () => {
     expect(saved[0].summary).toBe('요약');
     expect(saved[0].tags).toEqual(['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']);
   });
+
+  it('ML 서비스가 있으면 벡터화를 요청하고, 실패해도 요약은 저장한다', async () => {
+    const calls: string[] = [];
+    const ok = fakeRepo(script);
+    const done = await processSummarize(
+      { scriptId: 's1' },
+      { scripts: ok.repo, summarizer: new MockSummarizer(), embed: async (id) => void calls.push(id) },
+    );
+    expect(calls).toEqual(['s1']);
+    expect(done).toMatchObject({ status: 'done', embedding: 'ok' });
+
+    const failing = fakeRepo(script);
+    const failed = await processSummarize(
+      { scriptId: 's1' },
+      { scripts: failing.repo, summarizer: new MockSummarizer(), embed: async () => Promise.reject(new Error('down')) },
+    );
+    expect(failed).toMatchObject({ status: 'done', embedding: 'failed' });
+    expect(failing.saved).toHaveLength(1);
+  });
 });
