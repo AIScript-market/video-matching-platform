@@ -34,7 +34,10 @@ def test_length_is_removed_before_scoring():
     g = np.repeat(["a", "b", "c", "d"], 50)
     log_len = rng.normal(size=200)
     y = (log_len + rng.normal(scale=0.1, size=200) > 0).astype(float)
-    assert bench_auc(log_len, y, g, log_len) < 0.6  # 길이만으로 맞히는 점수는 길이를 빼면 남는 게 없다
+    # 길이에 정답과 무관한 잡음만 더한 점수: 길이 몫을 빼면 잡음만 남아 동전 던지기에 가깝다
+    # (길이 그 자체를 점수로 쓰면 나머지가 부동소수점 오차뿐이라 결과가 환경마다 달라진다)
+    score = log_len + rng.normal(scale=0.01, size=200)
+    assert 0.35 < bench_auc(score, y, g, log_len) < 0.65
 
 
 def test_split_is_by_group_and_stable():
