@@ -652,6 +652,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/deals/{id}/contracts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 딜의 이용허락 계약 이력 (처음 계약과 변경 계약, 최신순) */
+        get: operations["ContractsController_history"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/deals/{id}/contract/amendments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 변경 계약 제안: 공동 작가·공동 제작자·출연자 추가, 배분율 변경 (모든 당사자가 서명하면 다음 달부터 적용) */
+        post: operations["ContractsController_amend"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/scripts/{id}/nda-preview": {
         parameters: {
             query?: never;
@@ -2340,8 +2374,15 @@ export interface components {
             ndaContractId?: string;
         };
         ContractPartyDto: {
+            id: string;
             /** @enum {string} */
-            role: "WRITER" | "PRODUCER" | "PLATFORM";
+            role: "WRITER" | "PRODUCER" | "PLATFORM" | "PERFORMER" | "OTHER";
+            /** @description 같은 역할이 여럿일 때 구분 (예: 공동 작가) */
+            label: string | null;
+            /** @description 영상 광고 수익 배분율 (만분율, 10000 = 100%) */
+            revenueShareBp: number | null;
+            /** @description 원 단위 내림 차이를 받는 당사자 */
+            receivesRemainder: boolean;
             userId: string | null;
             /** @description 계약서에 적힌 이름 */
             legalName: string;
@@ -2357,8 +2398,12 @@ export interface components {
             templateVersion: string;
             title: string;
             /** @enum {string} */
-            status: "AWAITING_SIGNATURES" | "SIGNED" | "VOID";
+            status: "AWAITING_SIGNATURES" | "SIGNED" | "VOID" | "SUPERSEDED";
             dealId: string | null;
+            /** @description 이 계약이 바꾸는 이전 계약 (변경 계약) */
+            supersedesId: string | null;
+            /** @description 수익 배분 적용 시작 달 (YYYY-MM). null이면 처음부터 */
+            effectiveMonth: string | null;
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
@@ -2374,8 +2419,12 @@ export interface components {
             templateVersion: string;
             title: string;
             /** @enum {string} */
-            status: "AWAITING_SIGNATURES" | "SIGNED" | "VOID";
+            status: "AWAITING_SIGNATURES" | "SIGNED" | "VOID" | "SUPERSEDED";
             dealId: string | null;
+            /** @description 이 계약이 바꾸는 이전 계약 (변경 계약) */
+            supersedesId: string | null;
+            /** @description 수익 배분 적용 시작 달 (YYYY-MM). null이면 처음부터 */
+            effectiveMonth: string | null;
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
@@ -2401,6 +2450,23 @@ export interface components {
              * @enum {boolean}
              */
             agreed: true;
+        };
+        AmendPartyDto: {
+            userId: string;
+            /** @enum {string} */
+            role: "WRITER" | "PRODUCER" | "PERFORMER" | "OTHER";
+            /** @description 같은 역할이 여럿일 때 구분 (예: 공동 작가, 주연 배우) */
+            label?: string;
+            /** @description 영상 광고 수익 배분율 (만분율). 배분받지 않으면 null */
+            revenueShareBp: number | null;
+            /** @description 원 단위 내림 차이를 받는 당사자 (정확히 한 명) */
+            receivesRemainder?: boolean;
+        };
+        AmendLicenseDto: {
+            /** @description 플랫폼을 뺀 모든 당사자 (지금 계약의 작가·제작자 포함) */
+            parties: components["schemas"]["AmendPartyDto"][];
+            /** @description 변경 사유나 특약 */
+            notes?: string;
         };
         ContractPreviewDto: {
             templateVersion: string;
@@ -2629,12 +2695,21 @@ export interface components {
         };
         PayoutDto: {
             id: string;
-            /** @enum {string} */
-            role: "WRITER" | "PRODUCER";
             amountKrw: number;
             /** Format: date-time */
             paidAt: string;
             memo: string | null;
+        };
+        ShareLineDto: {
+            partyId: string;
+            /** @enum {string} */
+            role: "WRITER" | "PRODUCER" | "PERFORMER" | "OTHER";
+            name: string;
+            label: string | null;
+            /** @description 배분율 (만분율) */
+            revenueShareBp: number;
+            amountKrw: number;
+            payout: components["schemas"]["PayoutDto"] | null;
         };
         RevenueLineDto: {
             id: string;
@@ -2643,22 +2718,25 @@ export interface components {
             month: string;
             /** @description 확정 광고 수익 (원) */
             amountKrw: number;
-            writerKrw: number;
-            producerKrw: number;
+            /** @description 이 수익에 적용한 계약 */
+            contractId: string;
             /** @description 플랫폼 몫은 언제나 0 (채널 게시 계약 제3조) */
             platformKrw: number;
-            payouts: components["schemas"]["PayoutDto"][];
+            shares: components["schemas"]["ShareLineDto"][];
+        };
+        PartyTotalDto: {
+            userId: string;
+            name: string;
+            /** @enum {string} */
+            role: "WRITER" | "PRODUCER" | "PERFORMER" | "OTHER";
+            dueKrw: number;
+            paidKrw: number;
         };
         SettlementDto: {
             dealId: string;
-            writerSharePct: number;
-            producerSharePct: number;
             lines: components["schemas"]["RevenueLineDto"][];
             totalRevenueKrw: number;
-            writerDueKrw: number;
-            producerDueKrw: number;
-            writerPaidKrw: number;
-            producerPaidKrw: number;
+            totals: components["schemas"]["PartyTotalDto"][];
         };
         ReviewVideoDto: {
             /** @enum {string} */
@@ -2687,8 +2765,8 @@ export interface components {
             memo?: string;
         };
         RecordPayoutDto: {
-            /** @enum {string} */
-            role: "WRITER" | "PRODUCER";
+            /** @description 받은 당사자 (그 수익에 적용한 계약의 당사자 id) */
+            partyId: string;
             /** @description 지급한 시각 (생략하면 지금) */
             paidAt?: string;
             memo?: string;
@@ -4223,6 +4301,52 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContractDto"];
+                };
+            };
+        };
+    };
+    ContractsController_history: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContractSummaryDto"][];
+                };
+            };
+        };
+    };
+    ContractsController_amend: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AmendLicenseDto"];
+            };
+        };
         responses: {
             200: {
                 headers: {

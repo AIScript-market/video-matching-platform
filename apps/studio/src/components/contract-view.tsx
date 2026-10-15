@@ -15,6 +15,8 @@ const ROLE_LABEL: Record<Contract["parties"][number]["role"], string> = {
   WRITER: "작가",
   PRODUCER: "제작자",
   PLATFORM: "플랫폼",
+  PERFORMER: "출연자",
+  OTHER: "참여자",
 };
 
 /** 계약서 본문 (템플릿이 쓰는 마크다운 일부: #, ##, - 만) */
@@ -40,14 +42,19 @@ export function ContractParties({ contract }: { contract: Contract }) {
           <tr>
             <th>당사자</th>
             <th>이름</th>
+            <th className="num">배분율</th>
             <th>서명</th>
           </tr>
         </thead>
         <tbody>
           {contract.parties.map((p) => (
-            <tr key={p.role}>
-              <td>{ROLE_LABEL[p.role]}</td>
+            <tr key={p.id}>
+              <td>
+                {ROLE_LABEL[p.role]}
+                {p.label ? `(${p.label})` : ""}
+              </td>
               <td>{p.legalName}</td>
+              <td className="num">{p.revenueShareBp === null ? "-" : `${(p.revenueShareBp / 100).toFixed(2)}%`}</td>
               <td className="small">{p.signedAt ? `${p.signedName} · ${dateTime(p.signedAt)}` : <span className="badge warn">서명 대기</span>}</td>
             </tr>
           ))}
@@ -78,6 +85,7 @@ export function ContractPanel({ contract, onChange }: { contract: Contract; onCh
 
 export function ContractStatus({ status }: { status: Contract["status"] }) {
   if (status === "SIGNED") return <span className="badge ok">서명 완료</span>;
+  if (status === "SUPERSEDED") return <span className="badge plain">변경됨</span>;
   if (status === "VOID") return <span className="badge bad">무효</span>;
   return <StatusBadge status="PENDING" />;
 }

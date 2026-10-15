@@ -85,7 +85,8 @@ test("대본 제공자와 제작자가 대본으로 매칭되어 딜이 만들�
   // 9. 대본 이용허락 계약: 작가·제작자가 서명하면 딜이 진행 중이 된다
   await writer.goto(dealUrl);
   const license = writer.getByRole("region", { name: "계약서" }).first();
-  await expect(license.getByText("광고 수익 배분: 작가 55% / 제작자 45%")).toBeVisible();
+  await expect(license.getByText("작가: 작가E2E — 55.00%")).toBeVisible();
+  await expect(license.getByText("플랫폼: ", { exact: false }).first()).toBeVisible(); // 플랫폼도 당사자
   await signContract(writer, "작가E2E");
   await expect(license.getByText("서명 대기")).toHaveCount(1);
   await producer.reload();

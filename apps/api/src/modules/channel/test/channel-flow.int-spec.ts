@@ -5,7 +5,7 @@ import { BadRequestException, ConflictException, ForbiddenException, NotFoundExc
 import { PrismaService } from '../../../prisma/prisma.service.js';
 import { AccessService } from '../../access/access.service.js';
 import type { Viewer } from '../../access/access-rules.js';
-import { ContractsService } from '../../contracts/contracts.service.js';
+import { ContractsService, nextMonth } from '../../contracts/contracts.service.js';
 import { DealsService } from '../../deals/deals.service.js';
 import { NegotiationsService } from '../../negotiations/negotiations.service.js';
 import { OffersService } from '../../negotiations/offers.service.js';
@@ -23,7 +23,7 @@ run('채널 게시·정산 (DB)', () => {
   let prisma: PrismaService;
   let channel: ChannelService;
   let contracts: ContractsService;
-  let writer: Viewer, producer: Viewer, admin: Viewer, outsider: Viewer;
+  let writer: Viewer, producer: Viewer, admin: Viewer, outsider: Viewer, coWriter: Viewer;
   let dealId: string;
   const userIds: string[] = [];
 
@@ -49,6 +49,7 @@ run('채널 게시·정산 (DB)', () => {
     producer = await makeUser('producer');
     admin = await makeUser('admin', ['ADMIN']);
     outsider = await makeUser('outsider');
+    coWriter = await makeUser('cowriter');
 
     const s = await scripts.create(writer, { title: '채널 테스트', logline: 'l', synopsis: 's', genre: '스릴러', fullText: 'text', rightsDeclared: true });
     await scripts.publish(s.id, writer, {});
@@ -114,21 +115,65 @@ run('채널 게시·정산 (DB)', () => {
     // 수익: 끝난 달만, 같은 달 두 번 불가. 작가 30% 내림, 나머지 제작자, 플랫폼 0
     await expect(channel.recordRevenue(v.id, admin, { month: '2999-01', amountKrw: 1 })).rejects.toThrow(BadRequestException);
     const line = await channel.recordRevenue(v.id, admin, { month: '2026-09', amountKrw: 10_001 });
-    expect(line).toMatchObject({ amountKrw: 10_001, writerKrw: 3_000, producerKrw: 7_001, platformKrw: 0 });
+    expect(line).toMatchObject({ amountKrw: 10_001, platformKrw: 0 });
+    const shareOf = (l: typeof line, role: string) => l.shares.find((x) => x.role === role)!;
+    expect(shareOf(line, 'WRITER')).toMatchObject({ amountKrw: 3_000, revenueShareBp: 3_000, payout: null });
+    expect(shareOf(line, 'PRODUCER')).toMatchObject({ amountKrw: 7_001 });
     await expect(channel.recordRevenue(v.id, admin, { month: '2026-09', amountKrw: 5 })).rejects.toThrow(ConflictException);
 
     const s1 = await channel.settlement(dealId, writer);
-    expect(s1).toMatchObject({ totalRevenueKrw: 10_001, writerDueKrw: 3_000, producerDueKrw: 7_001, writerPaidKrw: 0 });
+    expect(s1.totalRevenueKrw).toBe(10_001);
+    expect(s1.totals).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ userId: writer.id, dueKrw: 3_000, paidKrw: 0 }),
+        expect.objectContaining({ userId: producer.id, dueKrw: 7_001, paidKrw: 0 }),
+      ]),
+    );
     await expect(channel.settlement(dealId, outsider)).rejects.toThrow(NotFoundException);
 
-    const s2 = await channel.recordPayout(line.id, admin, { role: 'WRITER', memo: '계좌 이체' });
-    expect(s2.writerPaidKrw).toBe(3_000);
-    await expect(channel.recordPayout(line.id, admin, { role: 'WRITER' })).rejects.toThrow(ConflictException);
+    const writerParty = shareOf(line, 'WRITER').partyId;
+    const s2 = await channel.recordPayout(line.id, admin, { partyId: writerParty, memo: '계좌 이체' });
+    expect(s2.totals.find((t) => t.userId === writer.id)!.paidKrw).toBe(3_000);
+    await expect(channel.recordPayout(line.id, admin, { partyId: writerParty })).rejects.toThrow(ConflictException);
+    const platformParty = (await prisma.contractParty.findFirstOrThrow({ where: { contractId: line.contractId, role: 'PLATFORM' } })).id;
+    await expect(channel.recordPayout(line.id, admin, { partyId: platformParty })).rejects.toThrow(BadRequestException);
     const payout = await prisma.settlementPayout.findFirstOrThrow({ where: { revenueId: line.id } });
     expect(payout.recipientId).toBe(writer.id);
 
     // 게시 중단: 지난 수익과 정산은 그대로
     expect((await channel.remove(v.id, '권리 신고')).status).toBe('REMOVED');
     expect((await channel.settlement(dealId, producer)).totalRevenueKrw).toBe(10_001);
+
+    // 변경 계약: 공동 작가를 더하고 배분을 바꾼다 (작가 20%, 공동 작가 10%, 제작자 70%)
+    const parties = [
+      { userId: writer.id, role: 'WRITER' as const, revenueShareBp: 2_000 },
+      { userId: coWriter.id, role: 'WRITER' as const, label: '공동 작가', revenueShareBp: 1_000 },
+      { userId: producer.id, role: 'PRODUCER' as const, revenueShareBp: 7_000, receivesRemainder: true },
+    ];
+    await expect(contracts.proposeAmendment(dealId, outsider, { parties })).rejects.toThrow(NotFoundException);
+    await expect(contracts.proposeAmendment(dealId, producer, { parties: parties.filter((p) => p.userId !== writer.id) })).rejects.toThrow(BadRequestException);
+    await expect(
+      contracts.proposeAmendment(dealId, producer, { parties: parties.map((p) => (p.userId === producer.id ? { ...p, revenueShareBp: 6_000 } : p)) }),
+    ).rejects.toThrow(BadRequestException); // 합이 100%가 아님
+    const amendment = await contracts.proposeAmendment(dealId, producer, { parties, notes: '공동 작가 참여' });
+    expect(amendment).toMatchObject({ kind: 'SCRIPT_LICENSE', status: 'AWAITING_SIGNATURES', supersedesId: line.contractId });
+    expect(amendment.parties.map((p) => p.role)).toEqual(['WRITER', 'WRITER', 'PRODUCER', 'PLATFORM']);
+    expect(amendment.body).toContain('바꾸는 계약:');
+    expect(amendment.body).toContain('작가(공동 작가): cowriter — 10.00%');
+    await expect(contracts.proposeAmendment(dealId, producer, { parties })).rejects.toThrow(ConflictException); // 서명 중인 변경 계약이 있음
+    expect((await contracts.forDeal(dealId, coWriter)).id).toBe(amendment.id);
+
+    for (const [who, name] of [[writer, 'writer'], [coWriter, 'cowriter'], [producer, 'producer']] as const) {
+      await contracts.sign(amendment.id, who, { signedName: name, agreed: true }, meta);
+    }
+    const signed = await contracts.get(amendment.id, writer);
+    expect(signed.status).toBe('SIGNED');
+    expect(signed.effectiveMonth).toBe(nextMonth(new Date()));
+    expect((await contracts.get(line.contractId, writer)).status).toBe('SUPERSEDED');
+    // 이미 기록한 9월 수익은 예전 계약, 적용 시작 달부터는 새 계약
+    expect((await contracts.applicableLicense(dealId, '2026-09'))!.id).toBe(line.contractId);
+    expect((await contracts.applicableLicense(dealId, signed.effectiveMonth!))!.id).toBe(amendment.id);
+    expect((await channel.settlement(dealId, coWriter)).lines[0].contractId).toBe(line.contractId);
+    expect((await contracts.historyForDeal(dealId, coWriter)).map((c) => c.status)).toEqual(['SIGNED', 'SUPERSEDED']);
   });
 });
