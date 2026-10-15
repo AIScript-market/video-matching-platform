@@ -11,6 +11,7 @@ import { LedgerModule } from './modules/ledger/ledger.module.js';
 import { NegotiationsModule } from './modules/negotiations/negotiations.module.js';
 import { ScriptsModule } from './modules/scripts/scripts.module.js';
 import { CastingModule } from './modules/casting/casting.module.js';
+import { ContractsModule } from './modules/contracts/contracts.module.js';
 import { TalentModule } from './modules/talent/talent.module.js';
 import { WorksModule } from './modules/works/works.module.js';
 import { HitModelModule } from './modules/hit-model/hit-model.module.js';
@@ -35,6 +36,7 @@ const BETA_HIDDEN = [TalentModule, CastingModule, WorksModule, PerformanceModule
     NegotiationsModule,
     DealsModule,
     LedgerModule,
+    ContractsModule,
     ...(betaConfig().enabled ? [] : BETA_HIDDEN),
   ],
 })

@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service.js';
 import { AccessService } from '../../access/access.service.js';
+import { ContractsService } from '../../contracts/contracts.service.js';
 import type { Viewer } from '../../access/access-rules.js';
 import { LedgerService } from '../../ledger/ledger.service.js';
 import { NegotiationsService } from '../../negotiations/negotiations.service.js';
@@ -31,6 +32,7 @@ run('도메인 흐름 (DB)', () => {
   let offers: OffersService;
   let deals: DealsService;
   let ledger: LedgerService;
+  let contracts: ContractsService;
   let writer: Viewer, producer: Viewer, producer2: Viewer, admin: Viewer, outsider: Viewer;
   const userIds: string[] = [];
 
@@ -47,9 +49,10 @@ run('도메인 흐름 (DB)', () => {
     const queue = { enqueueSummarize: async (id: string) => (queued.push(id), true) } as AiJobsQueue;
     const wallet = new WalletService(prisma);
     scripts = new ScriptsService(prisma, queue, wallet);
-    access = new AccessService(prisma);
+    contracts = new ContractsService(prisma);
+    access = new AccessService(prisma, contracts);
     negotiations = new NegotiationsService(prisma, wallet);
-    offers = new OffersService(prisma, negotiations);
+    offers = new OffersService(prisma, negotiations, contracts);
     deals = new DealsService(prisma);
     ledger = new LedgerService(prisma, deals);
     writer = await makeUser('writer', ['WRITER']);
@@ -63,6 +66,7 @@ run('도메인 흐름 (DB)', () => {
     const scriptIds = (await prisma.script.findMany({ where: { authorId: { in: userIds } }, select: { id: true } })).map((s) => s.id);
     const negIds = (await prisma.negotiation.findMany({ where: { scriptId: { in: scriptIds } }, select: { id: true } })).map((n) => n.id);
     const dealIds = (await prisma.deal.findMany({ where: { negotiationId: { in: negIds } }, select: { id: true } })).map((d) => d.id);
+    await prisma.contract.deleteMany({ where: { OR: [{ dealId: { in: dealIds } }, { parties: { some: { userId: { in: userIds } } } }] } });
     await prisma.ledgerEntry.deleteMany({ where: { dealId: { in: dealIds } } });
     await prisma.license.deleteMany({ where: { dealId: { in: dealIds } } });
     await prisma.deal.deleteMany({ where: { id: { in: dealIds } } });
@@ -111,8 +115,14 @@ run('도메인 흐름 (DB)', () => {
     // 3. 열람 요청 (NDA 필수) → 승인 전에는 협상 불가 → 작가 승인 → 전문 열람 + 로그
     await expect(access.request(created.id, producer, { ndaAccepted: false })).rejects.toThrow(BadRequestException);
     await expect(access.request(created.id, writer, { ndaAccepted: true })).rejects.toThrow(BadRequestException);
-    const req = await access.request(created.id, producer, { ndaAccepted: true });
+    const req = await access.request(created.id, producer, { ndaAccepted: true }, { ip: '127.0.0.1', userAgent: 'vitest' });
     expect(req.status).toBe('PENDING');
+    // 열람 요청과 함께 비밀유지 서약서가 서명된 채로 만들어지고, 보호받는 작가도 볼 수 있다
+    const nda = await contracts.get(req.ndaContractId!, writer);
+    expect(nda).toMatchObject({ kind: 'NDA', status: 'SIGNED' });
+    expect(nda.body).toContain('「마지막 열차」');
+    expect(nda.parties).toEqual([expect.objectContaining({ role: 'PRODUCER', userId: producer.id, signedName: 'producer' })]);
+    await expect(contracts.get(nda.id, outsider)).rejects.toThrow(NotFoundException);
     await expect(access.request(created.id, producer, { ndaAccepted: true })).rejects.toThrow(ConflictException);
     await expect(negotiations.start(created.id, producer)).rejects.toThrow(ForbiddenException);
     expect((await access.list(writer, { as: 'writer' })).map((r) => r.id)).toContain(req.id);
@@ -164,12 +174,33 @@ run('도메인 흐름 (DB)', () => {
     expect(deal.licenses).toHaveLength(1);
     expect(deal.licenses[0]).toMatchObject({ licenseeId: producer.id, status: 'DRAFT' });
     expect(deal.licenses[0].scope).toContain('작가 60% / 제작자 40%');
+
+    // 7. 대본 이용허락 계약: 양쪽이 서명해야 딜·라이선스가 ACTIVE
+    const license = await contracts.forDeal(deal.id, writer);
+    expect(license).toMatchObject({ kind: 'SCRIPT_LICENSE', status: 'AWAITING_SIGNATURES', awaitingMySignature: true });
+    expect(license.body).toContain('작가 60% / 제작자 40%');
+    expect(license.body).toContain('특약: 해외 판권 제외');
+    const meta = { ip: '127.0.0.1', userAgent: 'vitest' };
+    await expect(contracts.sign(license.id, writer, { signedName: '다른 이름', agreed: true }, meta)).rejects.toThrow(BadRequestException);
+    await expect(contracts.sign(license.id, outsider, { signedName: 'outsider', agreed: true }, meta)).rejects.toThrow(NotFoundException);
+    const half = await contracts.sign(license.id, writer, { signedName: 'writer', agreed: true }, meta);
+    expect(half.status).toBe('AWAITING_SIGNATURES');
+    await expect(contracts.sign(license.id, writer, { signedName: 'writer', agreed: true }, meta)).rejects.toThrow(ConflictException);
+    expect((await deals.get(deal.id, writer)).status).toBe('PENDING_CONTRACT');
+    const done = await contracts.sign(license.id, producer, { signedName: 'producer', agreed: true }, meta);
+    expect(done.status).toBe('SIGNED');
+    expect(done.bodySha256).toBe(license.bodySha256);
+    const active = await deals.get(deal.id, writer);
+    expect(active.status).toBe('ACTIVE');
+    expect(active.licenses[0].status).toBe('ACTIVE');
+    expect(active.licenses[0].endsAt!.getTime() - active.licenses[0].startsAt!.getTime()).toBeGreaterThan(700 * 86_400_000);
+    expect((await prisma.contractParty.findFirstOrThrow({ where: { contractId: license.id, role: 'WRITER' } })).ip).toBe('127.0.0.1');
     expect((await deals.list(producer)).map((d) => d.id)).toContain(deal.id);
     expect((await deals.list(admin)).map((d) => d.id)).toContain(deal.id);
     expect((await deals.list(outsider)).map((d) => d.id)).not.toContain(deal.id);
     await expect(deals.get(deal.id, outsider)).rejects.toThrow(NotFoundException);
 
-    // 7. 장부 (관리자 기록)
+    // 8. 장부 (관리자 기록)
     await ledger.record(deal.id, admin, { type: 'REVENUE', amountKrw: 10_000_000, memo: '1차 매출' });
     await ledger.record(deal.id, admin, { type: 'PAYOUT', amountKrw: 6_000_000, occurredAt: '2026-10-01T00:00:00Z' });
     await expect(ledger.record(deal.id, admin, { type: 'FEE', amountKrw: -1 })).rejects.toThrow(BadRequestException);

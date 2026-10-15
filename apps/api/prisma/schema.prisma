@@ -122,6 +122,13 @@ model User {
   takedownDecisions  TakedownRequest[]         @relation("TakedownDecider")
   likenessAccess     LikenessAccessLog[]
   performanceRecords WorkPerformanceSnapshot[]
+
+  contractParties ContractParty[]
+  channelVideos   ChannelVideo[]     @relation("ChannelVideoProducer")
+  videoReviews    ChannelVideo[]     @relation("ChannelVideoReviewer")
+  revenueRecords  VideoRevenue[]
+  payoutsReceived SettlementPayout[] @relation("PayoutRecipient")
+  payoutsRecorded SettlementPayout[] @relation("PayoutCreator")
 }
 
 model Script {
@@ -167,6 +174,7 @@ model ScriptAccessRequest {
   status        AccessRequestStatus @default(PENDING)
   ndaAcceptedAt DateTime
   decidedAt     DateTime?
+  ndaContract   Contract?
 
   @@unique([scriptId, producerId])
 }
@@ -235,6 +243,8 @@ model Deal {
   licenses      License[]
   ledgerEntries LedgerEntry[]
   project       Project?
+  contract      Contract?
+  videos        ChannelVideo[]
 }
 
 model License {
@@ -752,4 +762,130 @@ model HitModelVersion {
   artifactPath    String
   active          Boolean  @default(false)
   trainedAt       DateTime @default(now())
+}
+
+// ---------- 계약·영상 게시·정산 (docs/business-model.md, docs/contracts-schema-proposal.md) ----------
+
+enum ContractKind {
+  NDA
+  SCRIPT_LICENSE
+  CHANNEL_PUBLISHING
+}
+
+enum ContractStatus {
+  AWAITING_SIGNATURES
+  SIGNED
+  VOID
+}
+
+enum ContractPartyRole {
+  WRITER
+  PRODUCER
+  PLATFORM
+}
+
+model Contract {
+  id              String               @id @default(cuid())
+  kind            ContractKind
+  templateVersion String
+  title           String
+  body            String               @db.Text
+  bodySha256      String
+  status          ContractStatus       @default(AWAITING_SIGNATURES)
+  dealId          String?              @unique
+  deal            Deal?                @relation(fields: [dealId], references: [id])
+  accessRequestId String?              @unique
+  accessRequest   ScriptAccessRequest? @relation(fields: [accessRequestId], references: [id])
+  createdAt       DateTime             @default(now())
+  signedAt        DateTime?
+  voidedAt        DateTime?
+  voidReason      String?
+
+  parties ContractParty[]
+
+  @@index([kind, status])
+}
+
+model ContractParty {
+  id         String            @id @default(cuid())
+  contractId String
+  contract   Contract          @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  role       ContractPartyRole
+  userId     String?
+  user       User?             @relation(fields: [userId], references: [id])
+  legalName  String
+  signedAt   DateTime?
+  signedName String?
+  ip         String?
+  userAgent  String?
+
+  @@unique([contractId, role])
+  @@index([userId])
+}
+
+enum ChannelVideoStatus {
+  SUBMITTED
+  APPROVED
+  PUBLISHED
+  REJECTED
+  REMOVED
+}
+
+model ChannelVideo {
+  id              String             @id @default(cuid())
+  dealId          String
+  deal            Deal               @relation(fields: [dealId], references: [id])
+  producerId      String
+  producer        User               @relation("ChannelVideoProducer", fields: [producerId], references: [id])
+  title           String
+  description     String?            @db.Text
+  sourceUrl       String
+  rightsChecklist Json
+  status          ChannelVideoStatus @default(SUBMITTED)
+  reviewNote      String?
+  reviewedById    String?
+  reviewedBy      User?              @relation("ChannelVideoReviewer", fields: [reviewedById], references: [id])
+  reviewedAt      DateTime?
+  channelName     String?
+  youtubeVideoId  String?            @unique
+  publishedAt     DateTime?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  revenues VideoRevenue[]
+
+  @@index([dealId])
+  @@index([status])
+}
+
+model VideoRevenue {
+  id          String       @id @default(cuid())
+  videoId     String
+  video       ChannelVideo @relation(fields: [videoId], references: [id])
+  month       String
+  amountKrw   Int
+  memo        String?
+  createdById String
+  createdBy   User         @relation(fields: [createdById], references: [id])
+  createdAt   DateTime     @default(now())
+
+  payouts SettlementPayout[]
+
+  @@unique([videoId, month])
+}
+
+model SettlementPayout {
+  id          String            @id @default(cuid())
+  revenueId   String
+  revenue     VideoRevenue      @relation(fields: [revenueId], references: [id])
+  role        ContractPartyRole
+  recipientId String
+  recipient   User              @relation("PayoutRecipient", fields: [recipientId], references: [id])
+  amountKrw   Int
+  paidAt      DateTime
+  memo        String?
+  createdById String
+  createdBy   User              @relation("PayoutCreator", fields: [createdById], references: [id])
+
+  @@unique([revenueId, role])
 }

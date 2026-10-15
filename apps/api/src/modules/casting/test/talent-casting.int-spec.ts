@@ -129,6 +129,7 @@ run('출연자·캐스팅 흐름 (DB)', () => {
     await prisma.castingContract.deleteMany({ where: { projectId: { in: projectIds } } });
     await prisma.castingRole.deleteMany({ where: { projectId: { in: projectIds } } });
     await prisma.project.deleteMany({ where: { id: { in: projectIds } } });
+    await prisma.contract.deleteMany({ where: { OR: [{ dealId: { in: dealIds } }, { parties: { some: { userId: { in: userIds } } } }] } });
     await prisma.deal.deleteMany({ where: { id: { in: dealIds } } });
     await prisma.offer.deleteMany({ where: { negotiation: { scriptId: { in: scriptIds } } } });
     await prisma.negotiation.deleteMany({ where: { scriptId: { in: scriptIds } } });

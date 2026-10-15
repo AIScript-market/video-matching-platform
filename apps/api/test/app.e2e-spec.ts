@@ -37,6 +37,7 @@ run('API e2e', () => {
       })
     ).map((n) => n.id);
     const deals = (await prisma.deal.findMany({ where: { negotiationId: { in: negs } }, select: { id: true } })).map((d) => d.id);
+    await prisma.contract.deleteMany({ where: { OR: [{ dealId: { in: deals } }, { parties: { some: { userId: { in: ids } } } }] } });
     await prisma.ledgerEntry.deleteMany({ where: { dealId: { in: deals } } });
     await prisma.license.deleteMany({ where: { dealId: { in: deals } } });
     await prisma.deal.deleteMany({ where: { id: { in: deals } } });
