@@ -191,6 +191,23 @@ export interface paths {
         patch: operations["ProfilesController_update"];
         trace?: never;
     };
+    "/me/password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** 비밀번호 변경 (지금 비밀번호 확인) */
+        patch: operations["ProfilesController_changePassword"];
+        trace?: never;
+    };
     "/admin/users": {
         parameters: {
             query?: never;
@@ -1906,6 +1923,10 @@ export interface components {
             purchaseEnabled: boolean;
             /** @description 가입하면 받는 코인 */
             signupCoins: number;
+            /** @description 가입 화면의 약관·처리방침 버전 */
+            termsVersion: string;
+            /** @description 운영자 문의 이메일 (CONTACT_EMAIL) */
+            contactEmail: string | null;
             features: components["schemas"]["FeatureFlagsDto"];
         };
         SignupDto: {
@@ -1917,6 +1938,8 @@ export interface components {
             inviteCode?: string;
             /** @description 만 19세 이상 확인 (베타에서만 필요. 계약 당사자가 되므로 성인만 받는다) */
             adultConfirmed?: boolean;
+            /** @description 이용약관·개인정보 처리방침 동의 (베타에서는 필수, 동의하면 버전과 시각을 기록) */
+            termsAccepted?: boolean;
         };
         MeDto: {
             id: string;
@@ -2014,6 +2037,11 @@ export interface components {
             profilePublic?: boolean;
             /** @description 공개 프로필에 이메일 표시 */
             emailPublic?: boolean;
+        };
+        ChangePasswordDto: {
+            /** @description 지금 비밀번호 */
+            currentPassword: string;
+            newPassword: string;
         };
         WithdrawDto: {
             /** @description 본인 확인용 비밀번호 */
@@ -3515,6 +3543,27 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["UpdateProfileDto"];
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ProfilesController_changePassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChangePasswordDto"];
             };
         };
         responses: {

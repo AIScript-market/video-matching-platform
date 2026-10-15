@@ -1,0 +1,94 @@
+# 운영(베타) 구성: 서버 한 대 + Docker. 바깥에는 Caddy(80·443)만 열고, HTTPS 인증서는 Caddy가 자동으로 받는다.
+# 준비: cp ops/prod/production.env.example ops/prod/production.env  → 값 채우기 (이 파일은 저장소에 넣지 않는다)
+# 실행: docker compose -f ops/prod/compose.yaml --env-file ops/prod/production.env up -d --build
+# 자세한 절차: docs/deploy.md
+name: vmp-prod
+
+x-app: &app
+  build:
+    context: ../..
+    dockerfile: ops/prod/Dockerfile
+  image: vmp-prod
+  working_dir: /app
+  init: true
+  restart: unless-stopped
+  env_file:
+    - path: ./production.env
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: vmp
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?production.env에 POSTGRES_PASSWORD가 필요합니다}
+      POSTGRES_DB: vmp
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./backups:/backups
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vmp -d vmp"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api:
+    <<: *app
+    # 마이그레이션만 적용한다 (운영에서는 시드를 넣지 않는다)
+    command: sh -c "pnpm --filter api db:deploy && node apps/api/dist/main.js"
+    environment:
+      DATABASE_URL: postgresql://vmp:${POSTGRES_PASSWORD}@db:5432/vmp
+      REDIS_URL: redis://redis:6379
+      PORT: 4000
+      # Caddy → studio(Next rewrite) → api, 프록시 두 단계
+      TRUST_PROXY: 2
+      COOKIE_SECURE: "true"
+    depends_on:
+      db: { condition: service_healthy }
+      redis: { condition: service_healthy }
+
+  worker:
+    <<: *app
+    command: node apps/worker/dist/main.js
+    environment:
+      DATABASE_URL: postgresql://vmp:${POSTGRES_PASSWORD}@db:5432/vmp
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      api: { condition: service_started }
+
+  studio:
+    <<: *app
+    command: pnpm --filter studio start -p 3000
+    environment:
+      API_INTERNAL_URL: http://api:4000
+    depends_on:
+      api: { condition: service_started }
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      SITE_DOMAIN: ${SITE_DOMAIN:?production.env에 SITE_DOMAIN이 필요합니다}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      studio: { condition: service_started }
+
+volumes:
+  db_data:
+  caddy_data:
+  caddy_config:

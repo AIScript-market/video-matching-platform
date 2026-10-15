@@ -52,7 +52,8 @@ run('API e2e (베타 모드)', () => {
     expect((await http.post('/auth/signup').send(body).expect(403)).body.error).toBe('INVITE_REQUIRED');
     expect((await http.post('/auth/signup').send({ ...body, inviteCode: 'wrong' }).expect(403)).body.error).toBe('INVITE_REQUIRED');
     expect((await http.post('/auth/signup').send({ ...body, inviteCode: 'FIRST-WAVE' }).expect(400)).body.error).toBe('ADULT_REQUIRED');
-    const res = await http.post('/auth/signup').send({ ...body, inviteCode: 'FIRST-WAVE', adultConfirmed: true }).expect(201);
+    expect((await http.post('/auth/signup').send({ ...body, inviteCode: 'FIRST-WAVE', adultConfirmed: true }).expect(400)).body.error).toBe('TERMS_REQUIRED');
+    const res = await http.post('/auth/signup').send({ ...body, inviteCode: 'FIRST-WAVE', adultConfirmed: true, termsAccepted: true }).expect(201);
     created.push(res.body.user.id);
     expect(res.body.user.coinBalance).toBe(50);
 

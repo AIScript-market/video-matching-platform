@@ -1,6 +1,6 @@
 import { Controller, Get } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiProperty, ApiTags } from '@nestjs/swagger';
-import { betaConfig } from '../core/beta.js';
+import { betaConfig, TERMS_VERSION } from '../core/beta.js';
 
 class FeatureFlagsDto {
   @ApiProperty({ description: '출연자 등록·얼굴 스캔' }) talent!: boolean;
@@ -13,6 +13,8 @@ export class PublicConfigDto {
   @ApiProperty({ description: '가입에 초대 코드와 성인 확인이 필요한가' }) inviteRequired!: boolean;
   @ApiProperty({ description: '코인을 살 수 있는가 (베타에서는 꺼짐)' }) purchaseEnabled!: boolean;
   @ApiProperty({ description: '가입하면 받는 코인' }) signupCoins!: number;
+  @ApiProperty({ description: '가입 화면의 약관·처리방침 버전' }) termsVersion!: string;
+  @ApiProperty({ nullable: true, type: String, description: '운영자 문의 이메일 (CONTACT_EMAIL)' }) contactEmail!: string | null;
   @ApiProperty({ type: FeatureFlagsDto }) features!: FeatureFlagsDto;
 }
 
@@ -25,6 +27,8 @@ export function publicConfig(): PublicConfigDto {
     inviteRequired: beta.enabled,
     purchaseEnabled: on,
     signupCoins: beta.enabled ? beta.signupCoins : 10,
+    termsVersion: TERMS_VERSION,
+    contactEmail: process.env.CONTACT_EMAIL?.trim() || null,
     features: { talent: on, casting: on, hitModel: on },
   };
 }

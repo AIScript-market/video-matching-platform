@@ -332,6 +332,36 @@
         ]
       }
     },
+    "/me/password": {
+      "patch": {
+        "operationId": "ProfilesController_changePassword",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangePasswordDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "비밀번호 변경 (지금 비밀번호 확인)",
+        "tags": [
+          "profiles"
+        ]
+      }
+    },
     "/admin/users": {
       "get": {
         "operationId": "BackofficeController_users",
@@ -4792,6 +4822,15 @@
             "type": "number",
             "description": "가입하면 받는 코인"
           },
+          "termsVersion": {
+            "type": "string",
+            "description": "가입 화면의 약관·처리방침 버전"
+          },
+          "contactEmail": {
+            "type": "string",
+            "nullable": true,
+            "description": "운영자 문의 이메일 (CONTACT_EMAIL)"
+          },
           "features": {
             "$ref": "#/components/schemas/FeatureFlagsDto"
           }
@@ -4801,6 +4840,8 @@
           "inviteRequired",
           "purchaseEnabled",
           "signupCoins",
+          "termsVersion",
+          "contactEmail",
           "features"
         ]
       },
@@ -4827,6 +4868,10 @@
           "adultConfirmed": {
             "type": "boolean",
             "description": "만 19세 이상 확인 (베타에서만 필요. 계약 당사자가 되므로 성인만 받는다)"
+          },
+          "termsAccepted": {
+            "type": "boolean",
+            "description": "이용약관·개인정보 처리방침 동의 (베타에서는 필수, 동의하면 버전과 시각을 기록)"
           }
         },
         "required": [
@@ -5190,6 +5235,24 @@
             "description": "공개 프로필에 이메일 표시"
           }
         }
+      },
+      "ChangePasswordDto": {
+        "type": "object",
+        "properties": {
+          "currentPassword": {
+            "type": "string",
+            "description": "지금 비밀번호"
+          },
+          "newPassword": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 128
+          }
+        },
+        "required": [
+          "currentPassword",
+          "newPassword"
+        ]
       },
       "WithdrawDto": {
         "type": "object",

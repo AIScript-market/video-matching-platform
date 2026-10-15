@@ -10,7 +10,7 @@ import { useSession } from "@/lib/session";
 export default function SignupPage() {
   const router = useRouter();
   const { refresh, config } = useSession();
-  const [form, setForm] = useState({ email: "", password: "", displayName: "", inviteCode: "", adultConfirmed: false });
+  const [form, setForm] = useState({ email: "", password: "", displayName: "", inviteCode: "", adultConfirmed: false, termsAccepted: false });
   const invite = Boolean(config?.inviteRequired);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -20,8 +20,8 @@ export default function SignupPage() {
     setBusy(true);
     setError(null);
     try {
-      const { inviteCode, adultConfirmed, ...base } = form;
-      await unwrap(api.POST("/auth/signup", { body: invite ? { ...base, inviteCode, adultConfirmed } : base }));
+      const { inviteCode, adultConfirmed, termsAccepted, ...base } = form;
+      await unwrap(api.POST("/auth/signup", { body: invite ? { ...base, inviteCode, adultConfirmed, termsAccepted } : { ...base, termsAccepted } }));
       await refresh();
       router.push("/account");
     } catch (err) {
@@ -62,6 +62,12 @@ export default function SignupPage() {
           </label>
         </>
       )}
+      <label className="check">
+        <input id="terms-accepted" type="checkbox" required checked={form.termsAccepted} onChange={(e) => setForm({ ...form, termsAccepted: e.target.checked })} />
+        <span>
+          <Link href="/terms" target="_blank">이용약관</Link>과 <Link href="/privacy" target="_blank">개인정보 처리방침</Link>에 동의합니다
+        </span>
+      </label>
       <ErrorText error={error} />
       <button type="submit" disabled={busy}>
         가입하기

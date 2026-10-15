@@ -2,7 +2,7 @@ import { BadRequestException, ConflictException, ForbiddenException, Injectable,
 import { JwtService } from '@nestjs/jwt';
 import { hash, verify } from '@node-rs/argon2';
 import { isCreatorReady } from '../../core/auth/index.js';
-import { betaConfig } from '../../core/beta.js';
+import { betaConfig, TERMS_VERSION } from '../../core/beta.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { SIGNUP_BONUS } from '../wallet/coin-pricing.js';
 import { WalletService } from '../wallet/wallet.service.js';
@@ -47,6 +47,9 @@ export class IdentityService {
       if (dto.adultConfirmed !== true) {
         throw new BadRequestException({ message: '베타에는 만 19세 이상만 가입할 수 있습니다', error: 'ADULT_REQUIRED' });
       }
+      if (dto.termsAccepted !== true) {
+        throw new BadRequestException({ message: '이용약관과 개인정보 처리방침에 동의해야 가입할 수 있습니다', error: 'TERMS_REQUIRED' });
+      }
     }
     const exists = await this.prisma.user.findUnique({ where: { email: dto.email }, select: { status: true } });
     if (exists?.status === 'SUSPENDED') {
@@ -57,7 +60,13 @@ export class IdentityService {
     const passwordHash = await hash(dto.password);
     const user = await this.prisma.$transaction(async (tx) => {
       const created = await tx.user.create({
-        data: { email: dto.email, passwordHash, displayName: dto.displayName, roles: [] },
+        data: {
+          email: dto.email,
+          passwordHash,
+          displayName: dto.displayName,
+          roles: [],
+          ...(dto.termsAccepted === true && { termsVersion: TERMS_VERSION, termsAcceptedAt: new Date() }),
+        },
       });
       const bonus = beta.enabled ? beta.signupCoins : SIGNUP_BONUS;
       await this.wallet.credit(tx, created.id, bonus, 'SIGNUP_BONUS', { memo: beta.enabled ? '베타 가입 코인' : '가입 보너스' });

@@ -10,6 +10,10 @@ CREATE TYPE "ContractPartyRole" AS ENUM ('WRITER', 'PRODUCER', 'PLATFORM');
 -- CreateEnum
 CREATE TYPE "ChannelVideoStatus" AS ENUM ('SUBMITTED', 'APPROVED', 'PUBLISHED', 'REJECTED', 'REMOVED');
 
+-- AlterTable
+ALTER TABLE "User" ADD COLUMN     "termsAcceptedAt" TIMESTAMP(3),
+ADD COLUMN     "termsVersion" TEXT;
+
 -- CreateTable
 CREATE TABLE "Contract" (
     "id" TEXT NOT NULL,

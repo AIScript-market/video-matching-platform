@@ -38,6 +38,7 @@ function Account() {
       </div>
       {!isAdmin && <ProfileSection />}
       {!isAdmin && <CoinSection />}
+      <PasswordSection />
       {!isAdmin && <WithdrawSection />}
       {isAdmin && <p className="muted">관리자 계정입니다. 관리자 화면에서 계정 정지·코인 지급·로그를 관리합니다.</p>}
     </div>
@@ -218,6 +219,44 @@ function CoinSection() {
         </div>
       )}
     </section>
+  );
+}
+
+function PasswordSection() {
+  const [form, setForm] = useState({ currentPassword: "", newPassword: "" });
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  async function change(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setNotice(null);
+    try {
+      await unwrap(api.PATCH("/me/password", { body: form }));
+      setForm({ currentPassword: "", newPassword: "" });
+      setNotice("비밀번호를 바꿨습니다.");
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }
+
+  return (
+    <form className="card stack" onSubmit={change} aria-label="비밀번호 변경">
+      <h2 style={{ margin: 0 }}>비밀번호 변경</h2>
+      <label>
+        지금 비밀번호
+        <input id="current-password" type="password" autoComplete="current-password" required value={form.currentPassword} onChange={(e) => setForm({ ...form, currentPassword: e.target.value })} />
+      </label>
+      <label>
+        새 비밀번호 (8자 이상)
+        <input id="new-password" type="password" autoComplete="new-password" minLength={8} required value={form.newPassword} onChange={(e) => setForm({ ...form, newPassword: e.target.value })} />
+      </label>
+      <ErrorText error={error} />
+      {notice && <p className="notice small">{notice}</p>}
+      <div className="row">
+        <button type="submit">비밀번호 바꾸기</button>
+      </div>
+    </form>
   );
 }
 

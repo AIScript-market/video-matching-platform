@@ -30,3 +30,7 @@ apps/api/.likeness-store/
 # 가능성 검증 파일럿 데이터 (크리에이터가 제공한 대본·성과, 저장소에 넣지 않는다)
 services/ml/research/data/
 services/ml/research/out/
+
+# 운영 비밀값과 DB 백업 (ops/prod)
+ops/prod/production.env
+ops/prod/backups/

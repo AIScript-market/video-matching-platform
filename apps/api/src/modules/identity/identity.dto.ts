@@ -33,6 +33,11 @@ export class SignupDto {
   @IsOptional()
   @IsBoolean()
   adultConfirmed?: boolean;
+
+  @ApiProperty({ required: false, description: '이용약관·개인정보 처리방침 동의 (베타에서는 필수, 동의하면 버전과 시각을 기록)' })
+  @IsOptional()
+  @IsBoolean()
+  termsAccepted?: boolean;
 }
 
 export class LoginDto {

@@ -27,6 +27,18 @@ export class UpdateProfileDto {
   emailPublic?: boolean;
 }
 
+export class ChangePasswordDto {
+  @ApiProperty({ description: '지금 비밀번호' })
+  @IsString()
+  @MaxLength(128)
+  currentPassword!: string;
+
+  @ApiProperty({ minLength: 8, maxLength: 128 })
+  @IsString()
+  @Length(8, 128, { message: '새 비밀번호는 8~128자여야 합니다' })
+  newPassword!: string;
+}
+
 export class WithdrawDto {
   @ApiProperty({ description: '본인 확인용 비밀번호' })
   @IsString()
