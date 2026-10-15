@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { TagList, WorkStatusBadge } from "@/components/casting-ui";
 import { ErrorText, RequireAuth } from "@/components/ui";
-import { api, dateTime, unwrap } from "@/lib/api";
+import { api, dateTime, unwrap, type Schemas } from "@/lib/api";
 import { TAKEDOWN_REASONS, type TakedownReason, type Work } from "@/lib/casting";
 import { useSession } from "@/lib/session";
 
@@ -92,6 +92,7 @@ function WorkDetail() {
       </section>
 
       {isStudio && work.status === "DRAFT" && <PublishForm workId={id} aiGenerated={work.aiGenerated} onDone={load} />}
+      {work.publishedAt && <PerformanceSection workId={id} canRecord={isStudio} />}
       {!isStudio && work.status !== "REMOVED" && <TakedownForm workId={id} onDone={load} />}
 
       <p className="small">
@@ -189,3 +190,160 @@ function TakedownForm({ workId, onDone }: { workId: string; onDone: () => void }
     </form>
   );
 }
+
+type Snapshot = Schemas["PerformanceSnapshotDto"];
+
+/** 작품 성과. 흥행 판단 모델의 정답 데이터가 된다 (지금은 직접 입력, 나중에 유튜브 분석 API) */
+function PerformanceSection({ workId, canRecord }: { workId: string; canRecord: boolean }) {
+  const [rows, setRows] = useState<Snapshot[]>([]);
+  const [form, setForm] = useState({ views: 0, likes: 0, comments: 0, positiveComments: 0, channelSubscribers: 0, avgViewDurationSec: 0, subscribersGained: 0 });
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(
+    () =>
+      unwrap(api.GET("/works/{id}/performance", { params: { path: { id: workId } } }))
+        .then(setRows)
+        .catch((err: Error) => setError(err.message)),
+    [workId],
+  );
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    try {
+      await unwrap(
+        api.POST("/works/{id}/performance", {
+          params: { path: { id: workId } },
+          body: { capturedAt: new Date().toISOString(), ...form },
+        }),
+      );
+      await load();
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }
+
+  const field = (key: keyof typeof form, label: string) => (
+    <label style={{ flex: 1, minWidth: 120 }}>
+      {label}
+      <input
+        type="number"
+        min={0}
+        value={form[key]}
+        onChange={(e) => setForm({ ...form, [key]: Math.max(0, Math.round(Number(e.target.value) || 0)) })}
+      />
+    </label>
+  );
+  const n = (v: number | null) => (v === null ? "-" : v.toLocaleString("ko-KR"));
+
+  return (
+    <section className="card stack">
+      <h2>성과</h2>
+      {rows.length === 0 ? (
+        <p className="muted small">아직 기록이 없습니다.</p>
+      ) : (
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>확인 시각</th>
+                <th className="num">조회수</th>
+                <th className="num">좋아요</th>
+                <th className="num">댓글 (긍정)</th>
+                <th className="num">채널 구독자</th>
+                <th className="num">평균 시청(초)</th>
+                <th className="num">구독 증가</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.id}>
+                  <td>{dateTime(r.capturedAt)}</td>
+                  <td className="num">{n(r.views)}</td>
+                  <td className="num">{n(r.likes)}</td>
+                  <td className="num">
+                    {n(r.comments)} ({n(r.positiveComments)})
+                  </td>
+                  <td className="num">{n(r.channelSubscribers)}</td>
+                  <td className="num">{n(r.avgViewDurationSec)}</td>
+                  <td className="num">{n(r.subscribersGained)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {canRecord && (
+        <form className="stack" onSubmit={submit} aria-label="성과 기록" style={{ gap: 8 }}>
+          <div className="row">
+            {field("views", "조회수")}
+            {field("likes", "좋아요")}
+            {field("comments", "댓글")}
+            {field("positiveComments", "긍정 댓글")}
+          </div>
+          <div className="row">
+            {field("channelSubscribers", "채널 구독자 (공개 시점)")}
+            {field("avgViewDurationSec", "평균 시청(초)")}
+            {field("subscribersGained", "구독 증가")}
+          </div>
+          <CommentCounter onCounted={(c) => setForm({ ...form, comments: c.total, positiveComments: c.positive })} />
+          <div className="row">
+            <button type="submit">지금 숫자 기록</button>
+          </div>
+        </form>
+      )}
+      <p className="small muted" style={{ margin: 0 }}>
+        유튜브 스튜디오의 숫자를 옮겨 적습니다. 채널 구독자 수로 채널 크기 차이를 보정하고, 작가가 학습에 동의한 대본의 작품만 흥행 판단 모델의 학습에
+        쓰입니다.
+      </p>
+      <ErrorText error={error} />
+    </section>
+  );
+}
+
+/** 댓글을 붙여 넣으면 긍정 댓글 수를 센다. 댓글은 저장하지 않는다 */
+function CommentCounter({ onCounted }: { onCounted: (c: Schemas["CommentSentimentDto"]) => void }) {
+  const [text, setText] = useState("");
+  const [result, setResult] = useState<Schemas["CommentSentimentDto"] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function count() {
+    setError(null);
+    const comments = text
+      .split("\n")
+      .map((c) => c.trim())
+      .filter(Boolean)
+      .slice(0, 2000);
+    try {
+      const r = await unwrap(api.POST("/ml/comment-sentiment", { body: { comments } }));
+      setResult(r);
+      onCounted(r);
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }
+
+  return (
+    <details>
+      <summary className="small">댓글 붙여 넣어 긍정 댓글 세기</summary>
+      <div className="stack" style={{ gap: 8, marginTop: 8 }}>
+        <textarea value={text} onChange={(e) => setText(e.target.value)} placeholder="댓글을 한 줄에 하나씩 붙여 넣으세요 (최대 2,000개)" />
+        <div className="row">
+          <button type="button" className="secondary" onClick={count} disabled={!text.trim()}>
+            세기
+          </button>
+          {result && (
+            <span className="small muted">
+              {result.total}개 중 긍정 {result.positive} · 부정 {result.negative} · 중립 {result.neutral} ({result.version})
+            </span>
+          )}
+        </div>
+        <ErrorText error={error} />
+      </div>
+    </details>
+  );
+}
+

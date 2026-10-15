@@ -3707,6 +3707,352 @@
           "admin"
         ]
       }
+    },
+    "/works/{id}/performance": {
+      "post": {
+        "operationId": "PerformanceController_record",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecordPerformanceDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PerformanceSnapshotDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "작품 성과 기록 (기획사·관리자, 공개한 작품만). 흥행 판단 모델의 정답 데이터",
+        "tags": [
+          "works"
+        ]
+      },
+      "get": {
+        "operationId": "PerformanceController_list",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PerformanceSnapshotDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "작품 성과 기록 (기획사, 출연자·보호자, 관리자)",
+        "tags": [
+          "works"
+        ]
+      }
+    },
+    "/admin/ml/training-set": {
+      "get": {
+        "operationId": "TrainingSetController_trainingSet",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TrainingRowDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "학습용 데이터 (관리자). 학습에 동의한 대본의 메타데이터와 작품 성과. 대본 원문은 포함하지 않는다",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/scripts/{id}/hit-insight": {
+      "get": {
+        "operationId": "HitModelController_insight",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HitInsightDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "흥행 판단 (영상 제작자·관리자). 작가 본인에게는 403",
+        "tags": [
+          "hit-model"
+        ]
+      }
+    },
+    "/recommendations/scripts": {
+      "get": {
+        "operationId": "HitModelController_recommendations",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecommendationsDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "영상 제작자용 대본 추천 (흥행 판단 모델 순서, 자기 대본 제외)",
+        "tags": [
+          "hit-model"
+        ]
+      }
+    },
+    "/ml/comment-sentiment": {
+      "post": {
+        "operationId": "HitModelController_sentiment",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommentSentimentRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommentSentimentDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "댓글 긍정·부정 개수 세기 (성과 입력 보조). 댓글은 저장하지 않는다",
+        "tags": [
+          "hit-model"
+        ]
+      }
+    },
+    "/admin/ml/status": {
+      "get": {
+        "operationId": "HitModelAdminController_status",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MlStatusDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "모델 상태: 임베더, 벡터 수, 학습 데이터 수 / 필요한 수, 활성 모델",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/ml/models": {
+      "get": {
+        "operationId": "HitModelAdminController_models",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/HitModelVersionDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "학습한 모델 버전 (최근 20개)",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/ml/train": {
+      "post": {
+        "operationId": "HitModelAdminController_train",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TrainRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrainResultDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "모델 학습. 시간 순서 검증에서 장르 평균 이상일 때만 활성화한다",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/ml/embed-stale": {
+      "post": {
+        "operationId": "HitModelAdminController_embedStale",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmbedStaleResultDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "벡터가 없거나 본문이 바뀐 대본을 벡터화",
+        "tags": [
+          "admin"
+        ]
+      }
     }
   },
   "info": {
@@ -4631,6 +4977,10 @@
           "rightsDeclared": {
             "type": "boolean",
             "description": "권리 보유 진술. 공개하려면 true여야 한다"
+          },
+          "trainingConsent": {
+            "type": "boolean",
+            "description": "흥행 판단 모델의 학습 데이터로 이 대본(의 벡터)을 써도 된다는 동의 (선택). 언제든 철회할 수 있다"
           }
         },
         "required": [
@@ -4791,6 +5141,10 @@
           "rightsDeclared": {
             "type": "boolean"
           },
+          "trainingConsent": {
+            "type": "boolean",
+            "description": "학습 데이터 활용 동의 (작가 본인에게만 의미 있음)"
+          },
           "rightsDeclaredAt": {
             "type": "string",
             "format": "date-time",
@@ -4829,6 +5183,7 @@
           "createdAt",
           "updatedAt",
           "rightsDeclared",
+          "trainingConsent",
           "rightsDeclaredAt",
           "fullText",
           "previewText",
@@ -4968,6 +5323,10 @@
           "rightsDeclared": {
             "type": "boolean",
             "description": "권리 보유 진술. 공개하려면 true여야 한다"
+          },
+          "trainingConsent": {
+            "type": "boolean",
+            "description": "흥행 판단 모델의 학습 데이터로 이 대본(의 벡터)을 써도 된다는 동의 (선택). 언제든 철회할 수 있다"
           }
         }
       },
@@ -7129,6 +7488,612 @@
         "required": [
           "uphold",
           "resolution"
+        ]
+      },
+      "RecordPerformanceDto": {
+        "type": "object",
+        "properties": {
+          "capturedAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "이 숫자를 확인한 시각 (ISO 8601)",
+            "example": "2026-10-11T00:00:00.000Z"
+          },
+          "views": {
+            "type": "number",
+            "description": "조회수"
+          },
+          "watchTimeMinutes": {
+            "type": "number",
+            "description": "총 시청 시간 (분)"
+          },
+          "avgViewDurationSec": {
+            "type": "number",
+            "description": "평균 시청 지속 시간 (초)"
+          },
+          "likes": {
+            "type": "number"
+          },
+          "comments": {
+            "type": "number"
+          },
+          "positiveComments": {
+            "type": "number",
+            "description": "긍정 댓글 수"
+          },
+          "channelSubscribers": {
+            "type": "number",
+            "description": "영상 공개 시점의 채널 구독자 수"
+          },
+          "subscribersGained": {
+            "type": "number",
+            "description": "이 영상으로 늘어난 구독자"
+          },
+          "revenueKrw": {
+            "type": "number",
+            "description": "누적 수익 (원)"
+          }
+        },
+        "required": [
+          "capturedAt",
+          "views"
+        ]
+      },
+      "PerformanceSnapshotDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "workId": {
+            "type": "string"
+          },
+          "capturedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "views": {
+            "type": "number"
+          },
+          "watchTimeMinutes": {
+            "type": "number",
+            "nullable": true
+          },
+          "avgViewDurationSec": {
+            "type": "number",
+            "nullable": true
+          },
+          "likes": {
+            "type": "number",
+            "nullable": true
+          },
+          "comments": {
+            "type": "number",
+            "nullable": true
+          },
+          "positiveComments": {
+            "type": "number",
+            "nullable": true
+          },
+          "channelSubscribers": {
+            "type": "number",
+            "nullable": true
+          },
+          "subscribersGained": {
+            "type": "number",
+            "nullable": true
+          },
+          "revenueKrw": {
+            "type": "number",
+            "nullable": true
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "MANUAL",
+              "YOUTUBE_API"
+            ]
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "workId",
+          "capturedAt",
+          "views",
+          "watchTimeMinutes",
+          "avgViewDurationSec",
+          "likes",
+          "comments",
+          "positiveComments",
+          "channelSubscribers",
+          "subscribersGained",
+          "revenueKrw",
+          "source",
+          "createdAt"
+        ]
+      },
+      "TrainingWorkDto": {
+        "type": "object",
+        "properties": {
+          "workId": {
+            "type": "string"
+          },
+          "publishedAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "latest": {
+            "nullable": true,
+            "description": "가장 최근 성과 기록",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PerformanceSnapshotDto"
+              }
+            ]
+          },
+          "daysSincePublish": {
+            "type": "object",
+            "description": "공개 후 경과 일수 (최근 기록 기준)"
+          }
+        },
+        "required": [
+          "workId",
+          "publishedAt",
+          "latest",
+          "daysSincePublish"
+        ]
+      },
+      "TrainingRowDto": {
+        "type": "object",
+        "properties": {
+          "scriptId": {
+            "type": "string"
+          },
+          "genre": {
+            "type": "string"
+          },
+          "contentRating": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "ALL",
+              "12",
+              "15",
+              "19"
+            ]
+          },
+          "fullTextChars": {
+            "type": "number"
+          },
+          "works": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TrainingWorkDto"
+            }
+          }
+        },
+        "required": [
+          "scriptId",
+          "genre",
+          "contentRating",
+          "fullTextChars",
+          "works"
+        ]
+      },
+      "SimilarWorkDto": {
+        "type": "object",
+        "properties": {
+          "scriptId": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "workTitle": {
+            "type": "string",
+            "nullable": true,
+            "description": "그 대본으로 만든 공개 작품 (첫 편)"
+          },
+          "similarity": {
+            "type": "number",
+            "description": "벡터 코사인 유사도 (-1~1)"
+          },
+          "hit": {
+            "type": "boolean",
+            "description": "채널 크기를 보정한 성과가 상위 20%였는가"
+          },
+          "percentile": {
+            "type": "number",
+            "description": "학습 데이터 안에서의 성과 백분위 (0~1)"
+          }
+        },
+        "required": [
+          "scriptId",
+          "title",
+          "workTitle",
+          "similarity",
+          "hit",
+          "percentile"
+        ]
+      },
+      "HitInsightDto": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "MODEL",
+              "NEIGHBORS",
+              "NOT_READY",
+              "NOT_EMBEDDED"
+            ],
+            "description": "MODEL: 모델 확률 / NEIGHBORS: 모델 학습 전, 비슷한 성공작만 / NOT_READY: 정답 데이터 부족"
+          },
+          "embedder": {
+            "type": "string",
+            "description": "벡터를 만든 임베더"
+          },
+          "trainingPairs": {
+            "type": "number",
+            "description": "정답(작품 성과)이 있는 학습 동의 대본 수"
+          },
+          "requiredPairs": {
+            "type": "number",
+            "description": "모델 학습에 필요한 수"
+          },
+          "modelVersion": {
+            "type": "string"
+          },
+          "scriptId": {
+            "type": "string"
+          },
+          "probability": {
+            "type": "number",
+            "description": "상위 20% 성과일 확률 (MODEL)"
+          },
+          "low": {
+            "type": "number",
+            "description": "확률 범위 하단 (부트스트랩 10%)"
+          },
+          "high": {
+            "type": "number",
+            "description": "확률 범위 상단 (부트스트랩 90%)"
+          },
+          "neighborSignal": {
+            "type": "number",
+            "description": "비슷한 작품의 유사도 가중 성공률 (NEIGHBORS, 참고 신호)"
+          },
+          "neighbors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SimilarWorkDto"
+            }
+          }
+        },
+        "required": [
+          "mode",
+          "embedder",
+          "trainingPairs",
+          "requiredPairs",
+          "scriptId",
+          "neighbors"
+        ]
+      },
+      "RecommendedScriptDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "logline": {
+            "type": "string"
+          },
+          "genre": {
+            "type": "string"
+          },
+          "authorName": {
+            "type": "string"
+          },
+          "score": {
+            "type": "number",
+            "nullable": true,
+            "description": "MODEL이면 확률, NEIGHBORS면 참고 신호, NOT_READY면 null"
+          },
+          "probability": {
+            "type": "number"
+          },
+          "low": {
+            "type": "number"
+          },
+          "high": {
+            "type": "number"
+          },
+          "neighbors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SimilarWorkDto"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "logline",
+          "genre",
+          "authorName",
+          "score",
+          "neighbors"
+        ]
+      },
+      "RecommendationsDto": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "MODEL",
+              "NEIGHBORS",
+              "NOT_READY",
+              "NOT_EMBEDDED"
+            ],
+            "description": "MODEL: 모델 확률 / NEIGHBORS: 모델 학습 전, 비슷한 성공작만 / NOT_READY: 정답 데이터 부족"
+          },
+          "embedder": {
+            "type": "string",
+            "description": "벡터를 만든 임베더"
+          },
+          "trainingPairs": {
+            "type": "number",
+            "description": "정답(작품 성과)이 있는 학습 동의 대본 수"
+          },
+          "requiredPairs": {
+            "type": "number",
+            "description": "모델 학습에 필요한 수"
+          },
+          "modelVersion": {
+            "type": "string"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RecommendedScriptDto"
+            }
+          }
+        },
+        "required": [
+          "mode",
+          "embedder",
+          "trainingPairs",
+          "requiredPairs",
+          "items"
+        ]
+      },
+      "CommentSentimentRequestDto": {
+        "type": "object",
+        "properties": {
+          "comments": {
+            "maxItems": 2000,
+            "description": "유튜브 댓글 등 (저장하지 않는다)",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "comments"
+        ]
+      },
+      "CommentSentimentDto": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "number"
+          },
+          "positive": {
+            "type": "number"
+          },
+          "negative": {
+            "type": "number"
+          },
+          "neutral": {
+            "type": "number"
+          },
+          "version": {
+            "type": "string",
+            "description": "분류기 버전"
+          }
+        },
+        "required": [
+          "total",
+          "positive",
+          "negative",
+          "neutral",
+          "version"
+        ]
+      },
+      "ActiveModelDto": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "string"
+          },
+          "embedder": {
+            "type": "string"
+          },
+          "trainedAt": {
+            "type": "string"
+          },
+          "metrics": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "version",
+          "embedder",
+          "trainedAt",
+          "metrics"
+        ]
+      },
+      "MlStatusDto": {
+        "type": "object",
+        "properties": {
+          "embedder": {
+            "type": "string"
+          },
+          "embeddedScripts": {
+            "type": "number"
+          },
+          "trainingPairs": {
+            "type": "number"
+          },
+          "requiredPairs": {
+            "type": "number"
+          },
+          "neighborMin": {
+            "type": "number"
+          },
+          "sentiment": {
+            "type": "string"
+          },
+          "activeModel": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ActiveModelDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "embedder",
+          "embeddedScripts",
+          "trainingPairs",
+          "requiredPairs",
+          "neighborMin",
+          "sentiment",
+          "activeModel"
+        ]
+      },
+      "HitModelVersionDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "embedder": {
+            "type": "string"
+          },
+          "algorithm": {
+            "type": "string"
+          },
+          "labelDefinition": {
+            "type": "string"
+          },
+          "trainingPairs": {
+            "type": "number"
+          },
+          "metrics": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "trainedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "version",
+          "embedder",
+          "algorithm",
+          "labelDefinition",
+          "trainingPairs",
+          "metrics",
+          "active",
+          "trainedAt"
+        ]
+      },
+      "TrainRequestDto": {
+        "type": "object",
+        "properties": {
+          "forceActivate": {
+            "type": "boolean",
+            "description": "장르 평균보다 못해도 활성화한다"
+          }
+        }
+      },
+      "TrainResultDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "TRAINED",
+              "NOT_ENOUGH_DATA"
+            ]
+          },
+          "trainingPairs": {
+            "type": "number"
+          },
+          "requiredPairs": {
+            "type": "number"
+          },
+          "embedder": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "activated": {
+            "type": "boolean",
+            "description": "시간 순서 검증에서 장르 평균 이상이라 활성화했는가"
+          },
+          "metrics": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "note": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "trainingPairs",
+          "requiredPairs",
+          "embedder"
+        ]
+      },
+      "EmbedStaleResultDto": {
+        "type": "object",
+        "properties": {
+          "embedder": {
+            "type": "string"
+          },
+          "embedded": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "embedder",
+          "embedded"
         ]
       }
     }

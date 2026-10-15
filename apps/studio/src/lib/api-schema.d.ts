@@ -1458,6 +1458,160 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/works/{id}/performance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 작품 성과 기록 (기획사, 출연자·보호자, 관리자) */
+        get: operations["PerformanceController_list"];
+        put?: never;
+        /** 작품 성과 기록 (기획사·관리자, 공개한 작품만). 흥행 판단 모델의 정답 데이터 */
+        post: operations["PerformanceController_record"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/ml/training-set": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 학습용 데이터 (관리자). 학습에 동의한 대본의 메타데이터와 작품 성과. 대본 원문은 포함하지 않는다 */
+        get: operations["TrainingSetController_trainingSet"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/scripts/{id}/hit-insight": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 흥행 판단 (영상 제작자·관리자). 작가 본인에게는 403 */
+        get: operations["HitModelController_insight"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/recommendations/scripts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 영상 제작자용 대본 추천 (흥행 판단 모델 순서, 자기 대본 제외) */
+        get: operations["HitModelController_recommendations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/ml/comment-sentiment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 댓글 긍정·부정 개수 세기 (성과 입력 보조). 댓글은 저장하지 않는다 */
+        post: operations["HitModelController_sentiment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/ml/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 모델 상태: 임베더, 벡터 수, 학습 데이터 수 / 필요한 수, 활성 모델 */
+        get: operations["HitModelAdminController_status"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/ml/models": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 학습한 모델 버전 (최근 20개) */
+        get: operations["HitModelAdminController_models"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/ml/train": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 모델 학습. 시간 순서 검증에서 장르 평균 이상일 때만 활성화한다 */
+        post: operations["HitModelAdminController_train"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/ml/embed-stale": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 벡터가 없거나 본문이 바뀐 대본을 벡터화 */
+        post: operations["HitModelAdminController_embedStale"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1710,6 +1864,8 @@ export interface components {
             previewText?: string;
             /** @description 권리 보유 진술. 공개하려면 true여야 한다 */
             rightsDeclared?: boolean;
+            /** @description 흥행 판단 모델의 학습 데이터로 이 대본(의 벡터)을 써도 된다는 동의 (선택). 언제든 철회할 수 있다 */
+            trainingConsent?: boolean;
         };
         AiSummaryDto: {
             summary: string;
@@ -1760,6 +1916,8 @@ export interface components {
             /** Format: date-time */
             updatedAt: string;
             rightsDeclared: boolean;
+            /** @description 학습 데이터 활용 동의 (작가 본인에게만 의미 있음) */
+            trainingConsent: boolean;
             /** Format: date-time */
             rightsDeclaredAt: string | null;
             /** @description 권한이 없으면 null */
@@ -1815,6 +1973,8 @@ export interface components {
             previewText?: string;
             /** @description 권리 보유 진술. 공개하려면 true여야 한다 */
             rightsDeclared?: boolean;
+            /** @description 흥행 판단 모델의 학습 데이터로 이 대본(의 벡터)을 써도 된다는 동의 (선택). 언제든 철회할 수 있다 */
+            trainingConsent?: boolean;
         };
         PublishScriptDto: {
             /** @description 아직 권리 보유를 진술하지 않았다면 여기서 true로 함께 진술할 수 있다 */
@@ -2428,6 +2588,195 @@ export interface components {
             /** @description true=신고 인정(삭제), false=기각(자동 비공개였다면 다시 공개) */
             uphold: boolean;
             resolution: string;
+        };
+        RecordPerformanceDto: {
+            /**
+             * Format: date-time
+             * @description 이 숫자를 확인한 시각 (ISO 8601)
+             * @example 2026-10-11T00:00:00.000Z
+             */
+            capturedAt: string;
+            /** @description 조회수 */
+            views: number;
+            /** @description 총 시청 시간 (분) */
+            watchTimeMinutes?: number;
+            /** @description 평균 시청 지속 시간 (초) */
+            avgViewDurationSec?: number;
+            likes?: number;
+            comments?: number;
+            /** @description 긍정 댓글 수 */
+            positiveComments?: number;
+            /** @description 영상 공개 시점의 채널 구독자 수 */
+            channelSubscribers?: number;
+            /** @description 이 영상으로 늘어난 구독자 */
+            subscribersGained?: number;
+            /** @description 누적 수익 (원) */
+            revenueKrw?: number;
+        };
+        PerformanceSnapshotDto: {
+            id: string;
+            workId: string;
+            /** Format: date-time */
+            capturedAt: string;
+            views: number;
+            watchTimeMinutes: number | null;
+            avgViewDurationSec: number | null;
+            likes: number | null;
+            comments: number | null;
+            positiveComments: number | null;
+            channelSubscribers: number | null;
+            subscribersGained: number | null;
+            revenueKrw: number | null;
+            /** @enum {string} */
+            source: "MANUAL" | "YOUTUBE_API";
+            /** Format: date-time */
+            createdAt: string;
+        };
+        TrainingWorkDto: {
+            workId: string;
+            /** Format: date-time */
+            publishedAt: string | null;
+            /** @description 가장 최근 성과 기록 */
+            latest: components["schemas"]["PerformanceSnapshotDto"] | null;
+            /** @description 공개 후 경과 일수 (최근 기록 기준) */
+            daysSincePublish: Record<string, never>;
+        };
+        TrainingRowDto: {
+            scriptId: string;
+            genre: string;
+            /** @enum {string|null} */
+            contentRating: "ALL" | "12" | "15" | "19" | null;
+            fullTextChars: number;
+            works: components["schemas"]["TrainingWorkDto"][];
+        };
+        SimilarWorkDto: {
+            scriptId: string;
+            title: string;
+            /** @description 그 대본으로 만든 공개 작품 (첫 편) */
+            workTitle: string | null;
+            /** @description 벡터 코사인 유사도 (-1~1) */
+            similarity: number;
+            /** @description 채널 크기를 보정한 성과가 상위 20%였는가 */
+            hit: boolean;
+            /** @description 학습 데이터 안에서의 성과 백분위 (0~1) */
+            percentile: number;
+        };
+        HitInsightDto: {
+            /**
+             * @description MODEL: 모델 확률 / NEIGHBORS: 모델 학습 전, 비슷한 성공작만 / NOT_READY: 정답 데이터 부족
+             * @enum {string}
+             */
+            mode: "MODEL" | "NEIGHBORS" | "NOT_READY" | "NOT_EMBEDDED";
+            /** @description 벡터를 만든 임베더 */
+            embedder: string;
+            /** @description 정답(작품 성과)이 있는 학습 동의 대본 수 */
+            trainingPairs: number;
+            /** @description 모델 학습에 필요한 수 */
+            requiredPairs: number;
+            modelVersion?: string;
+            scriptId: string;
+            /** @description 상위 20% 성과일 확률 (MODEL) */
+            probability?: number;
+            /** @description 확률 범위 하단 (부트스트랩 10%) */
+            low?: number;
+            /** @description 확률 범위 상단 (부트스트랩 90%) */
+            high?: number;
+            /** @description 비슷한 작품의 유사도 가중 성공률 (NEIGHBORS, 참고 신호) */
+            neighborSignal?: number;
+            neighbors: components["schemas"]["SimilarWorkDto"][];
+        };
+        RecommendedScriptDto: {
+            id: string;
+            title: string;
+            logline: string;
+            genre: string;
+            authorName: string;
+            /** @description MODEL이면 확률, NEIGHBORS면 참고 신호, NOT_READY면 null */
+            score: number | null;
+            probability?: number;
+            low?: number;
+            high?: number;
+            neighbors: components["schemas"]["SimilarWorkDto"][];
+        };
+        RecommendationsDto: {
+            /**
+             * @description MODEL: 모델 확률 / NEIGHBORS: 모델 학습 전, 비슷한 성공작만 / NOT_READY: 정답 데이터 부족
+             * @enum {string}
+             */
+            mode: "MODEL" | "NEIGHBORS" | "NOT_READY" | "NOT_EMBEDDED";
+            /** @description 벡터를 만든 임베더 */
+            embedder: string;
+            /** @description 정답(작품 성과)이 있는 학습 동의 대본 수 */
+            trainingPairs: number;
+            /** @description 모델 학습에 필요한 수 */
+            requiredPairs: number;
+            modelVersion?: string;
+            items: components["schemas"]["RecommendedScriptDto"][];
+        };
+        CommentSentimentRequestDto: {
+            /** @description 유튜브 댓글 등 (저장하지 않는다) */
+            comments: string[];
+        };
+        CommentSentimentDto: {
+            total: number;
+            positive: number;
+            negative: number;
+            neutral: number;
+            /** @description 분류기 버전 */
+            version: string;
+        };
+        ActiveModelDto: {
+            version: string;
+            embedder: string;
+            trainedAt: string;
+            metrics: {
+                [key: string]: unknown;
+            };
+        };
+        MlStatusDto: {
+            embedder: string;
+            embeddedScripts: number;
+            trainingPairs: number;
+            requiredPairs: number;
+            neighborMin: number;
+            sentiment: string;
+            activeModel: components["schemas"]["ActiveModelDto"] | null;
+        };
+        HitModelVersionDto: {
+            id: string;
+            version: string;
+            embedder: string;
+            algorithm: string;
+            labelDefinition: string;
+            trainingPairs: number;
+            metrics: {
+                [key: string]: unknown;
+            };
+            active: boolean;
+            /** Format: date-time */
+            trainedAt: string;
+        };
+        TrainRequestDto: {
+            /** @description 장르 평균보다 못해도 활성화한다 */
+            forceActivate?: boolean;
+        };
+        TrainResultDto: {
+            /** @enum {string} */
+            status: "TRAINED" | "NOT_ENOUGH_DATA";
+            trainingPairs: number;
+            requiredPairs: number;
+            embedder: string;
+            version?: string;
+            /** @description 시간 순서 검증에서 장르 평균 이상이라 활성화했는가 */
+            activated?: boolean;
+            metrics?: {
+                [key: string]: unknown;
+            };
+            note?: string;
+        };
+        EmbedStaleResultDto: {
+            embedder: string;
+            embedded: number;
         };
     };
     responses: never;
@@ -4552,6 +4901,216 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TakedownDto"];
+                };
+            };
+        };
+    };
+    PerformanceController_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PerformanceSnapshotDto"][];
+                };
+            };
+        };
+    };
+    PerformanceController_record: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecordPerformanceDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PerformanceSnapshotDto"];
+                };
+            };
+        };
+    };
+    TrainingSetController_trainingSet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrainingRowDto"][];
+                };
+            };
+        };
+    };
+    HitModelController_insight: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HitInsightDto"];
+                };
+            };
+        };
+    };
+    HitModelController_recommendations: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecommendationsDto"];
+                };
+            };
+        };
+    };
+    HitModelController_sentiment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommentSentimentRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommentSentimentDto"];
+                };
+            };
+        };
+    };
+    HitModelAdminController_status: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MlStatusDto"];
+                };
+            };
+        };
+    };
+    HitModelAdminController_models: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HitModelVersionDto"][];
+                };
+            };
+        };
+    };
+    HitModelAdminController_train: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TrainRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrainResultDto"];
+                };
+            };
+        };
+    };
+    HitModelAdminController_embedStale: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmbedStaleResultDto"];
                 };
             };
         };

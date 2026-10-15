@@ -25,6 +25,7 @@ export function Nav() {
         <nav className="nav-links">
           {link("/scripts", "대본 탐색")}
           {user && !has("ADMIN") && link("/dashboard", "내 대본")}
+          {user && link("/recommendations", "추천 대본")}
           {user && link("/negotiations", "협상")}
           {user && link("/deals", "내 딜")}
           {user && !has("ADMIN") && link("/casting", "캐스팅")}
@@ -32,6 +33,7 @@ export function Nav() {
           {has("ADMIN") && link("/admin", "관리자")}
           {has("ADMIN") && link("/admin/logs", "활동 로그")}
           {has("ADMIN") && link("/admin/casting", "출연 관리")}
+          {has("ADMIN") && link("/admin/ml", "흥행 모델")}
           {user && link("/account", "내 계정")}
           {DEV_ACCOUNTS_ENABLED && link("/dev/accounts", "계정 전환(개발)")}
         </nav>

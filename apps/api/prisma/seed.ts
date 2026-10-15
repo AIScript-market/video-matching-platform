@@ -63,6 +63,7 @@ const SEED_USERS: SeedUser[] = [
 const scripts = [
   {
     id: 'seed_script_last_train',
+    trainingConsent: true,
     previewText: 'S#1. 폐역 승강장 (밤, 비)\n\n녹슨 안내판 아래, 정수(50대)가 랜턴을 들고 서 있다.\n\n정수\n(혼잣말) 오늘도 안 오네.',
     author: 'writer1@vmp.dev',
     title: '마지막 열차',

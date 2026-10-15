@@ -3,6 +3,7 @@ import { Redis } from 'ioredis';
 import pg from 'pg';
 import { ClaudeSummarizer, RefusedError } from './claude-summarizer.js';
 import { ScriptRepository } from './db.js';
+import { createEmbedScript } from './ml-embed.js';
 import { MockSummarizer } from './mock-summarizer.js';
 import { processSummarize, QUEUE_NAME, SUMMARIZE_JOB, type SummarizeJobData } from './processor.js';
 import type { Summarizer } from './summary.js';
@@ -24,6 +25,7 @@ const connection = new Redis(redisUrl, { maxRetriesPerRequest: null });
 const pool = new pg.Pool({ connectionString: databaseUrl });
 const scripts = new ScriptRepository(pool);
 const summarizer = createSummarizer();
+const embed = createEmbedScript();
 
 const worker = new Worker<SummarizeJobData>(
   QUEUE_NAME,
@@ -32,7 +34,7 @@ const worker = new Worker<SummarizeJobData>(
       throw new UnrecoverableError(`알 수 없는 작업: ${job.name}`);
     }
     try {
-      return await processSummarize(job.data, { scripts, summarizer });
+      return await processSummarize(job.data, { scripts, summarizer, embed });
     } catch (err) {
       // 정책 거절은 재시도해도 같은 결과이므로 바로 실패 처리
       if (err instanceof RefusedError) throw new UnrecoverableError(err.message);
@@ -48,7 +50,7 @@ worker.on('completed', (job, result) =>
 worker.on('failed', (job, err) =>
   console.error(`[worker] ${job?.name} ${job?.id} 실패 (시도 ${job?.attemptsMade}): ${err.message}`),
 );
-console.log(`[worker] "${QUEUE_NAME}" 대기 중 (summarizer=${summarizer.model})`);
+console.log(`[worker] "${QUEUE_NAME}" 대기 중 (summarizer=${summarizer.model}, ml=${embed ? "on" : "off"})`);
 
 async function shutdown() {
   await worker.close();

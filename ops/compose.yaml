@@ -23,6 +23,8 @@ x-node: &node
     - pnpm_store:/pnpm-store
 
 x-db-url: &db-url postgresql://vmp:vmp_local_only@db:5432/vmp
+# API·워커가 ML 서비스를 부를 때 쓰는 내부 토큰 (개발용)
+x-ml-token: &ml-token ${ML_TOKEN:-vmp_local_only_ml}
 
 services:
   db:
@@ -61,6 +63,8 @@ services:
     environment:
       DATABASE_URL: *db-url
       REDIS_URL: redis://redis:6379
+      ML_URL: http://ml:8000
+      ML_TOKEN: *ml-token
       PORT: 4000
       WEB_ORIGIN: http://localhost:${STUDIO_PORT:-3000}
     ports:
@@ -76,6 +80,8 @@ services:
     environment:
       DATABASE_URL: *db-url
       REDIS_URL: redis://redis:6379
+      ML_URL: http://ml:8000
+      ML_TOKEN: *ml-token
     depends_on:
       install: { condition: service_completed_successfully }
       api: { condition: service_started }
@@ -94,6 +100,25 @@ services:
       install: { condition: service_completed_successfully }
       api: { condition: service_started }
 
+  # 흥행 판단 모델 (services/ml). 대본 벡터화·학습·예측. API·워커만 내부 주소로 부른다 (포트를 열지 않는다)
+  ml:
+    build:
+      context: ../services/ml
+    image: vmp-ml
+    working_dir: /srv
+    command: uvicorn hitmodel.main:app --host 0.0.0.0 --port 8000 --reload
+    environment:
+      DATABASE_URL: *db-url
+      ML_TOKEN: *ml-token
+      ML_MODEL_DIR: /models
+      ML_EMBEDDER: ${ML_EMBEDDER:-hash-ngram}
+      ML_MIN_TRAINING_PAIRS: ${ML_MIN_TRAINING_PAIRS:-100}
+    volumes:
+      - ../services/ml:/srv
+      - ml_models:/models
+    depends_on:
+      db: { condition: service_healthy }
+
 volumes:
   db_data:
   node_modules:
@@ -102,3 +127,4 @@ volumes:
   studio_node_modules:
   studio_next:
   pnpm_store:
+  ml_models:
