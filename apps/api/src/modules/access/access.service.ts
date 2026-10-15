@@ -6,7 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import { ContractsService, type SignatureMeta } from '../contracts/contracts.service.js';
+import { ContractsService, NDA_SCRIPT_SELECT, type SignatureMeta } from '../contracts/contracts.service.js';
 import type { Viewer } from './access-rules.js';
 import type {
   AccessRequestDto,
@@ -41,7 +41,7 @@ export class AccessService {
     }
     const script = await this.prisma.script.findUnique({
       where: { id: scriptId },
-      select: { id: true, title: true, authorId: true, status: true, author: { select: { displayName: true } } },
+      select: { ...NDA_SCRIPT_SELECT, authorId: true, status: true, author: { select: { displayName: true } } },
     });
     if (!script || script.status !== 'PUBLISHED') {
       throw new NotFoundException('공개된 대본을 찾을 수 없습니다');

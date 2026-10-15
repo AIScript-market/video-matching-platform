@@ -6,6 +6,7 @@ import {
   renderChannelPublishing,
   renderNda,
   renderScriptLicense,
+  scriptContentSha256,
   sha256,
   SIGN_CONSENT,
   TEMPLATE_VERSIONS,
@@ -38,6 +39,31 @@ export function platformName(env: NodeJS.ProcessEnv = process.env): string {
 }
 
 const clip = (v: string | null | undefined, n: number) => (v ? v.slice(0, n) : null);
+
+/** 비밀유지 서약서에 적을 대본 정보 */
+export const NDA_SCRIPT_SELECT = { id: true, title: true, logline: true, genre: true, fullText: true, previewText: true } as const;
+export interface NdaScript {
+  id: string;
+  title: string;
+  logline: string;
+  genre: string;
+  fullText: string;
+  previewText: string | null;
+}
+
+function ndaInput(s: NdaScript, writerName: string, producerName: string) {
+  return {
+    scriptTitle: s.title,
+    scriptId: s.id,
+    scriptSha256: scriptContentSha256(s.fullText, s.previewText),
+    logline: s.logline,
+    genre: s.genre,
+    writerName,
+    producerName,
+    platformName: platformName(),
+    date: new Date(),
+  };
+}
 
 @Injectable()
 export class ContractsService {
@@ -82,11 +108,11 @@ export class ContractsService {
   /** 열람 요청과 함께: 제작자가 혼자 서명하는 비밀유지 서약서 */
   async createNda(
     tx: Tx,
-    p: { accessRequestId: string; script: { id: string; title: string }; writerName: string; producer: { id: string; displayName: string } },
+    p: { accessRequestId: string; script: NdaScript; writerName: string; producer: { id: string; displayName: string } },
     signedName: string,
     meta: SignatureMeta,
   ) {
-    const doc = renderNda({ scriptTitle: p.script.title, scriptId: p.script.id, writerName: p.writerName, producerName: p.producer.displayName, date: new Date() });
+    const doc = renderNda(ndaInput(p.script, p.writerName, p.producer.displayName));
     return this.create(tx, doc, [{ role: 'PRODUCER', userId: p.producer.id, legalName: p.producer.displayName, signed: { signedName, meta } }], {
       accessRequestId: p.accessRequestId,
     });
@@ -162,11 +188,11 @@ export class ContractsService {
   async previewNda(scriptId: string, producer: Viewer): Promise<ContractPreviewDto> {
     const script = await this.prisma.script.findUnique({
       where: { id: scriptId },
-      select: { id: true, title: true, status: true, author: { select: { displayName: true } } },
+      select: { ...NDA_SCRIPT_SELECT, status: true, author: { select: { displayName: true } } },
     });
     if (!script || script.status !== 'PUBLISHED') throw new NotFoundException('공개된 대본을 찾을 수 없습니다');
     const me = await this.prisma.user.findUniqueOrThrow({ where: { id: producer.id }, select: { displayName: true } });
-    const doc = renderNda({ scriptTitle: script.title, scriptId: script.id, writerName: script.author.displayName, producerName: me.displayName, date: new Date() });
+    const doc = renderNda(ndaInput(script, script.author.displayName, me.displayName));
     return { templateVersion: doc.templateVersion, title: doc.title, body: doc.body, signConsent: SIGN_CONSENT };
   }
 

@@ -2,6 +2,7 @@ import {
   renderChannelPublishing,
   renderNda,
   renderScriptLicense,
+  scriptContentSha256,
   sha256,
   TEMPLATE_VERSIONS,
 } from './contract-templates.js';
@@ -44,10 +45,29 @@ describe('contract templates', () => {
   });
 
   it('names the script and both people in the NDA', () => {
-    const n = renderNda({ scriptTitle: '마지막 열차', scriptId: 's1', writerName: '한작가', producerName: '빛나는 제작소', date });
-    expect(n.title).toBe('비밀유지 서약서');
+    const hash = scriptContentSha256('S#1. 승강장', null);
+    const n = renderNda({
+      scriptTitle: '마지막 열차',
+      scriptId: 's1',
+      scriptSha256: hash,
+      logline: '폐역 역무원이 오지 않는 열차의 비밀을 쫓는다',
+      genre: '미스터리',
+      writerName: '한작가',
+      producerName: '빛나는 제작소',
+      platformName: '대본매칭',
+      date,
+    });
+    expect(n.title).toBe('비밀유지 및 무단이용 금지 서약서');
+    expect(n.templateVersion).toBe('nda-beta-v1');
     expect(n.body).toContain('「마지막 열차」');
     expect(n.body).toContain('서약자(이하 "제작자"): 빛나는 제작소');
+    expect(n.body).toContain(`열람 대상 내용의 SHA-256: ${hash}`);
+    // 아이디어만 가져가는 경우를 막는 조항들
+    expect(n.body).toContain('제4조 (목적 외 이용 금지)');
+    expect(n.body).toContain('제5조 (유사 작품 제작 제한)');
+    expect(n.body).toContain('10,000,000원');
+    // 미리보기가 바뀌면 해시도 바뀐다
+    expect(scriptContentSha256('S#1. 승강장', '미리보기')).not.toBe(hash);
   });
 });
 
