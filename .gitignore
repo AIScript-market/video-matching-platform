@@ -26,3 +26,7 @@ apps/studio/next-env.d.ts
 
 # 개발용 초상 원본 저장소 (암호화된 파일)
 apps/api/.likeness-store/
+
+# 가능성 검증 파일럿 데이터 (크리에이터가 제공한 대본·성과, 저장소에 넣지 않는다)
+services/ml/research/data/
+services/ml/research/out/
