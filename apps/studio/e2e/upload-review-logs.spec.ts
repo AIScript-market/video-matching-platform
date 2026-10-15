@@ -38,7 +38,8 @@ test("대본가 파일 업로드 → 제작자 검토 후 메시지 → 관리�
   await writer.getByRole("row", { name: new RegExp(`${title}.*검토제작자`) }).getByRole("button", { name: "승인" }).click();
 
   await producer.reload();
-  await expect(producer.getByText("해원: 다시 왔어.")).toBeVisible();
+  // AI 요약 카드에도 같은 문장이 나올 수 있어 전문(pre) 안에서 찾는다
+  await expect(producer.locator("pre", { hasText: "해원: 다시 왔어." })).toBeVisible();
   const review = producer.getByRole("form", { name: "검토 후 메시지" });
   await review.getByLabel("검토 메시지").fill(note);
   await review.getByRole("button", { name: "메시지 보내기 (1코인)" }).click();

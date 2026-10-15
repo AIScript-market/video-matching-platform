@@ -13,7 +13,8 @@ async function bootstrap() {
   // 리버스 프록시(Caddy 등) 뒤에서 실제 접속 IP를 읽는다. 서명 기록과 요청 제한이 이 값을 쓴다
   if (process.env.TRUST_PROXY) app.set('trust proxy', Number(process.env.TRUST_PROXY) || process.env.TRUST_PROXY);
   app.use(securityHeadersMiddleware());
-  if (process.env.RATE_LIMIT !== 'off') app.use(rateLimitMiddleware());
+  // 운영에서는 기본으로 켜고(RATE_LIMIT=off로 끔), 개발·e2e에서는 RATE_LIMIT=on일 때만 (한 IP로 여러 계정을 연달아 만들기 때문)
+  if (process.env.RATE_LIMIT === 'on' || (production && process.env.RATE_LIMIT !== 'off')) app.use(rateLimitMiddleware());
   setupApp(app);
   // 웹(apps/studio)은 Next.js rewrite로 같은 출처에서 부르므로 CORS는 직접 호출용
   app.enableCors({ origin: process.env.WEB_ORIGIN ?? 'http://localhost:3000', credentials: true });
