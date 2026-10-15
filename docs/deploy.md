@@ -57,7 +57,7 @@ git pull && docker compose -f ops/prod/compose.yaml --env-file ops/prod/producti
 ## 운영하며 지킬 것
 
 - 계약서 서명 기록에 IP가 남는다. Caddy → studio → api 두 단계 프록시라 `TRUST_PROXY=2`로 두었다. 구성을 바꾸면 이 값도 맞춘다.
-- 로그인·가입 1분 10회, 서명·열람 요청 1분 20회, 메시지 1분 60회로 IP마다 제한한다 (`apps/api/src/core/rate-limit.ts`).
+- 로그인·가입 1분 10회, 서명·열람 요청 1분 20회, 메시지 1분 60회로 IP마다 제한한다 (`apps/api/src/core/rate-limit.ts`). 운영(`NODE_ENV=production`)에서만 기본으로 켜지고, 개발에서는 `RATE_LIMIT=on`일 때만.
 - 운영에서는 API 문서(/docs)를 닫아 둔다. 필요하면 `API_DOCS=on`.
 - 흥행 판단 모델 서비스(`services/ml`)는 베타에서 띄우지 않는다 (`BETA_MODE=true`면 관련 API와 화면이 꺼진다).
 - 비밀번호 재설정 메일은 아직 없다. 베타 동안은 문의를 받아 본인 확인 뒤 `apps/api/dist/cli/reset-password.js`(USER_EMAIL, NEW_PASSWORD)로 임시 비밀번호를 정해 준다. 메일 발송 서비스를 정하면 붙인다.
