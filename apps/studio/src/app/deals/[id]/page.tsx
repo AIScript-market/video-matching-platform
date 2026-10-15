@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { DealProjectCard } from "@/components/deal-project-card";
 import { LedgerTable } from "@/components/ledger-table";
 import { ErrorText, RequireAuth, StatusBadge } from "@/components/ui";
 import { api, dateTime, unwrap, won, type Deal, type Ledger } from "@/lib/api";
@@ -73,6 +74,8 @@ function DealDetail() {
           ))}
         </section>
       </div>
+
+      <DealProjectCard dealId={deal.id} />
 
       <section className="card stack">
         <h2>장부</h2>
