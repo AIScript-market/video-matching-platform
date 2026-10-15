@@ -3,10 +3,12 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { DealContract, DealSettlement, DealVideos } from "@/components/deal-channel";
 import { DealProjectCard } from "@/components/deal-project-card";
 import { LedgerTable } from "@/components/ledger-table";
 import { ErrorText, RequireAuth, StatusBadge } from "@/components/ui";
 import { api, dateTime, unwrap, won, type Deal, type Ledger } from "@/lib/api";
+import { useSession } from "@/lib/session";
 
 export default function DealPage() {
   return (
@@ -21,6 +23,8 @@ function DealDetail() {
   const [deal, setDeal] = useState<Deal | null>(null);
   const [ledger, setLedger] = useState<Ledger | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [version, setVersion] = useState(0);
+  const { config } = useSession();
 
   useEffect(() => {
     Promise.all([
@@ -32,7 +36,7 @@ function DealDetail() {
         setLedger(l);
       })
       .catch((err: Error) => setError(err.message));
-  }, [id]);
+  }, [id, version]);
 
   if (!deal) return error ? <ErrorText error={error} /> : <p className="muted">불러오는 중…</p>;
   const o = deal.acceptedOffer;
@@ -75,7 +79,11 @@ function DealDetail() {
         </section>
       </div>
 
-      <DealProjectCard dealId={deal.id} />
+      <DealContract dealId={deal.id} onSigned={() => setVersion((v) => v + 1)} />
+      <DealVideos key={`videos-${deal.status}`} deal={deal} />
+      <DealSettlement dealId={deal.id} />
+
+      {config?.features.casting && <DealProjectCard dealId={deal.id} />}
 
       <section className="card stack">
         <h2>장부</h2>

@@ -1,6 +1,7 @@
-import { Body, Controller, Get, Headers, HttpCode, Ip, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CreatorGuard, CurrentUser, JwtAuthGuard } from '../../core/auth/index.js';
+import { signatureMeta, type RequestLike } from '../contracts/signature-meta.js';
 import type { Viewer } from './access-rules.js';
 import { AccessService } from './access.service.js';
 import { AccessRequestDto, CreateAccessRequestDto, ListAccessRequestsQueryDto } from './dto/access.dto.js';
@@ -20,10 +21,9 @@ export class AccessController {
     @Param('id') scriptId: string,
     @CurrentUser() user: Viewer,
     @Body() dto: CreateAccessRequestDto,
-    @Ip() ip: string,
-    @Headers('user-agent') userAgent?: string,
+    @Req() req: RequestLike,
   ) {
-    return this.access.request(scriptId, user, dto, { ip: ip || null, userAgent: userAgent ?? null });
+    return this.access.request(scriptId, user, dto, signatureMeta(req));
   }
 
   @Get('access-requests')

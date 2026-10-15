@@ -1,7 +1,8 @@
-import { Body, Controller, Get, Headers, HttpCode, Ip, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, Post, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CreatorGuard, CurrentUser, JwtAuthGuard, Roles, RolesGuard } from '../../core/auth/index.js';
 import type { Viewer } from '../access/access-rules.js';
+import { signatureMeta, type RequestLike } from './signature-meta.js';
 import { ContractDto, ContractPreviewDto, ContractSummaryDto, SignContractDto, VoidContractDto } from './contracts.dto.js';
 import { ContractsService } from './contracts.service.js';
 
@@ -43,10 +44,9 @@ export class ContractsController {
     @Param('id') id: string,
     @CurrentUser() user: Viewer,
     @Body() dto: SignContractDto,
-    @Ip() ip: string,
-    @Headers('user-agent') userAgent?: string,
+    @Req() req: RequestLike,
   ) {
-    return this.contracts.sign(id, user, dto, { ip: ip || null, userAgent: userAgent ?? null });
+    return this.contracts.sign(id, user, dto, signatureMeta(req));
   }
 
   @Get('deals/:id/contract')

@@ -1275,7 +1275,7 @@
             "bearer": []
           }
         ],
-        "summary": "전문 열람 요청 (프로필 공개 필요, NDA 동의 필수)",
+        "summary": "전문 열람 요청 (프로필 공개 필요, 비밀유지 서약서에 동의하면 서명 기록과 함께 서약서가 만들어진다)",
         "tags": [
           "access"
         ]
@@ -1407,6 +1407,263 @@
         "summary": "열람 요청 거절 (대본 작성자)",
         "tags": [
           "access"
+        ]
+      }
+    },
+    "/contracts": {
+      "get": {
+        "operationId": "ContractsController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ContractSummaryDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "내가 당사자인 계약 목록 (관리자는 전체)",
+        "tags": [
+          "contracts"
+        ]
+      }
+    },
+    "/contracts/channel-publishing": {
+      "post": {
+        "operationId": "ContractsController_channel",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContractDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "내 채널 게시 계약 (없으면 지금 버전으로 만든다. 영상 제출 전에 서명)",
+        "tags": [
+          "contracts"
+        ]
+      }
+    },
+    "/contracts/{id}": {
+      "get": {
+        "operationId": "ContractsController_get",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContractDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "계약서 보기 (당사자·관리자, 비밀유지 서약서는 작가도)",
+        "tags": [
+          "contracts"
+        ]
+      }
+    },
+    "/contracts/{id}/sign": {
+      "post": {
+        "operationId": "ContractsController_sign",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignContractDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContractDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "전자서명 (계약서에 적힌 이름 입력 + 동의). 서명 시각·접속 정보를 남긴다",
+        "tags": [
+          "contracts"
+        ]
+      }
+    },
+    "/deals/{id}/contract": {
+      "get": {
+        "operationId": "ContractsController_forDeal",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContractDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "딜의 대본 이용허락 계약서",
+        "tags": [
+          "contracts"
+        ]
+      }
+    },
+    "/scripts/{id}/nda-preview": {
+      "get": {
+        "operationId": "ContractsController_ndaPreview",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContractPreviewDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "열람 요청 전에 읽을 비밀유지 서약서 본문",
+        "tags": [
+          "contracts"
+        ]
+      }
+    },
+    "/admin/contracts/{id}/void": {
+      "post": {
+        "operationId": "ContractsController_void",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VoidContractDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContractDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "관리자: 계약 무효 처리 (서명 기록은 남는다)",
+        "tags": [
+          "contracts"
         ]
       }
     },
@@ -1947,6 +2204,401 @@
         "summary": "장부 기록 (관리자 수동 기록)",
         "tags": [
           "ledger"
+        ]
+      }
+    },
+    "/deals/{id}/videos": {
+      "post": {
+        "operationId": "ChannelController_submit",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitVideoDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChannelVideoDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "영상 제출 (딜의 제작자, 딜 ACTIVE + 채널 게시 계약 서명 필요, 권리 항목 모두 확인)",
+        "tags": [
+          "channel"
+        ]
+      },
+      "get": {
+        "operationId": "ChannelController_list",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ChannelVideoDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "딜의 제출 영상 (참여자·관리자)",
+        "tags": [
+          "channel"
+        ]
+      }
+    },
+    "/deals/{id}/settlement": {
+      "get": {
+        "operationId": "ChannelController_settlement",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettlementDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "딜의 정산서 (영상·월별 확정 수익, 작가·제작자 몫, 지급 기록)",
+        "tags": [
+          "channel"
+        ]
+      }
+    },
+    "/admin/videos": {
+      "get": {
+        "operationId": "ChannelController_adminList",
+        "parameters": [
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "SUBMITTED",
+                "APPROVED",
+                "PUBLISHED",
+                "REJECTED",
+                "REMOVED"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ChannelVideoDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "관리자: 제출 영상 목록 (오래된 순)",
+        "tags": [
+          "channel"
+        ]
+      }
+    },
+    "/admin/videos/{id}/review": {
+      "post": {
+        "operationId": "ChannelController_review",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewVideoDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChannelVideoDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "관리자: 검수 (승인·거절)",
+        "tags": [
+          "channel"
+        ]
+      }
+    },
+    "/admin/videos/{id}/publish": {
+      "post": {
+        "operationId": "ChannelController_publish",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublishVideoDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChannelVideoDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "관리자: 채널에 올린 뒤 YouTube 영상 번호 기록",
+        "tags": [
+          "channel"
+        ]
+      }
+    },
+    "/admin/videos/{id}/remove": {
+      "post": {
+        "operationId": "ChannelController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RemoveVideoDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChannelVideoDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "관리자: 게시 중단 (이유는 제작자에게 보인다)",
+        "tags": [
+          "channel"
+        ]
+      }
+    },
+    "/admin/videos/{id}/revenues": {
+      "post": {
+        "operationId": "ChannelController_revenue",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecordRevenueDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevenueLineDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "관리자: 끝난 달 YouTube 확정 광고 수익 기록",
+        "tags": [
+          "channel"
+        ]
+      }
+    },
+    "/admin/revenues/{id}/payouts": {
+      "post": {
+        "operationId": "ChannelController_payout",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecordPayoutDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettlementDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "관리자: 지급 기록 (금액은 배분율로 자동 계산)",
+        "tags": [
+          "channel"
         ]
       }
     },
@@ -5436,6 +6088,11 @@
             "enum": [
               true
             ]
+          },
+          "signedName": {
+            "type": "string",
+            "description": "서약서에 서명할 이름 (생략하면 활동명)",
+            "maxLength": 40
           }
         },
         "required": [
@@ -5510,6 +6167,10 @@
           },
           "producer": {
             "$ref": "#/components/schemas/AccessProducerDto"
+          },
+          "ndaContractId": {
+            "type": "string",
+            "description": "이 요청과 함께 만든 비밀유지 서약서 (요청을 만들 때만 돌려준다)"
           }
         },
         "required": [
@@ -5521,6 +6182,256 @@
           "decidedAt",
           "script",
           "producer"
+        ]
+      },
+      "ContractPartyDto": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "WRITER",
+              "PRODUCER",
+              "PLATFORM"
+            ]
+          },
+          "userId": {
+            "type": "string",
+            "nullable": true
+          },
+          "legalName": {
+            "type": "string",
+            "description": "계약서에 적힌 이름"
+          },
+          "signedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "signedName": {
+            "type": "string",
+            "nullable": true,
+            "description": "서명할 때 직접 입력한 이름"
+          }
+        },
+        "required": [
+          "role",
+          "userId",
+          "legalName",
+          "signedAt",
+          "signedName"
+        ]
+      },
+      "ContractSummaryDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "NDA",
+              "SCRIPT_LICENSE",
+              "CHANNEL_PUBLISHING"
+            ]
+          },
+          "templateVersion": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "AWAITING_SIGNATURES",
+              "SIGNED",
+              "VOID"
+            ]
+          },
+          "dealId": {
+            "type": "string",
+            "nullable": true
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "signedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "parties": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ContractPartyDto"
+            }
+          },
+          "awaitingMySignature": {
+            "type": "boolean",
+            "description": "내가 아직 서명해야 하는가"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "templateVersion",
+          "title",
+          "status",
+          "dealId",
+          "createdAt",
+          "signedAt",
+          "parties",
+          "awaitingMySignature"
+        ]
+      },
+      "ContractDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "NDA",
+              "SCRIPT_LICENSE",
+              "CHANNEL_PUBLISHING"
+            ]
+          },
+          "templateVersion": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "AWAITING_SIGNATURES",
+              "SIGNED",
+              "VOID"
+            ]
+          },
+          "dealId": {
+            "type": "string",
+            "nullable": true
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "signedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "parties": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ContractPartyDto"
+            }
+          },
+          "awaitingMySignature": {
+            "type": "boolean",
+            "description": "내가 아직 서명해야 하는가"
+          },
+          "body": {
+            "type": "string",
+            "description": "고정된 계약서 본문 (마크다운)"
+          },
+          "bodySha256": {
+            "type": "string",
+            "description": "본문 SHA-256 (hex)"
+          },
+          "voidedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "voidReason": {
+            "type": "string",
+            "nullable": true
+          },
+          "signConsent": {
+            "type": "string",
+            "description": "서명 화면에 보여 줄 동의 문구"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "templateVersion",
+          "title",
+          "status",
+          "dealId",
+          "createdAt",
+          "signedAt",
+          "parties",
+          "awaitingMySignature",
+          "body",
+          "bodySha256",
+          "voidedAt",
+          "voidReason",
+          "signConsent"
+        ]
+      },
+      "SignContractDto": {
+        "type": "object",
+        "properties": {
+          "signedName": {
+            "type": "string",
+            "description": "서명자가 직접 입력한 이름 (계약서에 적힌 이름과 같아야 한다)",
+            "maxLength": 40
+          },
+          "agreed": {
+            "type": "boolean",
+            "description": "동의 문구에 동의. 반드시 true",
+            "enum": [
+              true
+            ]
+          }
+        },
+        "required": [
+          "signedName",
+          "agreed"
+        ]
+      },
+      "ContractPreviewDto": {
+        "type": "object",
+        "properties": {
+          "templateVersion": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          },
+          "signConsent": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "templateVersion",
+          "title",
+          "body",
+          "signConsent"
+        ]
+      },
+      "VoidContractDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "reason"
         ]
       },
       "ScriptRefDto": {
@@ -6136,6 +7047,388 @@
         "required": [
           "type",
           "amountKrw"
+        ]
+      },
+      "RightsChecklistDto": {
+        "type": "object",
+        "properties": {
+          "musicCleared": {
+            "type": "boolean",
+            "description": "쓴 음원은 모두 이용 권한이 있다",
+            "enum": [
+              true
+            ]
+          },
+          "materialsCleared": {
+            "type": "boolean",
+            "description": "영상·이미지·폰트 등 소재는 모두 이용 권한이 있다",
+            "enum": [
+              true
+            ]
+          },
+          "performersConsented": {
+            "type": "boolean",
+            "description": "출연자 전원의 출연·초상 이용 동의를 받았다",
+            "enum": [
+              true
+            ]
+          },
+          "adDisclosureChecked": {
+            "type": "boolean",
+            "description": "광고가 있으면 \"유료 광고 포함\"을 표시했다 (없으면 없음을 확인)",
+            "enum": [
+              true
+            ]
+          },
+          "containsPaidPromotion": {
+            "type": "boolean",
+            "description": "영상에 유료 광고(협찬·PPL)가 들어 있는가"
+          },
+          "sources": {
+            "type": "string",
+            "description": "음원·소재 출처 (곡명·라이선스 등)",
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "musicCleared",
+          "materialsCleared",
+          "performersConsented",
+          "adDisclosureChecked",
+          "containsPaidPromotion"
+        ]
+      },
+      "SubmitVideoDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 5000
+          },
+          "sourceUrl": {
+            "type": "string",
+            "description": "검수용 영상 위치 (비공개 링크 등, https)"
+          },
+          "rights": {
+            "$ref": "#/components/schemas/RightsChecklistDto"
+          }
+        },
+        "required": [
+          "title",
+          "sourceUrl",
+          "rights"
+        ]
+      },
+      "ChannelVideoDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "dealId": {
+            "type": "string"
+          },
+          "producerId": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "sourceUrl": {
+            "type": "string"
+          },
+          "rightsChecklist": {
+            "$ref": "#/components/schemas/RightsChecklistDto"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "SUBMITTED",
+              "APPROVED",
+              "PUBLISHED",
+              "REJECTED",
+              "REMOVED"
+            ]
+          },
+          "reviewNote": {
+            "type": "string",
+            "nullable": true
+          },
+          "reviewedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "channelName": {
+            "type": "string",
+            "nullable": true
+          },
+          "youtubeVideoId": {
+            "type": "string",
+            "nullable": true
+          },
+          "publishedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "scriptTitle": {
+            "type": "string",
+            "description": "딜의 대본 제목"
+          }
+        },
+        "required": [
+          "id",
+          "dealId",
+          "producerId",
+          "title",
+          "description",
+          "sourceUrl",
+          "rightsChecklist",
+          "status",
+          "reviewNote",
+          "reviewedAt",
+          "channelName",
+          "youtubeVideoId",
+          "publishedAt",
+          "createdAt",
+          "scriptTitle"
+        ]
+      },
+      "PayoutDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "WRITER",
+              "PRODUCER"
+            ]
+          },
+          "amountKrw": {
+            "type": "number"
+          },
+          "paidAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "memo": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "role",
+          "amountKrw",
+          "paidAt",
+          "memo"
+        ]
+      },
+      "RevenueLineDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "videoId": {
+            "type": "string"
+          },
+          "videoTitle": {
+            "type": "string"
+          },
+          "month": {
+            "type": "string"
+          },
+          "amountKrw": {
+            "type": "number",
+            "description": "확정 광고 수익 (원)"
+          },
+          "writerKrw": {
+            "type": "number"
+          },
+          "producerKrw": {
+            "type": "number"
+          },
+          "platformKrw": {
+            "type": "number",
+            "description": "플랫폼 몫은 언제나 0 (채널 게시 계약 제3조)"
+          },
+          "payouts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PayoutDto"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "videoId",
+          "videoTitle",
+          "month",
+          "amountKrw",
+          "writerKrw",
+          "producerKrw",
+          "platformKrw",
+          "payouts"
+        ]
+      },
+      "SettlementDto": {
+        "type": "object",
+        "properties": {
+          "dealId": {
+            "type": "string"
+          },
+          "writerSharePct": {
+            "type": "number"
+          },
+          "producerSharePct": {
+            "type": "number"
+          },
+          "lines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RevenueLineDto"
+            }
+          },
+          "totalRevenueKrw": {
+            "type": "number"
+          },
+          "writerDueKrw": {
+            "type": "number"
+          },
+          "producerDueKrw": {
+            "type": "number"
+          },
+          "writerPaidKrw": {
+            "type": "number"
+          },
+          "producerPaidKrw": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "dealId",
+          "writerSharePct",
+          "producerSharePct",
+          "lines",
+          "totalRevenueKrw",
+          "writerDueKrw",
+          "producerDueKrw",
+          "writerPaidKrw",
+          "producerPaidKrw"
+        ]
+      },
+      "ReviewVideoDto": {
+        "type": "object",
+        "properties": {
+          "decision": {
+            "type": "string",
+            "enum": [
+              "APPROVED",
+              "REJECTED"
+            ]
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 1000,
+            "description": "거절하면 이유 (제작자에게 보인다)"
+          }
+        },
+        "required": [
+          "decision"
+        ]
+      },
+      "PublishVideoDto": {
+        "type": "object",
+        "properties": {
+          "channelName": {
+            "type": "string",
+            "description": "게시한 장르 채널 이름",
+            "maxLength": 100
+          },
+          "youtubeVideoId": {
+            "type": "string",
+            "description": "YouTube 영상 번호 (11자, watch?v= 뒤)"
+          }
+        },
+        "required": [
+          "channelName",
+          "youtubeVideoId"
+        ]
+      },
+      "RemoveVideoDto": {
+        "type": "object",
+        "properties": {
+          "note": {
+            "type": "string",
+            "maxLength": 1000,
+            "description": "내린 이유 (제작자에게 보인다)"
+          }
+        },
+        "required": [
+          "note"
+        ]
+      },
+      "RecordRevenueDto": {
+        "type": "object",
+        "properties": {
+          "month": {
+            "type": "string",
+            "description": "정산 월 YYYY-MM (끝난 달만)",
+            "example": "2026-09"
+          },
+          "amountKrw": {
+            "type": "number",
+            "description": "YouTube가 확정한 그 달 광고 수익 (원)",
+            "minimum": 0
+          },
+          "memo": {
+            "type": "string",
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "month",
+          "amountKrw"
+        ]
+      },
+      "RecordPayoutDto": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "WRITER",
+              "PRODUCER"
+            ]
+          },
+          "paidAt": {
+            "type": "string",
+            "description": "지급한 시각 (생략하면 지금)"
+          },
+          "memo": {
+            "type": "string",
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "role"
         ]
       },
       "VerifyIdentityDto": {

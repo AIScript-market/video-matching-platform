@@ -30,10 +30,12 @@ export function Nav() {
           {user && on("hitModel") && link("/recommendations", "추천 대본")}
           {user && link("/negotiations", "협상")}
           {user && link("/deals", "내 딜")}
+          {user && link("/contracts", "계약")}
           {user && !has("ADMIN") && on("casting") && link("/casting", "캐스팅")}
           {user && !has("ADMIN") && on("talent") && link("/talent", "출연자")}
           {has("ADMIN") && link("/admin", "관리자")}
           {has("ADMIN") && link("/admin/logs", "활동 로그")}
+          {has("ADMIN") && link("/admin/videos", "영상 검수")}
           {has("ADMIN") && on("casting") && link("/admin/casting", "출연 관리")}
           {has("ADMIN") && on("hitModel") && link("/admin/ml", "흥행 모델")}
           {user && link("/account", "내 계정")}

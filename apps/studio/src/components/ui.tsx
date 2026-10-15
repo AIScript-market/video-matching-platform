@@ -22,6 +22,9 @@ const STATUS_LABEL: Record<string, [string, string]> = {
   ACTIVE: ["진행 중", "ok"],
   TERMINATED: ["종료", "plain"],
   SUSPENDED: ["중지", "bad"],
+  AWAITING_SIGNATURES: ["서명 대기", "warn"],
+  SIGNED: ["서명 완료", "ok"],
+  VOID: ["무효", "bad"],
 };
 
 export function StatusBadge({ status }: { status: string }) {
