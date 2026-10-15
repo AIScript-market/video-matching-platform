@@ -2,3 +2,5 @@
 pytest>=8,<9
 httpx>=0.27,<1
 ruff>=0.6,<1
+# 연구 도구의 모델 비교(services/ml/research/model_bench.py)와 그 테스트에 필요하다
+scikit-learn>=1.5,<2
