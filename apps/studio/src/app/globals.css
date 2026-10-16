@@ -155,3 +155,9 @@ th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--bord
 .site-footer { padding-block: 24px 40px; }
 .legal h2 { font-size: 1.05rem; margin: 8px 0 0; }
 .legal p { line-height: 1.7; }
+
+/* 도움말: 질문을 누르면 답이 펼쳐진다 */
+.faq { border-top: 1px solid var(--border); padding-top: 10px; }
+.faq summary { cursor: pointer; font-weight: 600; }
+.faq p { margin: 8px 0 0; line-height: 1.7; }
+.selectable { user-select: all; }

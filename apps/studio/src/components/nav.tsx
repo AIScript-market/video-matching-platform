@@ -84,6 +84,7 @@ export function Nav() {
           {user && !isAdmin && top("/dashboard", "마이페이지", inSection(myTabs))}
           {isAdmin && top("/admin", "관리자", inSection(adminTabs))}
           {isAdmin && top("/account", "내 계정", inSection(myTabs))}
+          {top("/help", "도움말", matches(pathname, "/help"))}
           {DEV_ACCOUNTS_ENABLED && top("/dev/accounts", "계정 전환(개발)", matches(pathname, "/dev"))}
         </nav>
         {user ? (

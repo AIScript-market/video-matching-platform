@@ -19,7 +19,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <Nav />
           <main className="container">{children}</main>
           <footer className="container small muted site-footer">
-            <Link href="/terms">이용약관</Link> · <Link href="/privacy">개인정보 처리방침</Link>
+            <Link href="/help">도움말·문의</Link> · <Link href="/terms">이용약관</Link> · <Link href="/privacy">개인정보 처리방침</Link>
           </footer>
         </SessionProvider>
       </body>
