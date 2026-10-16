@@ -91,7 +91,9 @@ run('채널 게시·정산 (DB)', () => {
 
     // 채널 게시 계약: 플랫폼은 이미 서명, 제작자 서명 전에는 제출 불가
     await expect(channel.submit(dealId, producer, submit)).rejects.toMatchObject({ response: { error: 'CHANNEL_CONTRACT_REQUIRED' } });
-    const cc = await contracts.channelContract(producer);
+    // 화면이 동시에 여러 번 불러도 계약서는 한 장
+    const [cc, dup] = await Promise.all([contracts.channelContract(producer), contracts.channelContract(producer)]);
+    expect(dup.id).toBe(cc.id);
     expect(cc.kind).toBe('CHANNEL_PUBLISHING');
     expect(cc.parties.find((p) => p.role === 'PLATFORM')?.signedAt).not.toBeNull();
     expect((await contracts.channelContract(producer)).id).toBe(cc.id); // 같은 버전은 하나

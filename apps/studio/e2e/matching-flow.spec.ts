@@ -4,6 +4,8 @@ import { creator, login, requestAccessWithNda, SEED, signContract, suffix as mak
 const suffix = makeSuffix();
 
 test("대본 제공자와 제작자가 대본으로 매칭되어 딜이 만들어진다", async ({ browser }) => {
+  // 가입부터 정산·지급까지 이어지는 긴 흐름이라 기본 제한(90초)보다 길게 둔다
+  test.setTimeout(180_000);
   const title = `E2E 대본 ${suffix}`;
 
   // 0. 일반 가입 → 프로필·이메일 공개

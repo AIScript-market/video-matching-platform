@@ -23,6 +23,8 @@ const VIDEO_INCLUDE = { deal: { select: { negotiation: { select: { script: { sel
 
 type VideoRow = Prisma.ChannelVideoGetPayload<{ include: typeof VIDEO_INCLUDE }>;
 
+const SHARE_ORDER: Record<string, number> = { WRITER: 0, PRODUCER: 1, PERFORMER: 2, OTHER: 3, PLATFORM: 4 };
+
 function toVideo({ deal, reviewedById: _r, updatedAt: _u, ...v }: VideoRow): ChannelVideoDto {
   return { ...v, rightsChecklist: v.rightsChecklist as unknown as ChannelVideoDto['rightsChecklist'], scriptTitle: deal.negotiation.script.title };
 }
@@ -171,7 +173,10 @@ export class ChannelService {
     for (const r of revenues) {
       const contract = r.contract ?? (await this.contracts.applicableLicense(dealId, r.month));
       if (!contract) continue;
-      const sharing = contract.parties.filter((p) => p.revenueShareBp !== null && p.role !== 'PLATFORM');
+      // 표시 순서를 고정한다: 작가 → 제작자 → 출연자 → 그 밖, 같은 역할은 이름순
+      const sharing = contract.parties
+        .filter((p) => p.revenueShareBp !== null && p.role !== 'PLATFORM')
+        .sort((a, b) => SHARE_ORDER[a.role] - SHARE_ORDER[b.role] || a.legalName.localeCompare(b.legalName));
       const split = splitAmong(
         r.amountKrw,
         contract.parties.map((p) => ({ key: p.id, role: p.role, revenueShareBp: p.revenueShareBp, receivesRemainder: p.receivesRemainder })),

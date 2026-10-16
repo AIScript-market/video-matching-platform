@@ -245,32 +245,42 @@ export class ContractsService {
     return this.get(created.id, user);
   }
 
-  /** 제작자의 지금 버전 채널 게시 계약 (없으면 만든다. 플랫폼은 만들 때 서명) */
+  /**
+   * 제작자의 지금 버전 채널 게시 계약 (없으면 만든다. 플랫폼은 만들 때 서명).
+   * 화면이 동시에 여러 번 불러도 한 장만 생기도록, 제작자마다 트랜잭션 잠금을 걸고 확인한 뒤 만든다.
+   */
   async channelContract(user: Viewer & { displayName?: string }): Promise<ContractDto> {
-    const existing = await this.currentChannelContract(user.id);
+    const existing = await this.currentChannelContract(this.prisma, user.id);
     if (existing) return this.toDto(existing, user);
     const me = await this.prisma.user.findUniqueOrThrow({ where: { id: user.id }, select: { displayName: true } });
-    const doc = renderChannelPublishing({ producerName: me.displayName, platformName: platformName(), date: new Date() });
-    const created = await this.prisma.$transaction((tx) => this.create(tx, doc, [platformParty(), { role: 'PRODUCER', userId: user.id, legalName: me.displayName }]));
-    return this.get(created.id, user);
+    const id = await this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`channel-contract:${user.id}`}))`;
+      const again = await this.currentChannelContract(tx, user.id);
+      if (again) return again.id;
+      const doc = renderChannelPublishing({ producerName: me.displayName, platformName: platformName(), date: new Date() });
+      return (await this.create(tx, doc, [platformParty(), { role: 'PRODUCER', userId: user.id, legalName: me.displayName }])).id;
+    });
+    return this.get(id, user);
   }
 
-  private currentChannelContract(userId: string) {
-    return this.prisma.contract.findFirst({
+  /** 지금 버전 채널 게시 계약: 서명이 끝난 것이 있으면 그것, 없으면 가장 먼저 만든 서명 대기 계약 */
+  private async currentChannelContract(db: Tx | PrismaService, userId: string) {
+    const rows = await db.contract.findMany({
       where: {
         kind: 'CHANNEL_PUBLISHING',
         templateVersion: TEMPLATE_VERSIONS.CHANNEL_PUBLISHING,
-        status: { not: 'VOID' },
+        status: { in: ['SIGNED', 'AWAITING_SIGNATURES'] },
         parties: { some: { role: 'PRODUCER', userId } },
       },
       include: INCLUDE,
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: 'asc' },
     });
+    return rows.find((c) => c.status === 'SIGNED') ?? rows[0] ?? null;
   }
 
   /** 영상을 제출하려면 지금 버전 채널 게시 계약에 서명이 끝나 있어야 한다 */
   async hasSignedChannelContract(userId: string): Promise<boolean> {
-    const c = await this.currentChannelContract(userId);
+    const c = await this.currentChannelContract(this.prisma, userId);
     return c?.status === 'SIGNED';
   }
 
