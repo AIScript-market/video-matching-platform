@@ -266,3 +266,54 @@ export class SettlementDto {
   @ApiProperty() totalRevenueKrw!: number;
   @ApiProperty({ type: [PartyTotalDto] }) totals!: PartyTotalDto[];
 }
+
+// ---------- 내 수익 (마이페이지 > 수익) ----------
+
+export class EarningsTotalsDto {
+  @ApiProperty({ description: '내가 참여한 딜 영상들의 확정 광고 수익 합계 (원)' }) revenueKrw!: number;
+  @ApiProperty({ description: '그중 내 몫 (계약 배분율대로)' }) myKrw!: number;
+  @ApiProperty({ description: '내 몫 가운데 지급받은 금액' }) paidKrw!: number;
+  @ApiProperty({ description: '내 몫 가운데 아직 지급 전인 금액' }) unpaidKrw!: number;
+  @ApiProperty({ description: '게시된 영상 수' }) publishedVideos!: number;
+}
+
+export class EarningsMonthDto {
+  @ApiProperty({ example: '2026-09' }) month!: string;
+  @ApiProperty() revenueKrw!: number;
+  @ApiProperty() myKrw!: number;
+}
+
+export class EarningsDealDto {
+  @ApiProperty() dealId!: string;
+  @ApiProperty() scriptTitle!: string;
+  @ApiProperty({ enum: ['PENDING_CONTRACT', 'ACTIVE', 'TERMINATED'], description: '딜 상태' }) status!: 'PENDING_CONTRACT' | 'ACTIVE' | 'TERMINATED';
+  @ApiProperty({ nullable: true, enum: [...SHARE_ROLES, 'PLATFORM'], description: '이번 달 적용 계약에서 내 역할 (계약 전이면 null)' })
+  myRole!: string | null;
+  @ApiProperty({ nullable: true, type: Number, description: '이번 달 적용 계약에서 내 배분율 (만분율)' }) myShareBp!: number | null;
+  @ApiProperty() videoCount!: number;
+  @ApiProperty() publishedVideos!: number;
+  @ApiProperty() revenueKrw!: number;
+  @ApiProperty() myKrw!: number;
+  @ApiProperty() paidKrw!: number;
+}
+
+export class EarningsVideoDto {
+  @ApiProperty() videoId!: string;
+  @ApiProperty() dealId!: string;
+  @ApiProperty() title!: string;
+  @ApiProperty() scriptTitle!: string;
+  @ApiProperty({ enum: VIDEO_STATUSES }) status!: VideoStatusName;
+  @ApiProperty({ nullable: true, type: String }) channelName!: string | null;
+  @ApiProperty({ nullable: true, type: String }) youtubeVideoId!: string | null;
+  @ApiProperty({ type: String, format: 'date-time', nullable: true }) publishedAt!: Date | null;
+  @ApiProperty({ description: '확정 광고 수익 합계' }) revenueKrw!: number;
+  @ApiProperty({ description: '그중 내 몫' }) myKrw!: number;
+}
+
+export class EarningsDto {
+  @ApiProperty({ type: EarningsTotalsDto }) totals!: EarningsTotalsDto;
+  @ApiProperty({ type: [EarningsMonthDto], description: '확정 수익이 있는 달 (오래된 순)' }) months!: EarningsMonthDto[];
+  @ApiProperty({ type: [EarningsDealDto] }) deals!: EarningsDealDto[];
+  @ApiProperty({ type: [EarningsVideoDto], description: '제출한 영상 (게시된 영상 먼저, 최근 순)' }) videos!: EarningsVideoDto[];
+}
+

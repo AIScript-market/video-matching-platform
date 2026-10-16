@@ -11,6 +11,7 @@ import { DealsService } from '../deals/deals.service.js';
 import type {
   ChannelVideoDto,
   CreateVideoUploadDto,
+  EarningsDto,
   PublishVideoDto,
   RecordPayoutDto,
   RecordRevenueDto,
@@ -321,6 +322,82 @@ export class ChannelService {
       }
     }
     return { dealId, lines, totalRevenueKrw: lines.reduce((a, l) => a + l.amountKrw, 0), totals: [...totals.values()] };
+  }
+
+  /**
+   * 내 수익 (마이페이지 > 수익): 내가 참여한 딜 전체의 확정 수익과 내 몫·지급을 딜·달·영상별로 모은다.
+   * 금액은 딜 정산서(settlement)와 같은 계산이다. 같은 사람이 계약 변경으로 당사자가 여러 번 되어도 모두 내 몫으로 센다.
+   */
+  async earnings(user: Viewer): Promise<EarningsDto> {
+    const deals = await this.prisma.deal.findMany({
+      where: {
+        OR: [
+          { negotiation: { OR: [{ writerId: user.id }, { producerId: user.id }] } },
+          { contracts: { some: { status: { not: 'VOID' }, parties: { some: { userId: user.id } } } } },
+        ],
+      },
+      select: {
+        id: true,
+        status: true,
+        negotiation: { select: { script: { select: { title: true } } } },
+        videos: { select: { id: true, title: true, status: true, channelName: true, youtubeVideoId: true, publishedAt: true, createdAt: true } },
+      },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    });
+    const mine = new Set((await this.prisma.contractParty.findMany({ where: { userId: user.id }, select: { id: true } })).map((p) => p.id));
+    const thisMonth = new Date().toISOString().slice(0, 7);
+
+    const months = new Map<string, { revenueKrw: number; myKrw: number }>();
+    const videoMoney = new Map<string, { revenueKrw: number; myKrw: number }>();
+    const dealRows: EarningsDto['deals'] = [];
+    for (const d of deals) {
+      const s = await this.settlement(d.id, user);
+      let myKrw = 0;
+      let paidKrw = 0;
+      for (const line of s.lines) {
+        const myShares = line.shares.filter((x) => mine.has(x.partyId));
+        const my = myShares.reduce((a, x) => a + x.amountKrw, 0);
+        myKrw += my;
+        paidKrw += myShares.reduce((a, x) => a + (x.payout?.amountKrw ?? 0), 0);
+        const m = months.get(line.month) ?? { revenueKrw: 0, myKrw: 0 };
+        months.set(line.month, { revenueKrw: m.revenueKrw + line.amountKrw, myKrw: m.myKrw + my });
+        const v = videoMoney.get(line.videoId) ?? { revenueKrw: 0, myKrw: 0 };
+        videoMoney.set(line.videoId, { revenueKrw: v.revenueKrw + line.amountKrw, myKrw: v.myKrw + my });
+      }
+      const license = await this.contracts.applicableLicense(d.id, thisMonth);
+      const me = license?.parties.find((p) => p.userId === user.id);
+      dealRows.push({
+        dealId: d.id,
+        scriptTitle: d.negotiation.script.title,
+        status: d.status,
+        myRole: me?.role ?? null,
+        myShareBp: me?.revenueShareBp ?? null,
+        videoCount: d.videos.length,
+        publishedVideos: d.videos.filter((v) => v.publishedAt).length,
+        revenueKrw: s.totalRevenueKrw,
+        myKrw,
+        paidKrw,
+      });
+    }
+
+    const videos = deals
+      .flatMap((d) => d.videos.map((v) => ({ ...v, dealId: d.id, scriptTitle: d.negotiation.script.title })))
+      .sort((a, b) => Number(Boolean(b.publishedAt)) - Number(Boolean(a.publishedAt)) || (b.publishedAt ?? b.createdAt).getTime() - (a.publishedAt ?? a.createdAt).getTime())
+      .map(({ id, createdAt: _c, ...v }) => ({ videoId: id, ...v, ...(videoMoney.get(id) ?? { revenueKrw: 0, myKrw: 0 }) }));
+    const myKrw = dealRows.reduce((a, d) => a + d.myKrw, 0);
+    const paidKrw = dealRows.reduce((a, d) => a + d.paidKrw, 0);
+    return {
+      totals: {
+        revenueKrw: dealRows.reduce((a, d) => a + d.revenueKrw, 0),
+        myKrw,
+        paidKrw,
+        unpaidKrw: myKrw - paidKrw,
+        publishedVideos: dealRows.reduce((a, d) => a + d.publishedVideos, 0),
+      },
+      months: [...months.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([month, m]) => ({ month, ...m })),
+      deals: dealRows,
+      videos,
+    };
   }
 
   /** 관리자: 플랫폼 밖에서 이체한 뒤 당사자 한 명에 대한 지급을 기록한다. 금액은 배분 규칙으로 정해져 있어 입력받지 않는다 */

@@ -2642,6 +2642,33 @@
         ]
       }
     },
+    "/me/earnings": {
+      "get": {
+        "operationId": "ChannelController_earnings",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EarningsDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "내 수익: 참여한 딜 전체의 확정 수익·내 몫·지급을 딜·달·영상별로",
+        "tags": [
+          "channel"
+        ]
+      }
+    },
     "/deals/{id}/settlement": {
       "get": {
         "operationId": "ChannelController_settlement",
@@ -8106,6 +8133,216 @@
           "publishedAt",
           "createdAt",
           "scriptTitle"
+        ]
+      },
+      "EarningsTotalsDto": {
+        "type": "object",
+        "properties": {
+          "revenueKrw": {
+            "type": "number",
+            "description": "내가 참여한 딜 영상들의 확정 광고 수익 합계 (원)"
+          },
+          "myKrw": {
+            "type": "number",
+            "description": "그중 내 몫 (계약 배분율대로)"
+          },
+          "paidKrw": {
+            "type": "number",
+            "description": "내 몫 가운데 지급받은 금액"
+          },
+          "unpaidKrw": {
+            "type": "number",
+            "description": "내 몫 가운데 아직 지급 전인 금액"
+          },
+          "publishedVideos": {
+            "type": "number",
+            "description": "게시된 영상 수"
+          }
+        },
+        "required": [
+          "revenueKrw",
+          "myKrw",
+          "paidKrw",
+          "unpaidKrw",
+          "publishedVideos"
+        ]
+      },
+      "EarningsMonthDto": {
+        "type": "object",
+        "properties": {
+          "month": {
+            "type": "string",
+            "example": "2026-09"
+          },
+          "revenueKrw": {
+            "type": "number"
+          },
+          "myKrw": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "month",
+          "revenueKrw",
+          "myKrw"
+        ]
+      },
+      "EarningsDealDto": {
+        "type": "object",
+        "properties": {
+          "dealId": {
+            "type": "string"
+          },
+          "scriptTitle": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING_CONTRACT",
+              "ACTIVE",
+              "TERMINATED"
+            ],
+            "description": "딜 상태"
+          },
+          "myRole": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "WRITER",
+              "PRODUCER",
+              "PERFORMER",
+              "OTHER",
+              "PLATFORM"
+            ],
+            "description": "이번 달 적용 계약에서 내 역할 (계약 전이면 null)"
+          },
+          "myShareBp": {
+            "type": "number",
+            "nullable": true,
+            "description": "이번 달 적용 계약에서 내 배분율 (만분율)"
+          },
+          "videoCount": {
+            "type": "number"
+          },
+          "publishedVideos": {
+            "type": "number"
+          },
+          "revenueKrw": {
+            "type": "number"
+          },
+          "myKrw": {
+            "type": "number"
+          },
+          "paidKrw": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "dealId",
+          "scriptTitle",
+          "status",
+          "myRole",
+          "myShareBp",
+          "videoCount",
+          "publishedVideos",
+          "revenueKrw",
+          "myKrw",
+          "paidKrw"
+        ]
+      },
+      "EarningsVideoDto": {
+        "type": "object",
+        "properties": {
+          "videoId": {
+            "type": "string"
+          },
+          "dealId": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "scriptTitle": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "SUBMITTED",
+              "APPROVED",
+              "PUBLISHED",
+              "REJECTED",
+              "REMOVED"
+            ]
+          },
+          "channelName": {
+            "type": "string",
+            "nullable": true
+          },
+          "youtubeVideoId": {
+            "type": "string",
+            "nullable": true
+          },
+          "publishedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "revenueKrw": {
+            "type": "number",
+            "description": "확정 광고 수익 합계"
+          },
+          "myKrw": {
+            "type": "number",
+            "description": "그중 내 몫"
+          }
+        },
+        "required": [
+          "videoId",
+          "dealId",
+          "title",
+          "scriptTitle",
+          "status",
+          "channelName",
+          "youtubeVideoId",
+          "publishedAt",
+          "revenueKrw",
+          "myKrw"
+        ]
+      },
+      "EarningsDto": {
+        "type": "object",
+        "properties": {
+          "totals": {
+            "$ref": "#/components/schemas/EarningsTotalsDto"
+          },
+          "months": {
+            "description": "확정 수익이 있는 달 (오래된 순)",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EarningsMonthDto"
+            }
+          },
+          "deals": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EarningsDealDto"
+            }
+          },
+          "videos": {
+            "description": "제출한 영상 (게시된 영상 먼저, 최근 순)",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EarningsVideoDto"
+            }
+          }
+        },
+        "required": [
+          "totals",
+          "months",
+          "deals",
+          "videos"
         ]
       },
       "PayoutDto": {

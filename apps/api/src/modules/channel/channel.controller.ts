@@ -5,6 +5,7 @@ import type { Viewer } from '../access/access-rules.js';
 import {
   ChannelVideoDto,
   CreateVideoUploadDto,
+  EarningsDto,
   ListVideosQueryDto,
   PublishVideoDto,
   RecordPayoutDto,
@@ -48,6 +49,13 @@ export class ChannelController {
   @ApiOkResponse({ type: [ChannelVideoDto] })
   list(@Param('id') dealId: string, @CurrentUser() user: Viewer) {
     return this.channel.listForDeal(dealId, user);
+  }
+
+  @Get('me/earnings')
+  @ApiOperation({ summary: '내 수익: 참여한 딜 전체의 확정 수익·내 몫·지급을 딜·달·영상별로' })
+  @ApiOkResponse({ type: EarningsDto })
+  earnings(@CurrentUser() user: Viewer) {
+    return this.channel.earnings(user);
   }
 
   @Get('deals/:id/settlement')
