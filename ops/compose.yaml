@@ -51,6 +51,14 @@ services:
       timeout: 3s
       retries: 20
 
+  # 개발용 S3 호환 저장소 (서명은 검사하지 않는다. 서명·CORS 검사는 운영 R2에서). 다시 켜면 비워진다
+  storage:
+    image: adobe/s3mock:4.7.0
+    environment:
+      COM_ADOBE_TESTING_S3MOCK_STORE_INITIAL_BUCKETS: vmp-videos
+    ports:
+      - "${STORAGE_PORT:-9090}:9090"
+
   # 시작할 때마다 의존성을 맞춘다 (바뀐 게 없으면 바로 끝난다)
   install:
     <<: *node
@@ -67,12 +75,21 @@ services:
       ML_TOKEN: *ml-token
       PORT: 4000
       WEB_ORIGIN: http://localhost:${STUDIO_PORT:-3000}
+      # 검수용 영상 저장소 (개발: S3Mock, 운영: Cloudflare R2). API는 내부 주소로, 브라우저는 localhost로 닿는다
+      VIDEO_STORAGE_ENDPOINT: http://storage:9090
+      VIDEO_STORAGE_PUBLIC_ENDPOINT: http://localhost:${STORAGE_PORT:-9090}
+      VIDEO_STORAGE_BUCKET: vmp-videos
+      VIDEO_STORAGE_ACCESS_KEY_ID: vmp_local_only
+      VIDEO_STORAGE_SECRET_ACCESS_KEY: vmp_local_only
+      VIDEO_STORAGE_REGION: us-east-1
+      VIDEO_STORAGE_PATH_STYLE: "true"
     ports:
       - "${API_PORT:-4000}:4000"
     depends_on:
       install: { condition: service_completed_successfully }
       db: { condition: service_healthy }
       redis: { condition: service_healthy }
+      storage: { condition: service_started }
 
   worker:
     <<: *node

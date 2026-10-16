@@ -4,6 +4,7 @@ import { CreatorGuard, CurrentUser, JwtAuthGuard, Roles, RolesGuard } from '../.
 import type { Viewer } from '../access/access-rules.js';
 import {
   ChannelVideoDto,
+  CreateVideoUploadDto,
   ListVideosQueryDto,
   PublishVideoDto,
   RecordPayoutDto,
@@ -13,6 +14,9 @@ import {
   RevenueLineDto,
   SettlementDto,
   SubmitVideoDto,
+  VideoFileQueryDto,
+  VideoFileUrlDto,
+  VideoUploadDto,
 } from './channel.dto.js';
 import { ChannelService } from './channel.service.js';
 
@@ -22,6 +26,14 @@ import { ChannelService } from './channel.service.js';
 @Controller()
 export class ChannelController {
   constructor(private readonly channel: ChannelService) {}
+
+  @Post('deals/:id/videos/uploads')
+  @UseGuards(CreatorGuard)
+  @ApiOperation({ summary: '영상 파일 올리기 주소 (딜의 제작자). 받은 주소로 파일을 저장소에 바로 PUT 한 뒤 key를 fileKey로 제출한다' })
+  @ApiOkResponse({ type: VideoUploadDto })
+  createUpload(@Param('id') dealId: string, @CurrentUser() user: Viewer, @Body() dto: CreateVideoUploadDto) {
+    return this.channel.createUpload(dealId, user, dto);
+  }
 
   @Post('deals/:id/videos')
   @UseGuards(CreatorGuard)
@@ -51,6 +63,14 @@ export class ChannelController {
   @ApiOkResponse({ type: [ChannelVideoDto] })
   adminList(@Query() query: ListVideosQueryDto) {
     return this.channel.adminList(query.status);
+  }
+
+  @Get('admin/videos/:id/file')
+  @Roles('ADMIN')
+  @ApiOperation({ summary: '관리자: 저장소에 올라온 영상을 보거나 내려받을 주소 (30분)' })
+  @ApiOkResponse({ type: VideoFileUrlDto })
+  file(@Param('id') id: string, @Query() query: VideoFileQueryDto) {
+    return this.channel.fileUrl(id, query.download === true);
   }
 
   @Post('admin/videos/:id/review')

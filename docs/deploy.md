@@ -37,6 +37,33 @@ docker compose -f ops/prod/compose.yaml --env-file ops/prod/production.env run -
 - 바꾼 뒤에는 `docker compose ... up -d` 로 다시 띄운다 (재빌드는 필요 없다).
 - 가입 화면은 초대 코드와 만 19세 이상 확인, 약관·개인정보 처리방침 동의를 받는다.
 
+## 4-1. 영상 저장소 (Cloudflare R2)
+
+제작자가 올리는 검수용 영상은 우리 서버를 거치지 않는다. 브라우저가 API에서 받은 서명 주소(1시간)로 R2에 바로 올리고, 관리자도 서명 주소(30분)로 R2에서 바로 받는다.
+서버는 주소에 서명하고 크기만 확인하므로 메모리·디스크·회선 부담이 없다. 게시를 기록하거나 거절하면 파일을 바로 지운다.
+설정하지 않으면 영상 파일 올리기가 꺼지고 제작자는 링크로만 제출한다.
+
+1. Cloudflare 가입 → R2 → **버킷 만들기**: 이름 `vmp-videos`, 위치는 자동(또는 아시아 태평양).
+2. 버킷 → 설정 → **CORS 정책**에 아래를 넣는다 (도메인은 우리 주소로):
+
+   ```json
+   [{ "AllowedOrigins": ["https://beta.example.com"], "AllowedMethods": ["PUT", "GET", "HEAD"], "AllowedHeaders": ["content-type"], "ExposeHeaders": ["ETag"], "MaxAgeSeconds": 3600 }]
+   ```
+
+3. 버킷 → 설정 → **객체 수명 주기 규칙**: 버킷 전체, 올린 지 **60일** 뒤 삭제. 제출하지 않고 버려진 파일이나 지우기에 실패한 파일을 치운다 (개인정보 처리방침에 적은 기간).
+4. R2 → **API 토큰 관리** → 토큰 만들기: 권한 "객체 읽기 및 쓰기", 대상은 `vmp-videos` 버킷만. 나오는 액세스 키 ID와 비밀 액세스 키를 `production.env`에 넣는다 (다시 볼 수 없으니 바로 넣는다).
+5. `production.env`의 `VIDEO_STORAGE_*`를 채운다. 엔드포인트는 `https://<계정 ID>.r2.cloudflarestorage.com` (R2 개요 화면에 있다).
+6. 확인: 시험 파일을 올리고 받고 지운다.
+
+   ```bash
+   docker compose -f ops/prod/compose.yaml --env-file ops/prod/production.env run --rm api node apps/api/dist/cli/check-video-storage.js
+   ```
+
+   그다음 제작자 계정으로 딜 화면에서 작은 영상을 하나 올려 본다 (브라우저 CORS 확인).
+
+비용: 저장 용량 월 10GB까지 무료, 넘으면 GB당 월 약 0.015달러이고 내려받기(송신)는 무료다. 검수가 끝나면 지우므로 보통 무료 범위 안이다. 한 파일은 2GB까지 받는다.
+AWS S3 등 다른 S3 호환 저장소도 같은 변수로 쓸 수 있다 (`VIDEO_STORAGE_REGION`을 그 리전으로).
+
 ## 5. 백업
 
 - 매일 DB를 덤프한다. 서버 crontab 예 (매일 04:00, 14일 보관):
@@ -59,5 +86,6 @@ git pull && docker compose -f ops/prod/compose.yaml --env-file ops/prod/producti
 - 계약서 서명 기록에 IP가 남는다. Caddy → studio → api 두 단계 프록시라 `TRUST_PROXY=2`로 두었다. 구성을 바꾸면 이 값도 맞춘다.
 - 로그인·가입 1분 10회, 서명·열람 요청 1분 20회, 메시지 1분 60회로 IP마다 제한한다 (`apps/api/src/core/rate-limit.ts`). 운영(`NODE_ENV=production`)에서만 기본으로 켜지고, 개발에서는 `RATE_LIMIT=on`일 때만.
 - 운영에서는 API 문서(/docs)를 닫아 둔다. 필요하면 `API_DOCS=on`.
+- 검수용 영상 파일은 R2에 있고 DB 백업에는 들어가지 않는다. 검수 중인 파일만 있으므로 따로 백업하지 않는다.
 - 흥행 판단 모델 서비스(`services/ml`)는 베타에서 띄우지 않는다 (`BETA_MODE=true`면 관련 API와 화면이 꺼진다).
 - 비밀번호 재설정 메일은 아직 없다. 베타 동안은 문의를 받아 본인 확인 뒤 `apps/api/dist/cli/reset-password.js`(USER_EMAIL, NEW_PASSWORD)로 임시 비밀번호를 정해 준다. 메일 발송 서비스를 정하면 붙인다.

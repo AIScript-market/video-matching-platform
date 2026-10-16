@@ -2513,6 +2513,52 @@
         ]
       }
     },
+    "/deals/{id}/videos/uploads": {
+      "post": {
+        "operationId": "ChannelController_createUpload",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateVideoUploadDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VideoUploadDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "영상 파일 올리기 주소 (딜의 제작자). 받은 주소로 파일을 저장소에 바로 PUT 한 뒤 key를 fileKey로 제출한다",
+        "tags": [
+          "channel"
+        ]
+      }
+    },
     "/deals/{id}/videos": {
       "post": {
         "operationId": "ChannelController_submit",
@@ -2673,6 +2719,51 @@
           }
         ],
         "summary": "관리자: 제출 영상 목록 (오래된 순)",
+        "tags": [
+          "channel"
+        ]
+      }
+    },
+    "/admin/videos/{id}/file": {
+      "get": {
+        "operationId": "ChannelController_file",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "download",
+            "required": false,
+            "in": "query",
+            "description": "true이면 내려받기용 주소 (아니면 브라우저에서 재생)",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VideoFileUrlDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "관리자: 저장소에 올라온 영상을 보거나 내려받을 주소 (30분)",
         "tags": [
           "channel"
         ]
@@ -5071,12 +5162,17 @@
           "hitModel": {
             "type": "boolean",
             "description": "흥행 판단·추천"
+          },
+          "videoUpload": {
+            "type": "boolean",
+            "description": "영상 파일을 저장소에 바로 올릴 수 있는가 (VIDEO_STORAGE_*). 꺼져 있으면 링크로만 제출"
           }
         },
         "required": [
           "talent",
           "casting",
-          "hitModel"
+          "hitModel",
+          "videoUpload"
         ]
       },
       "PublicConfigDto": {
@@ -7781,6 +7877,56 @@
           "amountKrw"
         ]
       },
+      "CreateVideoUploadDto": {
+        "type": "object",
+        "properties": {
+          "fileName": {
+            "type": "string",
+            "description": "올릴 파일 이름 (확장자 mp4·m4v·mov·webm·mkv)",
+            "maxLength": 200
+          },
+          "sizeBytes": {
+            "type": "number",
+            "description": "파일 크기 (바이트)",
+            "minimum": 1,
+            "maximum": 2000000000
+          }
+        },
+        "required": [
+          "fileName",
+          "sizeBytes"
+        ]
+      },
+      "VideoUploadDto": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "description": "제출할 때 fileKey로 보낸다"
+          },
+          "uploadUrl": {
+            "type": "string",
+            "description": "이 주소로 파일을 PUT 한다 (우리 서버를 거치지 않고 저장소로 바로)"
+          },
+          "headers": {
+            "type": "object",
+            "description": "PUT 할 때 그대로 보낼 헤더",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "uploadUrl",
+          "headers",
+          "expiresAt"
+        ]
+      },
       "RightsChecklistDto": {
         "type": "object",
         "properties": {
@@ -7843,7 +7989,11 @@
           },
           "sourceUrl": {
             "type": "string",
-            "description": "검수용 영상 위치 (비공개 링크 등, https)"
+            "description": "검수용 영상 링크 (비공개 링크 등, https). fileKey와 둘 중 하나"
+          },
+          "fileKey": {
+            "type": "string",
+            "description": "저장소에 올린 영상 (POST /deals/{id}/videos/uploads가 준 key). sourceUrl과 둘 중 하나"
           },
           "rights": {
             "$ref": "#/components/schemas/RightsChecklistDto"
@@ -7851,7 +8001,6 @@
         },
         "required": [
           "title",
-          "sourceUrl",
           "rights"
         ]
       },
@@ -7875,7 +8024,22 @@
             "nullable": true
           },
           "sourceUrl": {
-            "type": "string"
+            "type": "string",
+            "nullable": true,
+            "description": "링크로 제출했으면 그 링크"
+          },
+          "fileName": {
+            "type": "string",
+            "nullable": true,
+            "description": "파일로 제출했으면 파일 이름"
+          },
+          "fileSizeBytes": {
+            "type": "number",
+            "nullable": true
+          },
+          "fileAvailable": {
+            "type": "boolean",
+            "description": "저장소에 파일이 남아 있어 관리자가 받을 수 있는가 (검수가 끝나면 지운다)"
           },
           "rightsChecklist": {
             "$ref": "#/components/schemas/RightsChecklistDto"
@@ -7928,6 +8092,9 @@
           "title",
           "description",
           "sourceUrl",
+          "fileName",
+          "fileSizeBytes",
+          "fileAvailable",
           "rightsChecklist",
           "status",
           "reviewNote",
@@ -8118,6 +8285,22 @@
           "lines",
           "totalRevenueKrw",
           "totals"
+        ]
+      },
+      "VideoFileUrlDto": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "url",
+          "expiresAt"
         ]
       },
       "ReviewVideoDto": {

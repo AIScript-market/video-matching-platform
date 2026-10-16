@@ -16,6 +16,7 @@ import {
   Min,
   ValidateNested,
 } from 'class-validator';
+import { VIDEO_MAX_BYTES } from '../../core/video-storage.js';
 
 export const VIDEO_STATUSES = ['SUBMITTED', 'APPROVED', 'PUBLISHED', 'REJECTED', 'REMOVED'] as const;
 export type VideoStatusName = (typeof VIDEO_STATUSES)[number];
@@ -67,16 +68,59 @@ export class SubmitVideoDto {
   @MaxLength(5000)
   description?: string;
 
-  @ApiProperty({ description: '검수용 영상 위치 (비공개 링크 등, https)' })
+  @ApiPropertyOptional({ description: '검수용 영상 링크 (비공개 링크 등, https). fileKey와 둘 중 하나' })
+  @IsOptional()
   @Transform(trim)
   @IsUrl({ protocols: ['https'], require_protocol: true }, { message: 'https로 시작하는 영상 링크를 입력하세요' })
   @MaxLength(500)
-  sourceUrl!: string;
+  sourceUrl?: string;
+
+  @ApiPropertyOptional({ description: '저장소에 올린 영상 (POST /deals/{id}/videos/uploads가 준 key). sourceUrl과 둘 중 하나' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(400)
+  fileKey?: string;
 
   @ApiProperty({ type: RightsChecklistDto })
   @ValidateNested()
   @Type(() => RightsChecklistDto)
   rights!: RightsChecklistDto;
+}
+
+export class CreateVideoUploadDto {
+  @ApiProperty({ description: '올릴 파일 이름 (확장자 mp4·m4v·mov·webm·mkv)', maxLength: 200 })
+  @Transform(trim)
+  @IsString()
+  @Length(1, 200)
+  fileName!: string;
+
+  @ApiProperty({ description: '파일 크기 (바이트)', minimum: 1, maximum: VIDEO_MAX_BYTES })
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(VIDEO_MAX_BYTES, { message: '영상 파일은 2GB까지 올릴 수 있습니다' })
+  sizeBytes!: number;
+}
+
+export class VideoUploadDto {
+  @ApiProperty({ description: '제출할 때 fileKey로 보낸다' }) key!: string;
+  @ApiProperty({ description: '이 주소로 파일을 PUT 한다 (우리 서버를 거치지 않고 저장소로 바로)' }) uploadUrl!: string;
+  @ApiProperty({ description: 'PUT 할 때 그대로 보낼 헤더', type: 'object', additionalProperties: { type: 'string' } })
+  headers!: Record<string, string>;
+  @ApiProperty({ format: 'date-time' }) expiresAt!: Date;
+}
+
+export class VideoFileQueryDto {
+  @ApiPropertyOptional({ description: 'true이면 내려받기용 주소 (아니면 브라우저에서 재생)' })
+  @IsOptional()
+  @Transform(({ value }) => value === true || value === 'true')
+  @IsBoolean()
+  download?: boolean;
+}
+
+export class VideoFileUrlDto {
+  @ApiProperty() url!: string;
+  @ApiProperty({ format: 'date-time' }) expiresAt!: Date;
 }
 
 export class ReviewVideoDto {
@@ -161,7 +205,10 @@ export class ChannelVideoDto {
   @ApiProperty() producerId!: string;
   @ApiProperty() title!: string;
   @ApiProperty({ nullable: true, type: String }) description!: string | null;
-  @ApiProperty() sourceUrl!: string;
+  @ApiProperty({ nullable: true, type: String, description: '링크로 제출했으면 그 링크' }) sourceUrl!: string | null;
+  @ApiProperty({ nullable: true, type: String, description: '파일로 제출했으면 파일 이름' }) fileName!: string | null;
+  @ApiProperty({ nullable: true, type: Number }) fileSizeBytes!: number | null;
+  @ApiProperty({ description: '저장소에 파일이 남아 있어 관리자가 받을 수 있는가 (검수가 끝나면 지운다)' }) fileAvailable!: boolean;
   @ApiProperty({ type: RightsChecklistDto }) rightsChecklist!: RightsChecklistDto;
   @ApiProperty({ enum: VIDEO_STATUSES }) status!: VideoStatusName;
   @ApiProperty({ nullable: true, type: String }) reviewNote!: string | null;

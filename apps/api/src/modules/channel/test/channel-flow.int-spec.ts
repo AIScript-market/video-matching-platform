@@ -2,6 +2,7 @@
  * 계약 → 채널 게시 → 정산 흐름 통합 테스트 (실제 PostgreSQL 필요, DATABASE_URL 없으면 건너뛴다).
  */
 import { BadRequestException, ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { MemoryVideoStorage, VIDEO_MAX_BYTES } from '../../../core/video-storage.js';
 import { PrismaService } from '../../../prisma/prisma.service.js';
 import { AccessService } from '../../access/access.service.js';
 import type { Viewer } from '../../access/access-rules.js';
@@ -23,6 +24,7 @@ run('채널 게시·정산 (DB)', () => {
   let prisma: PrismaService;
   let channel: ChannelService;
   let contracts: ContractsService;
+  const storage = new MemoryVideoStorage();
   let writer: Viewer, producer: Viewer, admin: Viewer, outsider: Viewer, coWriter: Viewer;
   let dealId: string;
   const userIds: string[] = [];
@@ -44,7 +46,7 @@ run('채널 게시·정산 (DB)', () => {
     const negotiations = new NegotiationsService(prisma, wallet);
     const offers = new OffersService(prisma, negotiations, contracts);
     const deals = new DealsService(prisma);
-    channel = new ChannelService(prisma, deals, contracts);
+    channel = new ChannelService(prisma, deals, contracts, storage);
     writer = await makeUser('writer');
     producer = await makeUser('producer');
     admin = await makeUser('admin', ['ADMIN']);
@@ -177,5 +179,52 @@ run('채널 게시·정산 (DB)', () => {
     expect((await contracts.applicableLicense(dealId, signed.effectiveMonth!))!.id).toBe(amendment.id);
     expect((await channel.settlement(dealId, coWriter)).lines[0].contractId).toBe(line.contractId);
     expect((await contracts.historyForDeal(dealId, coWriter)).map((c) => c.status)).toEqual(['SIGNED', 'SUPERSEDED']);
+  });
+
+  it('영상 파일: 서명 주소로 올린 뒤 제출 → 관리자가 받기 → 게시·거절하면 저장소에서 지운다', async () => {
+    // 앞 테스트에서 딜과 채널 게시 계약에 모두 서명했다
+    await expect(channel.createUpload(dealId, writer, { fileName: 'a.mp4', sizeBytes: 10 })).rejects.toThrow(ForbiddenException);
+    await expect(channel.createUpload(dealId, producer, { fileName: 'a.exe', sizeBytes: 10 })).rejects.toThrow(BadRequestException);
+    const up = await channel.createUpload(dealId, producer, { fileName: '1화 최종.MOV', sizeBytes: 1234 });
+    expect(up.key).toMatch(new RegExp(`^deals/${dealId}/[0-9a-f-]{36}/1화 최종\\.MOV$`));
+    expect(up.headers['Content-Type']).toBe('video/quicktime');
+
+    const base = { title: '2화', rights };
+    // 링크와 파일 중 정확히 하나
+    await expect(channel.submit(dealId, producer, base)).rejects.toThrow(BadRequestException);
+    await expect(channel.submit(dealId, producer, { ...base, sourceUrl: 'https://x.example/v', fileKey: up.key })).rejects.toThrow(BadRequestException);
+    // 아직 올라가지 않았으면 제출 불가, 다른 딜의 key는 불가
+    await expect(channel.submit(dealId, producer, { ...base, fileKey: up.key })).rejects.toThrow(BadRequestException);
+    await expect(channel.submit(dealId, producer, { ...base, fileKey: up.key.replace(dealId, 'other') })).rejects.toThrow(BadRequestException);
+
+    storage.put(up.key, 1234);
+    const v = await channel.submit(dealId, producer, { ...base, fileKey: up.key });
+    expect(v).toMatchObject({ sourceUrl: null, fileName: '1화 최종.MOV', fileSizeBytes: 1234, fileAvailable: true });
+    expect(v).not.toHaveProperty('fileKey');
+    await expect(channel.submit(dealId, producer, { ...base, fileKey: up.key })).rejects.toThrow(ConflictException);
+    expect((await channel.fileUrl(v.id, true)).url).toBe(`memory://download/${up.key}`);
+
+    await channel.review(v.id, admin, { decision: 'APPROVED' });
+    expect(storage.objects.has(up.key)).toBe(true); // 승인만으로는 지우지 않는다 (관리자가 받아서 올려야 한다)
+    const pub = await channel.publish(v.id, { channelName: '스릴러 채널', youtubeVideoId: `u${suffix}`.padEnd(11, 'y').slice(0, 11) });
+    expect(pub.fileAvailable).toBe(false);
+    expect(storage.objects.has(up.key)).toBe(false);
+    await expect(channel.fileUrl(v.id, false)).rejects.toThrow(ConflictException);
+
+    // 거절해도 지운다. 너무 큰 파일은 제출할 때 지우고 거절한다
+    const up2 = await channel.createUpload(dealId, producer, { fileName: 'b.mp4', sizeBytes: 5 });
+    storage.put(up2.key, 5);
+    const v2 = await channel.submit(dealId, producer, { ...base, fileKey: up2.key });
+    expect((await channel.review(v2.id, admin, { decision: 'REJECTED', note: '음원 출처 누락' })).fileAvailable).toBe(false);
+    expect(storage.removed).toContain(up2.key);
+    const up3 = await channel.createUpload(dealId, producer, { fileName: 'c.mp4', sizeBytes: 5 });
+    storage.put(up3.key, VIDEO_MAX_BYTES + 1);
+    await expect(channel.submit(dealId, producer, { ...base, fileKey: up3.key })).rejects.toThrow(BadRequestException);
+    expect(storage.objects.has(up3.key)).toBe(false);
+
+    // 링크로 낸 영상에는 파일 주소가 없다
+    const link = await channel.submit(dealId, producer, { ...base, sourceUrl: 'https://drive.example.com/v/3' });
+    expect(link.fileAvailable).toBe(false);
+    await expect(channel.fileUrl(link.id, false)).rejects.toThrow(BadRequestException);
   });
 });

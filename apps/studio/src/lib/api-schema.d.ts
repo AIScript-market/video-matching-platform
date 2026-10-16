@@ -994,6 +994,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/deals/{id}/videos/uploads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 영상 파일 올리기 주소 (딜의 제작자). 받은 주소로 파일을 저장소에 바로 PUT 한 뒤 key를 fileKey로 제출한다 */
+        post: operations["ChannelController_createUpload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/deals/{id}/videos": {
         parameters: {
             query?: never;
@@ -1038,6 +1055,23 @@ export interface paths {
         };
         /** 관리자: 제출 영상 목록 (오래된 순) */
         get: operations["ChannelController_adminList"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/videos/{id}/file": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 관리자: 저장소에 올라온 영상을 보거나 내려받을 주소 (30분) */
+        get: operations["ChannelController_file"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2015,6 +2049,8 @@ export interface components {
             casting: boolean;
             /** @description 흥행 판단·추천 */
             hitModel: boolean;
+            /** @description 영상 파일을 저장소에 바로 올릴 수 있는가 (VIDEO_STORAGE_*). 꺼져 있으면 링크로만 제출 */
+            videoUpload: boolean;
         };
         PublicConfigDto: {
             /** @description 초대제 비공개 베타 */
@@ -2784,6 +2820,24 @@ export interface components {
              */
             occurredAt?: string;
         };
+        CreateVideoUploadDto: {
+            /** @description 올릴 파일 이름 (확장자 mp4·m4v·mov·webm·mkv) */
+            fileName: string;
+            /** @description 파일 크기 (바이트) */
+            sizeBytes: number;
+        };
+        VideoUploadDto: {
+            /** @description 제출할 때 fileKey로 보낸다 */
+            key: string;
+            /** @description 이 주소로 파일을 PUT 한다 (우리 서버를 거치지 않고 저장소로 바로) */
+            uploadUrl: string;
+            /** @description PUT 할 때 그대로 보낼 헤더 */
+            headers: {
+                [key: string]: string;
+            };
+            /** Format: date-time */
+            expiresAt: string;
+        };
         RightsChecklistDto: {
             /**
              * @description 쓴 음원은 모두 이용 권한이 있다
@@ -2813,8 +2867,10 @@ export interface components {
         SubmitVideoDto: {
             title: string;
             description?: string;
-            /** @description 검수용 영상 위치 (비공개 링크 등, https) */
-            sourceUrl: string;
+            /** @description 검수용 영상 링크 (비공개 링크 등, https). fileKey와 둘 중 하나 */
+            sourceUrl?: string;
+            /** @description 저장소에 올린 영상 (POST /deals/{id}/videos/uploads가 준 key). sourceUrl과 둘 중 하나 */
+            fileKey?: string;
             rights: components["schemas"]["RightsChecklistDto"];
         };
         ChannelVideoDto: {
@@ -2823,7 +2879,13 @@ export interface components {
             producerId: string;
             title: string;
             description: string | null;
-            sourceUrl: string;
+            /** @description 링크로 제출했으면 그 링크 */
+            sourceUrl: string | null;
+            /** @description 파일로 제출했으면 파일 이름 */
+            fileName: string | null;
+            fileSizeBytes: number | null;
+            /** @description 저장소에 파일이 남아 있어 관리자가 받을 수 있는가 (검수가 끝나면 지운다) */
+            fileAvailable: boolean;
             rightsChecklist: components["schemas"]["RightsChecklistDto"];
             /** @enum {string} */
             status: "SUBMITTED" | "APPROVED" | "PUBLISHED" | "REJECTED" | "REMOVED";
@@ -2883,6 +2945,11 @@ export interface components {
             lines: components["schemas"]["RevenueLineDto"][];
             totalRevenueKrw: number;
             totals: components["schemas"]["PartyTotalDto"][];
+        };
+        VideoFileUrlDto: {
+            url: string;
+            /** Format: date-time */
+            expiresAt: string;
         };
         ReviewVideoDto: {
             /** @enum {string} */
@@ -4953,6 +5020,31 @@ export interface operations {
             };
         };
     };
+    ChannelController_createUpload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateVideoUploadDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VideoUploadDto"];
+                };
+            };
+        };
+    };
     ChannelController_list: {
         parameters: {
             query?: never;
@@ -5037,6 +5129,30 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ChannelVideoDto"][];
+                };
+            };
+        };
+    };
+    ChannelController_file: {
+        parameters: {
+            query?: {
+                /** @description true이면 내려받기용 주소 (아니면 브라우저에서 재생) */
+                download?: boolean;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VideoFileUrlDto"];
                 };
             };
         };

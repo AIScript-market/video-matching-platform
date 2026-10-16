@@ -1,4 +1,6 @@
-import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
+import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, Logger, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
+import { VIDEO_MAX_BYTES, VIDEO_STORAGE, VIDEO_TYPES, type VideoStorage } from '../../core/video-storage.js';
 import { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { Viewer } from '../access/access-rules.js';
@@ -8,6 +10,7 @@ import { validateSettlementMonth } from '../contracts/settlement-rules.js';
 import { DealsService } from '../deals/deals.service.js';
 import type {
   ChannelVideoDto,
+  CreateVideoUploadDto,
   PublishVideoDto,
   RecordPayoutDto,
   RecordRevenueDto,
@@ -16,7 +19,9 @@ import type {
   SettlementDto,
   ShareLineDto,
   SubmitVideoDto,
+  VideoFileUrlDto,
   VideoStatusName,
+  VideoUploadDto,
 } from './channel.dto.js';
 
 const VIDEO_INCLUDE = { deal: { select: { negotiation: { select: { script: { select: { title: true } } } } } } } as const;
@@ -25,8 +30,26 @@ type VideoRow = Prisma.ChannelVideoGetPayload<{ include: typeof VIDEO_INCLUDE }>
 
 const SHARE_ORDER: Record<string, number> = { WRITER: 0, PRODUCER: 1, PERFORMER: 2, OTHER: 3, PLATFORM: 4 };
 
-function toVideo({ deal, reviewedById: _r, updatedAt: _u, ...v }: VideoRow): ChannelVideoDto {
-  return { ...v, rightsChecklist: v.rightsChecklist as unknown as ChannelVideoDto['rightsChecklist'], scriptTitle: deal.negotiation.script.title };
+function toVideo({ deal, reviewedById: _r, updatedAt: _u, fileKey, fileDeletedAt, ...v }: VideoRow): ChannelVideoDto {
+  return {
+    ...v,
+    fileAvailable: Boolean(fileKey && !fileDeletedAt),
+    rightsChecklist: v.rightsChecklist as unknown as ChannelVideoDto['rightsChecklist'],
+    scriptTitle: deal.negotiation.script.title,
+  };
+}
+
+/** 저장소 key: deals/<딜>/<무작위>/<파일 이름>. 파일 이름의 경로 구분자·제어 문자는 _로 */
+const FILE_KEY = /^deals\/([^/]+)\/[0-9a-f-]{36}\/([^/]{1,200})$/;
+
+export function videoFileType(fileName: string): string | null {
+  const ext = /\.([A-Za-z0-9]+)$/.exec(fileName)?.[1]?.toLowerCase();
+  return (ext && VIDEO_TYPES[ext]) ?? null;
+}
+
+export function videoFileKey(dealId: string, fileName: string): string {
+  const safe = fileName.replace(/[\u0000-\u001f\u007f/\\]/g, '_').slice(-200);
+  return `deals/${dealId}/${randomUUID()}/${safe}`;
 }
 
 /**
@@ -35,15 +58,19 @@ function toVideo({ deal, reviewedById: _r, updatedAt: _u, ...v }: VideoRow): Cha
  */
 @Injectable()
 export class ChannelService {
+  private readonly logger = new Logger(ChannelService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly deals: DealsService,
     private readonly contracts: ContractsService,
+    @Inject(VIDEO_STORAGE) private readonly storage: VideoStorage,
   ) {}
 
   // ---------- 제출 ----------
 
-  async submit(dealId: string, user: Viewer, dto: SubmitVideoDto): Promise<ChannelVideoDto> {
+  /** 영상을 낼 수 있는가: 딜의 제작자, 딜 ACTIVE, 채널 게시 계약 서명 */
+  private async assertCanSubmit(dealId: string, user: Viewer) {
     const deal = await this.prisma.deal.findUnique({ where: { id: dealId }, select: { status: true, negotiation: { select: { producerId: true, writerId: true } } } });
     if (!deal || (deal.negotiation.producerId !== user.id && deal.negotiation.writerId !== user.id)) {
       throw new NotFoundException('딜을 찾을 수 없습니다');
@@ -55,24 +82,65 @@ export class ChannelService {
     if (!(await this.contracts.hasSignedChannelContract(user.id))) {
       throw new ConflictException({ message: '먼저 채널 게시 계약에 서명해 주세요', error: 'CHANNEL_CONTRACT_REQUIRED' });
     }
-    const v = await this.prisma.channelVideo.create({
-      data: {
-        dealId,
-        producerId: user.id,
-        title: dto.title,
-        description: dto.description?.trim() || null,
-        sourceUrl: dto.sourceUrl,
-        rightsChecklist: {
-          musicCleared: dto.rights.musicCleared,
-          materialsCleared: dto.rights.materialsCleared,
-          performersConsented: dto.rights.performersConsented,
-          adDisclosureChecked: dto.rights.adDisclosureChecked,
-          containsPaidPromotion: dto.rights.containsPaidPromotion,
-          sources: dto.rights.sources?.trim() || null,
+  }
+
+  private assertStorage() {
+    if (!this.storage.enabled) {
+      throw new ServiceUnavailableException({ message: '영상 파일 올리기가 아직 준비되지 않았습니다. 영상 링크로 제출해 주세요', error: 'VIDEO_UPLOAD_DISABLED' });
+    }
+  }
+
+  /** 영상 파일을 저장소에 바로 올릴 서명 주소를 만든다. 브라우저가 올린 뒤 key를 fileKey로 제출한다 */
+  async createUpload(dealId: string, user: Viewer, dto: CreateVideoUploadDto): Promise<VideoUploadDto> {
+    this.assertStorage();
+    await this.assertCanSubmit(dealId, user);
+    const contentType = videoFileType(dto.fileName);
+    if (!contentType) throw new BadRequestException('mp4·mov·webm·mkv 영상 파일만 올릴 수 있습니다');
+    const key = videoFileKey(dealId, dto.fileName);
+    const signed = await this.storage.presignUpload(key, contentType, dto.sizeBytes);
+    return { key, uploadUrl: signed.url, headers: signed.headers, expiresAt: signed.expiresAt };
+  }
+
+  async submit(dealId: string, user: Viewer, dto: SubmitVideoDto): Promise<ChannelVideoDto> {
+    if (Boolean(dto.sourceUrl) === Boolean(dto.fileKey)) throw new BadRequestException('영상 링크나 영상 파일 중 하나로 제출해 주세요');
+    await this.assertCanSubmit(dealId, user);
+    let file: { fileKey: string; fileName: string; fileSizeBytes: number } | null = null;
+    if (dto.fileKey) {
+      this.assertStorage();
+      const m = FILE_KEY.exec(dto.fileKey);
+      if (!m || m[1] !== dealId) throw new BadRequestException('이 딜에 올린 영상 파일이 아닙니다');
+      const stat = await this.storage.stat(dto.fileKey);
+      if (!stat) throw new BadRequestException('영상 파일이 아직 다 올라가지 않았습니다. 올리기가 끝난 뒤 다시 제출해 주세요');
+      if (stat.sizeBytes > VIDEO_MAX_BYTES) {
+        await this.storage.remove(dto.fileKey);
+        throw new BadRequestException('영상 파일은 2GB까지 올릴 수 있습니다');
+      }
+      file = { fileKey: dto.fileKey, fileName: m[2], fileSizeBytes: stat.sizeBytes };
+    }
+    const v = await this.prisma.channelVideo
+      .create({
+        data: {
+          dealId,
+          producerId: user.id,
+          title: dto.title,
+          description: dto.description?.trim() || null,
+          sourceUrl: dto.sourceUrl ?? null,
+          ...file,
+          rightsChecklist: {
+            musicCleared: dto.rights.musicCleared,
+            materialsCleared: dto.rights.materialsCleared,
+            performersConsented: dto.rights.performersConsented,
+            adDisclosureChecked: dto.rights.adDisclosureChecked,
+            containsPaidPromotion: dto.rights.containsPaidPromotion,
+            sources: dto.rights.sources?.trim() || null,
+          },
         },
-      },
-      include: VIDEO_INCLUDE,
-    });
+        include: VIDEO_INCLUDE,
+      })
+      .catch((e: unknown) => {
+        if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') throw new ConflictException('이미 제출한 영상 파일입니다');
+        throw e;
+      });
     return toVideo(v);
   }
 
@@ -94,24 +162,39 @@ export class ChannelService {
     return rows.map(toVideo);
   }
 
+  /** 관리자: 저장소에 올라온 영상을 보거나 내려받을 서명 주소 */
+  async fileUrl(id: string, download: boolean): Promise<VideoFileUrlDto> {
+    const v = await this.prisma.channelVideo.findUnique({ where: { id }, select: { fileKey: true, fileName: true, fileDeletedAt: true } });
+    if (!v) throw new NotFoundException('영상을 찾을 수 없습니다');
+    if (!v.fileKey) throw new BadRequestException('링크로 제출한 영상입니다');
+    if (v.fileDeletedAt) throw new ConflictException('검수가 끝나 저장소에서 지운 영상입니다');
+    this.assertStorage();
+    const signed = await this.storage.presignDownload(v.fileKey, v.fileName ?? 'video', download);
+    return { url: signed.url, expiresAt: signed.expiresAt };
+  }
+
   async review(id: string, admin: Viewer, dto: ReviewVideoDto): Promise<ChannelVideoDto> {
     if (dto.decision === 'REJECTED' && !dto.note?.trim()) throw new BadRequestException('거절하면 이유를 적어 주세요');
-    return this.transition(id, ['SUBMITTED'], {
+    const v = await this.transition(id, ['SUBMITTED'], {
       status: dto.decision,
       reviewNote: dto.note?.trim() || null,
       reviewedById: admin.id,
       reviewedAt: new Date(),
     });
+    // 거절한 영상은 다시 볼 일이 없다 (고친 영상은 새로 제출한다)
+    return dto.decision === 'REJECTED' ? this.discardFile(v) : v;
   }
 
   async publish(id: string, dto: PublishVideoDto): Promise<ChannelVideoDto> {
     try {
-      return await this.transition(id, ['APPROVED'], {
+      const v = await this.transition(id, ['APPROVED'], {
         status: 'PUBLISHED',
         channelName: dto.channelName,
         youtubeVideoId: dto.youtubeVideoId,
         publishedAt: new Date(),
       });
+      // YouTube에 올라갔으니 원본은 지운다 (원본은 제작자에게 있다)
+      return await this.discardFile(v);
     } catch (e) {
       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
         throw new ConflictException('이미 다른 영상에 기록된 YouTube 영상 번호입니다');
@@ -121,7 +204,25 @@ export class ChannelService {
   }
 
   async remove(id: string, note: string): Promise<ChannelVideoDto> {
-    return this.transition(id, ['APPROVED', 'PUBLISHED'], { status: 'REMOVED', reviewNote: note.trim() });
+    return this.discardFile(await this.transition(id, ['APPROVED', 'PUBLISHED'], { status: 'REMOVED', reviewNote: note.trim() }));
+  }
+
+  /**
+   * 검수가 끝난 영상 파일을 저장소에서 지운다. 실패해도 상태 변경은 되돌리지 않는다
+   * (기록만 남기고, 남은 파일은 저장소의 보관 기간 규칙이 지운다. docs/deploy.md).
+   */
+  private async discardFile(v: ChannelVideoDto): Promise<ChannelVideoDto> {
+    if (!v.fileAvailable) return v;
+    const row = await this.prisma.channelVideo.findUnique({ where: { id: v.id }, select: { fileKey: true } });
+    if (!row?.fileKey || !this.storage.enabled) return v;
+    try {
+      await this.storage.remove(row.fileKey);
+    } catch (e) {
+      this.logger.warn(`영상 파일을 지우지 못했습니다 (${v.id}): ${(e as Error).message}`);
+      return v;
+    }
+    await this.prisma.channelVideo.update({ where: { id: v.id }, data: { fileDeletedAt: new Date() } });
+    return { ...v, fileAvailable: false };
   }
 
   private async transition(id: string, from: VideoStatusName[], data: Prisma.ChannelVideoUncheckedUpdateManyInput): Promise<ChannelVideoDto> {

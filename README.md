@@ -110,10 +110,10 @@ pnpm --filter studio api:types                        # 웹의 API 타입 다시
 pnpm lint && pnpm typecheck && pnpm test              # CI와 같은 검사
 ```
 
-e2e (스택이 떠 있는 상태에서):
+e2e (스택이 떠 있는 상태에서). 브라우저가 영상 저장소(S3Mock)에 `localhost:9090`으로 닿도록 저장소 컨테이너의 네트워크를 같이 쓴다:
 
 ```bash
-docker run --rm --network vmp_default -e E2E_BASE_URL=http://studio:3000 -v "$PWD":/app -v vmp_node_modules:/app/node_modules -v vmp_studio_node_modules:/app/apps/studio/node_modules -w /app/apps/studio mcr.microsoft.com/playwright:v1.64.0-noble ./node_modules/.bin/playwright test
+docker run --rm --network container:vmp-storage-1 -e E2E_BASE_URL=http://studio:3000 -v "$PWD":/app -v vmp_node_modules:/app/node_modules -v vmp_studio_node_modules:/app/apps/studio/node_modules -w /app/apps/studio mcr.microsoft.com/playwright:v1.64.0-noble ./node_modules/.bin/playwright test
 ```
 
 ## PR과 자동 머지

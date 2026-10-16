@@ -113,12 +113,43 @@ const RIGHTS: Array<[keyof Omit<ChannelVideo["rightsChecklist"], "sources" | "co
   ["adDisclosureChecked", "광고가 있으면 \"유료 광고 포함\"을 표시했습니다 (없으면 없음을 확인했습니다)"],
 ];
 
+/** 저장소 key가 받는 형식과 같게 (apps/api channel.service videoFileType) */
+const VIDEO_ACCEPT = ".mp4,.m4v,.mov,.webm,.mkv";
+const VIDEO_MAX_BYTES = 2_000_000_000;
+
+export function fileSize(bytes: number): string {
+  if (bytes >= 1e9) return `${(bytes / 1e9).toFixed(2)}GB`;
+  if (bytes >= 1e6) return `${(bytes / 1e6).toFixed(1)}MB`;
+  return `${Math.max(1, Math.round(bytes / 1e3))}KB`;
+}
+
+/** 서명 주소로 저장소에 바로 올린다 (우리 서버를 거치지 않는다). fetch는 올리기 진행률을 주지 않아 XHR을 쓴다 */
+function putFile(url: string, headers: Record<string, string>, file: File, onProgress: (pct: number) => void): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("PUT", url);
+    for (const [k, v] of Object.entries(headers)) xhr.setRequestHeader(k, v);
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) onProgress(Math.floor((e.loaded / e.total) * 100));
+    };
+    xhr.onload = () => (xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error(`영상 파일을 올리지 못했습니다 (HTTP ${xhr.status}). 다시 시도해 주세요`)));
+    xhr.onerror = () => reject(new Error("영상 파일을 올리지 못했습니다. 인터넷 연결을 확인하고 다시 시도해 주세요"));
+    xhr.send(file);
+  });
+}
+
 function SubmitVideo({ dealId, onSubmitted }: { dealId: string; onSubmitted: () => Promise<unknown> }) {
+  const { config } = useSession();
+  const uploadOn = Boolean(config?.features.videoUpload);
   const [channel, setChannel] = useState<Contract | null>(null);
   const [form, setForm] = useState({ title: "", description: "", sourceUrl: "", sources: "", containsPaidPromotion: false });
+  const [via, setVia] = useState<"file" | "link">("file");
+  const [file, setFile] = useState<File | null>(null);
+  const [progress, setProgress] = useState<number | null>(null);
   const [checks, setChecks] = useState<Record<string, boolean>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const useFile = uploadOn && via === "file";
 
   useEffect(() => {
     unwrap(api.POST("/contracts/channel-publishing")).then(setChannel).catch((err: Error) => setError(err.message));
@@ -138,13 +169,22 @@ function SubmitVideo({ dealId, onSubmitted }: { dealId: string; onSubmitted: () 
     setBusy(true);
     setError(null);
     try {
+      let fileKey: string | undefined;
+      if (useFile) {
+        if (!file) throw new Error("올릴 영상 파일을 고르세요");
+        if (file.size > VIDEO_MAX_BYTES) throw new Error("영상 파일은 2GB까지 올릴 수 있습니다");
+        const up = await unwrap(api.POST("/deals/{id}/videos/uploads", { params: { path: { id: dealId } }, body: { fileName: file.name, sizeBytes: file.size } }));
+        setProgress(0);
+        await putFile(up.uploadUrl, up.headers, file, setProgress);
+        fileKey = up.key;
+      }
       await unwrap(
         api.POST("/deals/{id}/videos", {
           params: { path: { id: dealId } },
           body: {
             title: form.title,
             description: form.description || undefined,
-            sourceUrl: form.sourceUrl,
+            ...(fileKey ? { fileKey } : { sourceUrl: form.sourceUrl }),
             rights: {
               // 제출 버튼은 네 항목을 모두 확인해야 눌린다
               musicCleared: true,
@@ -158,12 +198,14 @@ function SubmitVideo({ dealId, onSubmitted }: { dealId: string; onSubmitted: () 
         }),
       );
       setForm({ title: "", description: "", sourceUrl: "", sources: "", containsPaidPromotion: false });
+      setFile(null);
       setChecks({});
       await onSubmitted();
     } catch (err) {
       setError((err as Error).message);
     } finally {
       setBusy(false);
+      setProgress(null);
     }
   }
 
@@ -174,10 +216,32 @@ function SubmitVideo({ dealId, onSubmitted }: { dealId: string; onSubmitted: () 
         제목
         <input id="video-title" required maxLength={100} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
       </label>
-      <label>
-        검수용 영상 링크 (비공개 링크, https)
-        <input id="video-url" type="url" required placeholder="https://" value={form.sourceUrl} onChange={(e) => setForm({ ...form, sourceUrl: e.target.value })} />
-      </label>
+      {uploadOn && (
+        <div className="row" role="radiogroup" aria-label="영상 제출 방법">
+          <label className="check">
+            <input type="radio" name="video-via" checked={via === "file"} onChange={() => setVia("file")} />
+            <span>영상 파일 올리기</span>
+          </label>
+          <label className="check">
+            <input type="radio" name="video-via" checked={via === "link"} onChange={() => setVia("link")} />
+            <span>링크로 제출</span>
+          </label>
+        </div>
+      )}
+      {useFile ? (
+        <label>
+          영상 파일 (mp4·mov·webm·mkv, 2GB까지)
+          <input id="video-file" type="file" required accept={VIDEO_ACCEPT} disabled={busy} onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+          <span className="small muted">
+            {file ? `${file.name} · ${fileSize(file.size)}` : "검수용으로만 보관하고, 채널에 게시하거나 거절하면 바로 지웁니다."}
+          </span>
+        </label>
+      ) : (
+        <label>
+          검수용 영상 링크 (비공개 링크, https)
+          <input id="video-url" type="url" required placeholder="https://" value={form.sourceUrl} onChange={(e) => setForm({ ...form, sourceUrl: e.target.value })} />
+        </label>
+      )}
       <label>
         설명 (선택)
         <textarea id="video-description" maxLength={5000} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
@@ -197,9 +261,15 @@ function SubmitVideo({ dealId, onSubmitted }: { dealId: string; onSubmitted: () 
         </label>
       ))}
       <ErrorText error={error} />
+      {progress !== null && (
+        <div className="stack" aria-live="polite">
+          <progress max={100} value={progress} aria-label="영상 올리기 진행률" />
+          <span className="small muted">영상을 올리는 중 {progress}% · 끝날 때까지 이 창을 닫지 마세요</span>
+        </div>
+      )}
       <div className="row">
         <button type="submit" disabled={busy || RIGHTS.some(([k]) => !checks[k])}>
-          제출하기
+          {busy && progress !== null ? "올리는 중…" : "제출하기"}
         </button>
       </div>
     </form>

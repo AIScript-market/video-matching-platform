@@ -1,11 +1,13 @@
 import { Controller, Get } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiProperty, ApiTags } from '@nestjs/swagger';
 import { betaConfig, TERMS_VERSION } from '../core/beta.js';
+import { videoStorageConfig } from '../core/video-storage.js';
 
 class FeatureFlagsDto {
   @ApiProperty({ description: '출연자 등록·얼굴 스캔' }) talent!: boolean;
   @ApiProperty({ description: '캐스팅·작품 공개' }) casting!: boolean;
   @ApiProperty({ description: '흥행 판단·추천' }) hitModel!: boolean;
+  @ApiProperty({ description: '영상 파일을 저장소에 바로 올릴 수 있는가 (VIDEO_STORAGE_*). 꺼져 있으면 링크로만 제출' }) videoUpload!: boolean;
 }
 
 export class PublicConfigDto {
@@ -29,7 +31,7 @@ export function publicConfig(): PublicConfigDto {
     signupCoins: beta.enabled ? beta.signupCoins : 10,
     termsVersion: TERMS_VERSION,
     contactEmail: process.env.CONTACT_EMAIL?.trim() || null,
-    features: { talent: on, casting: on, hitModel: on },
+    features: { talent: on, casting: on, hitModel: on, videoUpload: videoStorageConfig() !== null },
   };
 }
 

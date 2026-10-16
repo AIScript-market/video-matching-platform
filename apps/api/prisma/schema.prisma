@@ -911,7 +911,13 @@ model ChannelVideo {
   producer        User               @relation("ChannelVideoProducer", fields: [producerId], references: [id])
   title           String
   description     String?            @db.Text
-  sourceUrl       String
+  /// 검수용 영상 위치는 둘 중 하나: 제작자가 준 링크(sourceUrl) 또는 우리 저장소에 올린 파일(fileKey)
+  sourceUrl       String?
+  /// 저장소 안 파일 이름 (deals/<딜>/<무작위>/<파일 이름>). 검수가 끝나면 지우고 fileDeletedAt을 남긴다
+  fileKey         String?            @unique
+  fileName        String?
+  fileSizeBytes   Int?
+  fileDeletedAt   DateTime?
   rightsChecklist Json
   status          ChannelVideoStatus @default(SUBMITTED)
   reviewNote      String?
