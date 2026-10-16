@@ -34,7 +34,7 @@ function DevAccounts() {
             </tr>
           </thead>
           <tbody>
-            {DEV_ACCOUNTS.map((a) => {
+            {DEV_ACCOUNTS.filter((a) => !a.casting || process.env.FEATURE_CASTING === "on").map((a) => {
               const origin = accountOrigin(a.key, port);
               return (
                 <tr key={a.key}>

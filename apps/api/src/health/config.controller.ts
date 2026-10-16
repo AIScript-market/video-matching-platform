@@ -1,6 +1,6 @@
 import { Controller, Get } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiProperty, ApiTags } from '@nestjs/swagger';
-import { betaConfig, TERMS_VERSION } from '../core/beta.js';
+import { betaConfig, featureFlags, TERMS_VERSION } from '../core/beta.js';
 import { videoStorageConfig } from '../core/video-storage.js';
 
 class FeatureFlagsDto {
@@ -24,6 +24,7 @@ export class PublicConfigDto {
 export function publicConfig(): PublicConfigDto {
   const beta = betaConfig();
   const on = !beta.enabled;
+  const features = featureFlags();
   return {
     betaMode: beta.enabled,
     inviteRequired: beta.enabled,
@@ -31,7 +32,7 @@ export function publicConfig(): PublicConfigDto {
     signupCoins: beta.enabled ? beta.signupCoins : 10,
     termsVersion: TERMS_VERSION,
     contactEmail: process.env.CONTACT_EMAIL?.trim() || null,
-    features: { talent: on, casting: on, hitModel: on, videoUpload: videoStorageConfig() !== null },
+    features: { talent: features.casting, casting: features.casting, hitModel: features.hitModel, videoUpload: videoStorageConfig() !== null },
   };
 }
 

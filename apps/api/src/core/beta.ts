@@ -1,6 +1,7 @@
 /**
  * 초대제 비공개 베타 설정 (docs/launch-readiness.md, docs/business-model.md).
- * BETA_MODE=true이면 출연자·캐스팅·작품·흥행 판단 API를 아예 올리지 않고, 코인 결제를 끄고, 초대 코드와 성인 확인을 받고 가입시킨다.
+ * BETA_MODE=true이면 흥행 판단 API를 올리지 않고, 코인 결제를 끄고, 초대 코드와 성인 확인을 받고 가입시킨다.
+ * 출연자·캐스팅·작품은 베타와 따로 FEATURE_CASTING으로 켠다 (featureFlags).
  */
 /** 가입 화면이 보여 주는 이용약관·개인정보 처리방침 버전 (apps/studio/src/app/terms, privacy와 같이 올린다) */
 export const TERMS_VERSION = 'terms-privacy-beta-v0';
@@ -25,3 +26,18 @@ export function betaConfig(env: NodeJS.ProcessEnv = process.env): BetaConfig {
     signupCoins: Number.isFinite(coins) && coins >= 0 ? coins : 100,
   };
 }
+
+/**
+ * 켜고 끄는 기능 묶음. API는 꺼진 기능의 모듈을 아예 올리지 않고, 웹은 메뉴와 화면을 숨긴다 (GET /config features).
+ * - casting: 출연자·캐스팅·작품. 당장 하지 않으므로 베타와 상관없이 FEATURE_CASTING=on일 때만 켠다.
+ * - hitModel: 흥행 판단·추천. 베타에서 끈다.
+ */
+export interface FeatureFlags {
+  casting: boolean;
+  hitModel: boolean;
+}
+
+export function featureFlags(env: NodeJS.ProcessEnv = process.env): FeatureFlags {
+  return { casting: env.FEATURE_CASTING === 'on', hitModel: env.BETA_MODE !== 'true' };
+}
+
