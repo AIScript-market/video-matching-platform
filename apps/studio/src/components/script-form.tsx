@@ -8,6 +8,41 @@ import { api, unwrap, uploadScriptFile, type ScriptDetail } from "@/lib/api";
 import { useSession } from "@/lib/session";
 
 const EMPTY = { title: "", logline: "", synopsis: "", genre: "드라마", fullText: "", previewText: "" };
+
+/** 동의 항목 하나: 체크박스와 한 줄 설명, 그 아래 펼쳐 보는 자세한 내용 (펼쳐도 체크되지 않게 label 밖에 둔다) */
+function ConsentItem({
+  checked,
+  disabled,
+  onChange,
+  required,
+  label,
+  hint,
+  children,
+}: {
+  checked: boolean;
+  disabled?: boolean;
+  onChange: (v: boolean) => void;
+  required?: boolean;
+  label: string;
+  hint: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="consent">
+      <label className="check">
+        <input type="checkbox" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
+        <span>
+          <strong>{label}</strong> <span className={required ? "badge" : "badge muted"}>{required ? "필수" : "선택"}</span>
+          <span className="small muted consent-hint">{hint}</span>
+        </span>
+      </label>
+      <details className="consent-details">
+        <summary>자세히 보기</summary>
+        <div className="small">{children}</div>
+      </details>
+    </div>
+  );
+}
 const PREVIEW_MAX = 50_000;
 
 /**
@@ -16,7 +51,8 @@ const PREVIEW_MAX = 50_000;
  */
 export function ScriptForm({ script, onSaved }: { script?: ScriptDetail; onSaved?: (s: ScriptDetail) => void }) {
   const router = useRouter();
-  const { refresh } = useSession();
+  const { refresh, config } = useSession();
+  const trainingOn = Boolean(config?.features.hitModel);
   const [form, setForm] = useState(
     script
       ? {
@@ -31,6 +67,9 @@ export function ScriptForm({ script, onSaved }: { script?: ScriptDetail; onSaved
   );
   const [rights, setRights] = useState(script?.rightsDeclared ?? false);
   const [trainingConsent, setTrainingConsent] = useState(script?.trainingConsent ?? false);
+  const [aiSummaryConsent, setAiSummaryConsent] = useState(script?.aiSummaryConsent ?? false);
+  // 흥행 예측 기능이 꺼져 있으면(베타) 학습 동의는 묻지도 보내지도 않는다
+  const consents = { rightsDeclared: rights, aiSummaryConsent, ...(trainingOn && { trainingConsent }) };
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -54,12 +93,12 @@ export function ScriptForm({ script, onSaved }: { script?: ScriptDetail; onSaved
     run(async () => {
       if (script) {
         const saved = await unwrap(
-          api.PATCH("/scripts/{id}", { params: { path: { id: script.id } }, body: { ...form, rightsDeclared: rights, trainingConsent } }),
+          api.PATCH("/scripts/{id}", { params: { path: { id: script.id } }, body: { ...form, ...consents } }),
         );
-        setNotice(saved.aiSummaryPending ? "저장했습니다. 바뀐 내용으로 AI 요약을 다시 만들고 있습니다." : "저장했습니다.");
+        setNotice(saved.aiSummaryPending ? "저장했습니다. AI 요약을 만들고 있습니다." : "저장했습니다.");
         onSaved?.(saved);
       } else {
-        const created = await unwrap(api.POST("/scripts", { body: { ...form, rightsDeclared: rights, trainingConsent } }));
+        const created = await unwrap(api.POST("/scripts", { body: { ...form, ...consents } }));
         router.push(`/dashboard/scripts/${created.id}`);
       }
     });
@@ -132,7 +171,7 @@ export function ScriptForm({ script, onSaved }: { script?: ScriptDetail; onSaved
             upload={(file) => uploadScriptFile(`/scripts/${script.id}/upload`, file)}
             onDone={(updated) => {
               setForm((f) => ({ ...f, fullText: updated.fullText ?? "" }));
-              setNotice("파일 내용으로 본문을 바꿨습니다. AI 요약도 다시 만듭니다.");
+              setNotice(updated.aiSummaryConsent ? "파일 내용으로 본문을 바꿨습니다. AI 요약도 다시 만듭니다." : "파일 내용으로 본문을 바꿨습니다.");
               onSaved?.(updated);
               void refresh();
             }}
@@ -180,26 +219,62 @@ export function ScriptForm({ script, onSaved }: { script?: ScriptDetail; onSaved
         )}
       </div>
 
-      <div className="card stack">
-        <label className="check">
-          <input type="checkbox" checked={rights} disabled={locked && rights} onChange={(e) => setRights(e.target.checked)} />
-          <span>
-            이 대본의 저작권 등 영상화에 필요한 권리를 본인이 보유하고 있으며, 타인의 권리를 침해하지 않음을 진술합니다.
-            <span className="muted small"> (공개하려면 필수)</span>
-          </span>
-        </label>
-        <label className="check">
-          <input type="checkbox" checked={trainingConsent} onChange={(e) => setTrainingConsent(e.target.checked)} />
-          <span>
-            이 대본을 흥행 판단 모델의 학습 데이터로 써도 됩니다.
-            <span className="muted small">
-              {" "}
-              (선택. 대본은 플랫폼 안에서 장면 벡터(숫자)로 바뀌고, 학습에는 이 벡터와 영상 성과만 씁니다. 원문은 밖으로 내보내지 않습니다. 공개한
-              대본은 동의와 상관없이 영상 제작자에게 흥행 판단·추천 결과가 보입니다. 언제든 끌 수 있습니다)
-            </span>
-          </span>
-        </label>
-      </div>
+      <section className="card stack" aria-label="확인과 동의">
+        <h2 style={{ margin: 0 }}>확인과 동의</h2>
+        <ConsentItem
+          required
+          checked={rights}
+          disabled={locked && rights}
+          onChange={setRights}
+          label="이 대본을 영상으로 만들도록 허락할 권리가 저에게 있습니다"
+          hint="대본을 공개하려면 확인해 주세요. 제작자가 안심하고 계약할 수 있도록 받는 확인입니다."
+        >
+          <p>내 대본이라도 아래 경우에는 다른 사람의 허락이 필요할 수 있어서 함께 확인합니다.</p>
+          <ul>
+            <li>함께 쓴 작가가 있다면, 공동 작가 모두에게 이 플랫폼에 올리고 계약해도 된다는 동의를 받았습니다.</li>
+            <li>웹소설·웹툰·소설·실화 기록 같은 원작이 있다면, 원작자에게 영상화 허락을 받았습니다.</li>
+            <li>다른 회사에 이 대본의 영상화 권리를 넘기거나 독점 계약을 맺은 적이 없습니다 (있었다면 이미 끝났습니다).</li>
+            <li>실존 인물이나 단체를 다룬다면, 명예나 사생활을 침해하지 않도록 살폈습니다.</li>
+          </ul>
+          <p>
+            확인한 시각이 기록됩니다. 사실과 다르면 계약한 제작자에게 손해를 배상해야 할 수 있습니다. 공개한 뒤에는 이 확인을 거둘 수 없습니다. 자세한 내용은{" "}
+            <a href="/terms" target="_blank" rel="noreferrer">
+              이용약관
+            </a>
+            에 있습니다.
+          </p>
+        </ConsentItem>
+        <ConsentItem
+          checked={aiSummaryConsent}
+          onChange={setAiSummaryConsent}
+          label="AI로 대본 요약 만들기"
+          hint="줄거리·태그·예상 등급을 자동으로 만듭니다. 요약은 작가님과 열람을 승인한 제작자만 보고, 공개 여부는 작가님이 읽어 본 뒤 정합니다."
+        >
+          <ul>
+            <li>요약을 만들려고 대본 전문을 Google의 AI 서비스(Gemini API, 미국)로 보냅니다. 플랫폼은 유료 API를 쓰므로 Google은 보낸 내용을 AI 학습 등 자기 제품 개선에 쓰지 않습니다. 다만 악용 방지와 법적 의무를 위해 일정 기간 보관할 수 있습니다.</li>
+            <li>
+              만든 요약은 처음에는 <strong>작가님과, 비밀유지 서약에 서명하고 작가님이 열람을 승인한 제작자</strong>만 봅니다.
+            </li>
+            <li>작가님이 요약을 읽고 &quot;공개 소개에 보이기&quot;를 누르면 대본 목록과 소개에도 보입니다. 대본을 고쳐 요약이 새로 만들어지면 다시 비공개가 됩니다.</li>
+            <li>AI에게 결말·반전을 쓰지 말라고 지시하지만 실수할 수 있습니다. 공개하기 전에 꼭 읽어 보세요.</li>
+            <li>동의하지 않아도 대본을 올리고 공개할 수 있습니다. 언제든 끌 수 있고, 끄면 만든 요약을 지웁니다.</li>
+          </ul>
+        </ConsentItem>
+        {trainingOn && (
+          <ConsentItem
+            checked={trainingConsent}
+            onChange={setTrainingConsent}
+            label="흥행 예측 기능 개선에 참여하기"
+            hint="이 대본과 영상 성과를 플랫폼의 흥행 예측을 더 정확하게 만드는 데 씁니다."
+          >
+            <ul>
+              <li>대본은 플랫폼 안에서 장면별 숫자(벡터)로 바뀌고, 개선에는 이 숫자와 영상 성과만 씁니다. 원문은 밖으로 보내지 않습니다.</li>
+              <li>참여하지 않아도 공개한 대본에는 제작자에게 흥행 예측과 추천 결과가 보일 수 있습니다.</li>
+              <li>언제든 끌 수 있고, 끄면 다음 개선부터 빠집니다.</li>
+            </ul>
+          </ConsentItem>
+        )}
+      </section>
       <ErrorText error={error} />
       {notice && <p className="notice">{notice}</p>}
       <div className="row">

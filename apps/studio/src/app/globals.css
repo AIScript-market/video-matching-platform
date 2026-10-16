@@ -161,3 +161,12 @@ th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--bord
 .faq summary { cursor: pointer; font-weight: 600; }
 .faq p { margin: 8px 0 0; line-height: 1.7; }
 .selectable { user-select: all; }
+
+/* 대본 동의 항목: 한 줄 설명 + 펼쳐 보는 자세한 내용 */
+.consent + .consent { border-top: 1px solid var(--border, #e5e5e5); padding-top: 12px; }
+.consent-hint { display: block; margin-top: 2px; }
+.consent-details { margin: 4px 0 0 28px; }
+.consent-details > summary { cursor: pointer; font-size: 0.875rem; color: var(--accent, #4f46e5); width: fit-content; }
+.consent-details ul { margin: 6px 0; padding-left: 18px; }
+.consent-details li + li { margin-top: 4px; }
+.badge.muted { opacity: 0.7; }

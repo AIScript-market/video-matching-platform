@@ -26,7 +26,7 @@ test("대본가 파일 업로드 → 제작자 검토 후 메시지 → 관리�
   await writer.getByLabel("장르").fill("드라마");
   await writer.getByLabel("로그라인 (한 줄 소개)").fill("10년 만에 고향 바다로 돌아온 해원의 이야기");
   await writer.getByLabel("시놉시스 (공개)").fill("서울에서 실패한 해원은 고향 통영으로 돌아와 아버지의 배를 다시 띄운다.");
-  await writer.getByLabel(/권리를 본인이 보유/).check();
+  await writer.getByLabel(/영상으로 만들도록 허락할 권리/).check();
   await writer.getByRole("button", { name: "공개하기" }).click();
   await expect(writer.getByRole("heading", { name: title })).toBeVisible();
   const scriptUrl = writer.url();
