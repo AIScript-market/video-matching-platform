@@ -1,11 +1,11 @@
 /**
  * 출연자 등록을 HTTP 레벨에서 확인한다: 가입 → 출연자 프로필 → 본인인증 → 얼굴 스캔 업로드(multipart)
  * → 셀카 확인 → 동의 → 캐스팅 목록, 원본 내려받기 권한, 관리자 전용 경로 (DATABASE_URL 필요).
+ * 출연자 기능은 FEATURE_CASTING=on일 때만 올라가므로, 환경 변수를 먼저 정하고 AppModule을 동적으로 가져온다.
  */
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
-import { AppModule } from '../src/app.module.js';
 import { POLICY_VERSION } from '../src/modules/talent/likeness-policy.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import { setupApp } from '../src/setup-app.js';
@@ -21,6 +21,8 @@ run('출연자 등록 e2e', () => {
 
   beforeAll(async () => {
     process.env.AI_JOBS_DISABLED = 'true';
+    process.env.FEATURE_CASTING = 'on';
+    const { AppModule } = await import('../src/app.module.js');
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
     app = moduleRef.createNestApplication();
     setupApp(app);
@@ -35,6 +37,7 @@ run('출연자 등록 e2e', () => {
     await prisma.coinTransaction.deleteMany({ where: { userId: { in: ids } } });
     await prisma.user.deleteMany({ where: { id: { in: ids } } });
     await app.close();
+    delete process.env.FEATURE_CASTING;
   });
 
   async function signup(name: string) {
