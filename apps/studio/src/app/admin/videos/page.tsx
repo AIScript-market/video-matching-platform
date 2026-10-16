@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { VideoStatusBadge } from "@/components/deal-channel";
+import { fileSize, VideoStatusBadge } from "@/components/deal-channel";
 import { ErrorText, RequireAuth } from "@/components/ui";
 import { api, dateTime, unwrap, type ChannelVideo } from "@/lib/api";
 
@@ -29,6 +29,8 @@ function AdminVideos() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
+  // 처리한 뒤 다시 불러올 때도 그때의 탭으로 (처리 중에 탭을 바꿀 수 있다)
+  const [reload, setReload] = useState(0);
   // 탭을 빨리 바꾸면 늦게 온 이전 탭 응답이 새 목록을 덮어쓰므로, 마지막 요청의 응답만 쓴다
   const latest = useRef(0);
   const load = useCallback(() => {
@@ -41,7 +43,7 @@ function AdminVideos() {
   }, [tab]);
   useEffect(() => {
     void load();
-  }, [load]);
+  }, [load, reload]);
 
   async function act(fn: () => Promise<unknown>, done: string) {
     setError(null);
@@ -49,7 +51,7 @@ function AdminVideos() {
     try {
       await fn();
       setNotice(done);
-      await load();
+      setReload((n) => n + 1);
     } catch (err) {
       setError((err as Error).message);
     }
@@ -59,7 +61,8 @@ function AdminVideos() {
     <div className="stack">
       <h1>영상 검수</h1>
       <p className="small muted">
-        제작자가 제출한 영상의 권리 항목과 내용을 확인하고 승인합니다. 승인한 영상은 YouTube Studio에서 장르 채널에 직접 올린 뒤 영상 번호를 기록합니다.
+        제작자가 제출한 영상의 권리 항목과 내용을 확인하고 승인합니다. 승인한 영상은 내려받아 YouTube Studio에서 장르 채널에 직접 올린 뒤 영상 번호를 기록합니다.
+        파일로 받은 영상은 게시를 기록하거나 거절하면 저장소에서 지워지므로, 게시 기록은 YouTube에 올린 뒤에 합니다.
         끝난 달의 확정 광고 수익은 영상마다 기록하고, 지급은 딜 화면의 정산에서 기록합니다.
       </p>
       <div className="row">
@@ -85,7 +88,20 @@ function VideoCard({ video: v, act }: { video: ChannelVideo; act: (fn: () => Pro
   const [youtubeId, setYoutubeId] = useState("");
   const [month, setMonth] = useState("");
   const [amount, setAmount] = useState("");
+  const [playUrl, setPlayUrl] = useState<string | null>(null);
+  const [fileError, setFileError] = useState<string | null>(null);
   const path = { params: { path: { id: v.id } } };
+
+  async function openFile(download: boolean) {
+    setFileError(null);
+    try {
+      const { url } = await unwrap(api.GET("/admin/videos/{id}/file", { params: { path: { id: v.id }, query: { download } } }));
+      if (download) window.location.assign(url);
+      else setPlayUrl(url);
+    } catch (err) {
+      setFileError((err as Error).message);
+    }
+  }
   const r = v.rightsChecklist;
 
   return (
@@ -99,12 +115,35 @@ function VideoCard({ video: v, act }: { video: ChannelVideo; act: (fn: () => Pro
         </div>
         <VideoStatusBadge status={v.status} />
       </div>
-      <p className="small">
-        검수용 링크:{" "}
-        <a href={v.sourceUrl} target="_blank" rel="noreferrer">
-          {v.sourceUrl}
-        </a>
-      </p>
+      {v.sourceUrl && (
+        <p className="small">
+          검수용 링크:{" "}
+          <a href={v.sourceUrl} target="_blank" rel="noreferrer">
+            {v.sourceUrl}
+          </a>
+        </p>
+      )}
+      {v.fileName && (
+        <div className="stack">
+          <p className="small">
+            검수용 파일: {v.fileName}
+            {v.fileSizeBytes !== null && ` · ${fileSize(v.fileSizeBytes)}`}
+            {!v.fileAvailable && <span className="muted"> · 검수가 끝나 저장소에서 지웠습니다</span>}
+          </p>
+          {v.fileAvailable && (
+            <div className="row">
+              <button className="secondary" onClick={() => openFile(false)}>
+                재생
+              </button>
+              <button className="secondary" onClick={() => openFile(true)}>
+                내려받기
+              </button>
+            </div>
+          )}
+          <ErrorText error={fileError} />
+          {playUrl && v.fileAvailable && <video controls src={playUrl} style={{ maxWidth: "100%", maxHeight: 480 }} aria-label={`${v.title} 영상`} />}
+        </div>
+      )}
       {v.description && <p className="small pre">{v.description}</p>}
       <p className="small">
         권리 확인: 음원 {r.musicCleared ? "✓" : "✗"} · 소재 {r.materialsCleared ? "✓" : "✗"} · 출연자 동의 {r.performersConsented ? "✓" : "✗"} · 광고 표시{" "}

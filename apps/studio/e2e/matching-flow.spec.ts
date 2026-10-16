@@ -97,12 +97,14 @@ test("대본 제공자와 제작자가 대본으로 매칭되어 딜이 만들�
   await producer.reload();
   await expect(producer.getByText("진행 중").first()).toBeVisible();
 
-  // 10. 제작자: 채널 게시 계약 서명 → 영상 제출
+  // 10. 제작자: 채널 게시 계약 서명 → 영상 파일을 저장소에 바로 올려 제출 (개발 저장소 S3Mock, docs/deploy.md)
   const videos = producer.getByRole("region", { name: "채널 영상" });
   await signContract(producer, "제작자E2E");
   const submit = videos.getByRole("form", { name: "영상 제출" });
   await submit.getByLabel("제목").fill(`${title} 1화`);
-  await submit.getByLabel(/검수용 영상 링크/).fill("https://drive.example.com/e2e-video");
+  await expect(submit.getByRole("radio", { name: "영상 파일 올리기" })).toBeChecked();
+  await submit.getByLabel(/영상 파일 \(mp4/).setInputFiles({ name: "1화 최종.mp4", mimeType: "video/mp4", buffer: Buffer.alloc(300_000, 1) });
+  await expect(submit.getByText("1화 최종.mp4 · 300KB")).toBeVisible();
   await expect(submit.getByRole("button", { name: "제출하기" })).toBeDisabled();
   for (const label of [/음원은 모두/, /소재는 모두/, /출연자 전원/, /유료 광고 포함/]) await submit.getByLabel(label).check();
   await submit.getByRole("button", { name: "제출하기" }).click();
@@ -112,12 +114,20 @@ test("대본 제공자와 제작자가 대본으로 매칭되어 딜이 만들�
   const admin = await login(browser, SEED.admin.email, SEED.admin.password);
   await admin.goto("/admin/videos");
   const card = admin.getByRole("region", { name: `${title} 1화` });
+  await expect(card.getByText("검수용 파일: 1화 최종.mp4 · 300KB")).toBeVisible();
+  // 서명 주소로 저장소에서 바로 받는다 (우리 서버를 거치지 않는다)
+  const fileUrl = admin.waitForResponse((r) => r.url().includes(`/file?download=false`));
+  await card.getByRole("button", { name: "재생" }).click();
+  const { url } = await (await fileUrl).json();
+  expect((await admin.request.get(url)).ok()).toBe(true);
   await card.getByRole("button", { name: "승인" }).click();
   await admin.getByRole("button", { name: "게시 대기" }).click();
   await card.getByPlaceholder("채널 이름").fill("스릴러 채널");
   await card.getByPlaceholder(/YouTube 영상 번호/).fill(`e2e${suffix}`.padEnd(11, "x").slice(0, 11));
   await card.getByRole("button", { name: "게시 기록" }).click();
   await admin.getByRole("button", { name: "게시됨" }).click();
+  await expect(card.getByText("검수가 끝나 저장소에서 지웠습니다")).toBeVisible();
+  expect((await admin.request.get(url)).status()).toBe(404);
   const d = new Date();
   const lastMonth = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - 1, 1)).toISOString().slice(0, 7);
   await card.getByPlaceholder("정산 월 YYYY-MM").fill(lastMonth);
