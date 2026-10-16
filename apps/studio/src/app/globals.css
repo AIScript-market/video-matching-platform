@@ -140,3 +140,13 @@ th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--bord
 .prob-range { position: absolute; top: 0; bottom: 0; background: var(--accent-soft); border-radius: 999px; }
 .prob-point { position: absolute; top: -4px; width: 4px; height: 16px; margin-left: -2px; border-radius: 2px; background: var(--accent); }
 .plain-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; }
+
+/* 계약서 본문 */
+.contract-body h2 { font-size: 1.1rem; margin: 0; }
+.contract-body h3 { font-size: 1rem; margin: 0; }
+.contract-body p { margin: 0; line-height: 1.6; }
+.contract-scroll { max-height: 50vh; overflow-y: auto; border: 1px solid var(--border, #ddd); border-radius: 6px; padding: 12px; }
+
+.site-footer { padding-block: 24px 40px; }
+.legal h2 { font-size: 1.05rem; margin: 8px 0 0; }
+.legal p { line-height: 1.7; }

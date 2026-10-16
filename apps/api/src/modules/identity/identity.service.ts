@@ -1,7 +1,8 @@
-import { ConflictException, ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { hash, verify } from '@node-rs/argon2';
 import { isCreatorReady } from '../../core/auth/index.js';
+import { betaConfig, TERMS_VERSION } from '../../core/beta.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { SIGNUP_BONUS } from '../wallet/coin-pricing.js';
 import { WalletService } from '../wallet/wallet.service.js';
@@ -33,8 +34,23 @@ export class IdentityService {
     private readonly wallet: WalletService,
   ) {}
 
-  /** 가입은 항상 일반 계정이고 가입 보너스 코인을 준다. 정지된 계정의 이메일로는 가입할 수 없다 */
+  /**
+   * 가입은 항상 일반 계정이고 가입 보너스 코인을 준다. 정지된 계정의 이메일로는 가입할 수 없다.
+   * 베타에서는 초대 코드와 만 19세 이상 확인이 있어야 하고, 결제가 꺼져 있어서 베타 코인을 준다.
+   */
   async signup(dto: SignupDto): Promise<AuthResultDto> {
+    const beta = betaConfig();
+    if (beta.enabled) {
+      if (!dto.inviteCode || !beta.inviteCodes.has(dto.inviteCode.trim().toLowerCase())) {
+        throw new ForbiddenException({ message: '초대 코드가 올바르지 않습니다. 지금은 초대받은 분만 가입할 수 있습니다', error: 'INVITE_REQUIRED' });
+      }
+      if (dto.adultConfirmed !== true) {
+        throw new BadRequestException({ message: '베타에는 만 19세 이상만 가입할 수 있습니다', error: 'ADULT_REQUIRED' });
+      }
+      if (dto.termsAccepted !== true) {
+        throw new BadRequestException({ message: '이용약관과 개인정보 처리방침에 동의해야 가입할 수 있습니다', error: 'TERMS_REQUIRED' });
+      }
+    }
     const exists = await this.prisma.user.findUnique({ where: { email: dto.email }, select: { status: true } });
     if (exists?.status === 'SUSPENDED') {
       throw new ForbiddenException({ message: '이용이 정지된 이메일로는 가입할 수 없습니다', error: 'SUSPENDED_EMAIL' });
@@ -44,9 +60,16 @@ export class IdentityService {
     const passwordHash = await hash(dto.password);
     const user = await this.prisma.$transaction(async (tx) => {
       const created = await tx.user.create({
-        data: { email: dto.email, passwordHash, displayName: dto.displayName, roles: [] },
+        data: {
+          email: dto.email,
+          passwordHash,
+          displayName: dto.displayName,
+          roles: [],
+          ...(dto.termsAccepted === true && { termsVersion: TERMS_VERSION, termsAcceptedAt: new Date() }),
+        },
       });
-      await this.wallet.credit(tx, created.id, SIGNUP_BONUS, 'SIGNUP_BONUS', { memo: '가입 보너스' });
+      const bonus = beta.enabled ? beta.signupCoins : SIGNUP_BONUS;
+      await this.wallet.credit(tx, created.id, bonus, 'SIGNUP_BONUS', { memo: beta.enabled ? '베타 가입 코인' : '가입 보너스' });
       return tx.user.findUniqueOrThrow({ where: { id: created.id }, select: ME_SELECT });
     });
     return { user: toMe(user), accessToken: await this.sign(user.id) };

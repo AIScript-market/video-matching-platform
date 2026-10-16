@@ -6,6 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { ContractsService, NDA_SCRIPT_SELECT, type SignatureMeta } from '../contracts/contracts.service.js';
 import type { Viewer } from './access-rules.js';
 import type {
   AccessRequestDto,
@@ -20,20 +21,27 @@ const INCLUDE = {
 
 @Injectable()
 export class AccessService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly contracts: ContractsService,
+  ) {}
 
-  /** 제작자가 공개 대본의 전문 열람을 요청한다 (NDA 동의 필수) */
+  /**
+   * 제작자가 공개 대본의 전문 열람을 요청한다 (NDA 동의 필수).
+   * 같은 트랜잭션에서 비밀유지 서약서를 만들고 제작자의 전자서명(입력한 이름, 시각, 접속 정보)을 남긴다.
+   */
   async request(
     scriptId: string,
     producer: Viewer,
     dto: CreateAccessRequestDto,
+    meta: SignatureMeta = { ip: null, userAgent: null },
   ): Promise<AccessRequestDto> {
     if (dto.ndaAccepted !== true) {
       throw new BadRequestException('NDA에 동의해야 열람을 요청할 수 있습니다');
     }
     const script = await this.prisma.script.findUnique({
       where: { id: scriptId },
-      select: { authorId: true, status: true },
+      select: { ...NDA_SCRIPT_SELECT, authorId: true, status: true, author: { select: { displayName: true } } },
     });
     if (!script || script.status !== 'PUBLISHED') {
       throw new NotFoundException('공개된 대본을 찾을 수 없습니다');
@@ -47,9 +55,19 @@ export class AccessService {
     if (existing) {
       throw new ConflictException(`이미 열람을 요청했습니다 (${existing.status})`);
     }
-    return this.prisma.scriptAccessRequest.create({
-      data: { scriptId, producerId: producer.id, status: 'PENDING', ndaAcceptedAt: new Date() },
-      include: INCLUDE,
+    const me = await this.prisma.user.findUniqueOrThrow({ where: { id: producer.id }, select: { id: true, displayName: true } });
+    return this.prisma.$transaction(async (tx) => {
+      const created = await tx.scriptAccessRequest.create({
+        data: { scriptId, producerId: producer.id, status: 'PENDING', ndaAcceptedAt: new Date() },
+      });
+      const nda = await this.contracts.createNda(
+        tx,
+        { accessRequestId: created.id, script, writerName: script.author.displayName, producer: me },
+        dto.signedName?.trim() || me.displayName,
+        meta,
+      );
+      const row = await tx.scriptAccessRequest.findUniqueOrThrow({ where: { id: created.id }, include: INCLUDE });
+      return { ...row, ndaContractId: nda.id };
     }) as unknown as Promise<AccessRequestDto>;
   }
 

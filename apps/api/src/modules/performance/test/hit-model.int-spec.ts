@@ -59,6 +59,7 @@ run('흥행 모델 1단계 (DB)', () => {
     const scriptIds = (await prisma.script.findMany({ where: { authorId: { in: userIds } }, select: { id: true } })).map((s) => s.id);
     const dealIds = (await prisma.deal.findMany({ where: { negotiation: { scriptId: { in: scriptIds } } }, select: { id: true } })).map((d) => d.id);
     await prisma.project.deleteMany({ where: { dealId: { in: dealIds } } }); // 작품·성과 기록은 함께 지워진다
+    await prisma.contract.deleteMany({ where: { OR: [{ dealId: { in: dealIds } }, { parties: { some: { userId: { in: userIds } } } }] } });
     await prisma.deal.deleteMany({ where: { id: { in: dealIds } } });
     await prisma.offer.deleteMany({ where: { negotiation: { scriptId: { in: scriptIds } } } });
     await prisma.negotiation.deleteMany({ where: { scriptId: { in: scriptIds } } });

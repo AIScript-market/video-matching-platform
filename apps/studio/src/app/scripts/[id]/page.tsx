@@ -4,20 +4,23 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { CreatorNotice, ErrorText, Modal, StatusBadge } from "@/components/ui";
-import { api, dateTime, unwrap, type ScriptDetail } from "@/lib/api";
+import { api, dateTime, unwrap, type ContractPreview, type ScriptDetail } from "@/lib/api";
 import { ReviewMessage } from "@/components/review-message";
 import { AiSummaryCard } from "@/components/ai-summary-card";
+import { ContractBody } from "@/components/contract-view";
 import { HitInsightCard } from "@/components/hit-insight";
 import { useSession } from "@/lib/session";
 
 export default function ScriptDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const { user, refresh } = useSession();
+  const { user, refresh, config } = useSession();
   const [script, setScript] = useState<ScriptDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [ndaOpen, setNdaOpen] = useState(false);
   const [ndaChecked, setNdaChecked] = useState(false);
+  const [nda, setNda] = useState<ContractPreview | null>(null);
+  const [ndaName, setNdaName] = useState("");
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(
@@ -45,7 +48,7 @@ export default function ScriptDetailPage() {
   async function requestAccess() {
     setBusy(true);
     try {
-      await unwrap(api.POST("/scripts/{id}/access-requests", { params: { path: { id } }, body: { ndaAccepted: true } }));
+      await unwrap(api.POST("/scripts/{id}/access-requests", { params: { path: { id } }, body: { ndaAccepted: true, signedName: ndaName } }));
       setNdaOpen(false);
       await load();
     } catch (err) {
@@ -54,6 +57,13 @@ export default function ScriptDetailPage() {
       setBusy(false);
     }
   }
+
+  useEffect(() => {
+    if (!ndaOpen || nda) return;
+    unwrap(api.GET("/scripts/{id}/nda-preview", { params: { path: { id } } }))
+      .then(setNda)
+      .catch((err: Error) => setError(err.message));
+  }, [ndaOpen, nda, id]);
 
   async function unlockPreview() {
     setBusy(true);
@@ -81,7 +91,7 @@ export default function ScriptDetailPage() {
 
   if (!script) return error ? <ErrorText error={error} /> : <p className="muted">불러오는 중…</p>;
   const { viewer } = script;
-  // 대본 제공·영상 제작은 프로필·이메일을 공개한 일반 계정이 한다
+  // 대본 제공·영상 제작은 프로필을 공개한 일반 계정이 한다
   const canAct = Boolean(user && !viewer.isAuthor && user.creatorReady);
 
   return (
@@ -191,7 +201,7 @@ export default function ScriptDetailPage() {
           )}
         </div>
         {/* 흥행 판단은 작가 본인에게 보여 주지 않는다 */}
-        {user && !viewer.isAuthor && <HitInsightCard scriptId={script.id} />}
+        {user && !viewer.isAuthor && config?.features.hitModel && <HitInsightCard scriptId={script.id} />}
         {canAct && viewer.canReadFullText && <ReviewMessage scriptId={script.id} writerName={script.author.displayName} />}
         <div>
           <ErrorText error={error} />
@@ -199,18 +209,26 @@ export default function ScriptDetailPage() {
       </aside>
 
       {ndaOpen && (
-        <Modal title="비밀유지 동의 (NDA)" onClose={() => setNdaOpen(false)}>
-          <p className="small">
-            이 대본의 전문과 관련 자료를 작가의 서면 동의 없이 제3자에게 공개하거나 복제·이용하지 않으며, 제작 검토 목적으로만
-            사용합니다. 열람 기록은 플랫폼에 남습니다.
-          </p>
+        <Modal title="비밀유지 서약서" onClose={() => setNdaOpen(false)}>
+          {nda ? (
+            <div className="contract-scroll">
+              <ContractBody body={nda.body} />
+            </div>
+          ) : (
+            <p className="muted small">서약서를 불러오는 중…</p>
+          )}
+          <label>
+            서명할 이름 (활동명)
+            <input id="nda-name" required maxLength={40} value={ndaName} placeholder={user?.displayName} onChange={(e) => setNdaName(e.target.value)} />
+          </label>
           <label className="check">
             <input type="checkbox" checked={ndaChecked} onChange={(e) => setNdaChecked(e.target.checked)} />
-            <span>위 내용에 동의합니다</span>
+            <span>{nda?.signConsent ?? "위 내용에 동의합니다"}</span>
           </label>
+          <p className="small muted">서명하면 서명 시각과 접속 정보가 서약서와 함께 남고, 작가도 서약서를 볼 수 있습니다.</p>
           <div className="row">
-            <button onClick={requestAccess} disabled={!ndaChecked || busy}>
-              동의하고 요청
+            <button onClick={requestAccess} disabled={!ndaChecked || !nda || !ndaName.trim() || busy}>
+              서명하고 요청
             </button>
             <button className="ghost" onClick={() => setNdaOpen(false)}>
               취소

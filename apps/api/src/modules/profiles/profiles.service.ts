@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
-import { verify } from '@node-rs/argon2';
+import { hash, verify } from '@node-rs/argon2';
 import { isCreatorReady, type AuthUser } from '../../core/auth/index.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { PublicProfileDto, UpdateProfileDto } from './profiles.dto.js';
@@ -56,6 +56,14 @@ export class ProfilesService {
         ...(dto.emailPublic !== undefined && { emailPublic: dto.emailPublic }),
       },
     });
+  }
+
+  async changePassword(user: AuthUser, current: string, next: string): Promise<void> {
+    const row = await this.prisma.user.findUniqueOrThrow({ where: { id: user.id }, select: { passwordHash: true } });
+    const ok = await verify(row.passwordHash, current).catch(() => false);
+    if (!ok) throw new UnauthorizedException('지금 비밀번호가 올바르지 않습니다');
+    if (current === next) throw new BadRequestException('새 비밀번호가 지금 비밀번호와 같습니다');
+    await this.prisma.user.update({ where: { id: user.id }, data: { passwordHash: await hash(next) } });
   }
 
   /**

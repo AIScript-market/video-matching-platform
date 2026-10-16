@@ -20,6 +20,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 공개 설정 (베타 여부, 켜진 기능, 가입 조건) */
+        get: operations["ConfigController_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/signup": {
         parameters: {
             query?: never;
@@ -172,6 +189,23 @@ export interface paths {
         head?: never;
         /** 내 프로필 수정 (이름, 소개, 프로필·이메일 공개) */
         patch: operations["ProfilesController_update"];
+        trace?: never;
+    };
+    "/me/password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** 비밀번호 변경 (지금 비밀번호 확인) */
+        patch: operations["ProfilesController_changePassword"];
         trace?: never;
     };
     "/admin/users": {
@@ -474,7 +508,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** 전문 열람 요청 (프로필·이메일 공개 필요, NDA 동의 필수) */
+        /** 전문 열람 요청 (프로필 공개 필요, 비밀유지 서약서에 동의하면 서명 기록과 함께 서약서가 만들어진다) */
         post: operations["AccessController_request"];
         delete?: never;
         options?: never;
@@ -527,6 +561,125 @@ export interface paths {
         put?: never;
         /** 열람 요청 거절 (대본 작성자) */
         post: operations["AccessController_reject"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/contracts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 내가 당사자인 계약 목록 (관리자는 전체) */
+        get: operations["ContractsController_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/contracts/channel-publishing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 내 채널 게시 계약 (없으면 지금 버전으로 만든다. 영상 제출 전에 서명) */
+        post: operations["ContractsController_channel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/contracts/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 계약서 보기 (당사자·관리자, 비밀유지 서약서는 작가도) */
+        get: operations["ContractsController_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/contracts/{id}/sign": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 전자서명 (계약서에 적힌 이름 입력 + 동의). 서명 시각·접속 정보를 남긴다 */
+        post: operations["ContractsController_sign"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/deals/{id}/contract": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 딜의 대본 이용허락 계약서 */
+        get: operations["ContractsController_forDeal"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/scripts/{id}/nda-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 열람 요청 전에 읽을 비밀유지 서약서 본문 */
+        get: operations["ContractsController_ndaPreview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/contracts/{id}/void": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 관리자: 계약 무효 처리 (서명 기록은 남는다) */
+        post: operations["ContractsController_void"];
         delete?: never;
         options?: never;
         head?: never;
@@ -733,6 +886,143 @@ export interface paths {
         put?: never;
         /** 장부 기록 (관리자 수동 기록) */
         post: operations["LedgerController_record"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/deals/{id}/videos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 딜의 제출 영상 (참여자·관리자) */
+        get: operations["ChannelController_list"];
+        put?: never;
+        /** 영상 제출 (딜의 제작자, 딜 ACTIVE + 채널 게시 계약 서명 필요, 권리 항목 모두 확인) */
+        post: operations["ChannelController_submit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/deals/{id}/settlement": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 딜의 정산서 (영상·월별 확정 수익, 작가·제작자 몫, 지급 기록) */
+        get: operations["ChannelController_settlement"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/videos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 관리자: 제출 영상 목록 (오래된 순) */
+        get: operations["ChannelController_adminList"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/videos/{id}/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 관리자: 검수 (승인·거절) */
+        post: operations["ChannelController_review"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/videos/{id}/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 관리자: 채널에 올린 뒤 YouTube 영상 번호 기록 */
+        post: operations["ChannelController_publish"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/videos/{id}/remove": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 관리자: 게시 중단 (이유는 제작자에게 보인다) */
+        post: operations["ChannelController_remove"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/videos/{id}/revenues": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 관리자: 끝난 달 YouTube 확정 광고 수익 기록 */
+        post: operations["ChannelController_revenue"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/revenues/{id}/payouts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 관리자: 지급 기록 (금액은 배분율로 자동 계산) */
+        post: operations["ChannelController_payout"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1616,11 +1906,40 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        FeatureFlagsDto: {
+            /** @description 출연자 등록·얼굴 스캔 */
+            talent: boolean;
+            /** @description 캐스팅·작품 공개 */
+            casting: boolean;
+            /** @description 흥행 판단·추천 */
+            hitModel: boolean;
+        };
+        PublicConfigDto: {
+            /** @description 초대제 비공개 베타 */
+            betaMode: boolean;
+            /** @description 가입에 초대 코드와 성인 확인이 필요한가 */
+            inviteRequired: boolean;
+            /** @description 코인을 살 수 있는가 (베타에서는 꺼짐) */
+            purchaseEnabled: boolean;
+            /** @description 가입하면 받는 코인 */
+            signupCoins: number;
+            /** @description 가입 화면의 약관·처리방침 버전 */
+            termsVersion: string;
+            /** @description 운영자 문의 이메일 (CONTACT_EMAIL) */
+            contactEmail: string | null;
+            features: components["schemas"]["FeatureFlagsDto"];
+        };
         SignupDto: {
             /** @example writer@example.com */
             email: string;
             password: string;
             displayName: string;
+            /** @description 베타 초대 코드 (베타에서만 필요) */
+            inviteCode?: string;
+            /** @description 만 19세 이상 확인 (베타에서만 필요. 계약 당사자가 되므로 성인만 받는다) */
+            adultConfirmed?: boolean;
+            /** @description 이용약관·개인정보 처리방침 동의 (베타에서는 필수, 동의하면 버전과 시각을 기록) */
+            termsAccepted?: boolean;
         };
         MeDto: {
             id: string;
@@ -1633,7 +1952,7 @@ export interface components {
             bio: string | null;
             profilePublic: boolean;
             emailPublic: boolean;
-            /** @description 대본 제공·영상 제작 가능 (소개 작성 + 프로필·이메일 공개) */
+            /** @description 대본 제공·영상 제작 가능 (소개 작성 + 프로필 공개) */
             creatorReady: boolean;
             coinBalance: number;
         };
@@ -1663,6 +1982,8 @@ export interface components {
             packages: components["schemas"]["CoinPackageDto"][];
             /** @description 테스트 결제 여부 (실제 결제 미연동) */
             testPayments: boolean;
+            /** @description 코인을 살 수 있는가 (베타에서는 꺼짐) */
+            purchaseEnabled: boolean;
         };
         CoinTransactionDto: {
             id: string;
@@ -1701,7 +2022,7 @@ export interface components {
             email: string | null;
             profilePublic: boolean;
             emailPublic: boolean;
-            /** @description 대본 제공·영상 제작 가능 (프로필·이메일 공개) */
+            /** @description 대본 제공·영상 제작 가능 (소개 작성 + 프로필 공개) */
             creatorReady: boolean;
             /** Format: date-time */
             createdAt: string;
@@ -1716,6 +2037,11 @@ export interface components {
             profilePublic?: boolean;
             /** @description 공개 프로필에 이메일 표시 */
             emailPublic?: boolean;
+        };
+        ChangePasswordDto: {
+            /** @description 지금 비밀번호 */
+            currentPassword: string;
+            newPassword: string;
         };
         WithdrawDto: {
             /** @description 본인 확인용 비밀번호 */
@@ -1986,6 +2312,8 @@ export interface components {
              * @enum {boolean}
              */
             ndaAccepted: true;
+            /** @description 서약서에 서명할 이름 (생략하면 활동명) */
+            signedName?: string;
         };
         AccessScriptDto: {
             id: string;
@@ -2008,6 +2336,80 @@ export interface components {
             decidedAt: string | null;
             script: components["schemas"]["AccessScriptDto"];
             producer: components["schemas"]["AccessProducerDto"];
+            /** @description 이 요청과 함께 만든 비밀유지 서약서 (요청을 만들 때만 돌려준다) */
+            ndaContractId?: string;
+        };
+        ContractPartyDto: {
+            /** @enum {string} */
+            role: "WRITER" | "PRODUCER" | "PLATFORM";
+            userId: string | null;
+            /** @description 계약서에 적힌 이름 */
+            legalName: string;
+            /** Format: date-time */
+            signedAt: string | null;
+            /** @description 서명할 때 직접 입력한 이름 */
+            signedName: string | null;
+        };
+        ContractSummaryDto: {
+            id: string;
+            /** @enum {string} */
+            kind: "NDA" | "SCRIPT_LICENSE" | "CHANNEL_PUBLISHING";
+            templateVersion: string;
+            title: string;
+            /** @enum {string} */
+            status: "AWAITING_SIGNATURES" | "SIGNED" | "VOID";
+            dealId: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            signedAt: string | null;
+            parties: components["schemas"]["ContractPartyDto"][];
+            /** @description 내가 아직 서명해야 하는가 */
+            awaitingMySignature: boolean;
+        };
+        ContractDto: {
+            id: string;
+            /** @enum {string} */
+            kind: "NDA" | "SCRIPT_LICENSE" | "CHANNEL_PUBLISHING";
+            templateVersion: string;
+            title: string;
+            /** @enum {string} */
+            status: "AWAITING_SIGNATURES" | "SIGNED" | "VOID";
+            dealId: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            signedAt: string | null;
+            parties: components["schemas"]["ContractPartyDto"][];
+            /** @description 내가 아직 서명해야 하는가 */
+            awaitingMySignature: boolean;
+            /** @description 고정된 계약서 본문 (마크다운) */
+            body: string;
+            /** @description 본문 SHA-256 (hex) */
+            bodySha256: string;
+            /** Format: date-time */
+            voidedAt: string | null;
+            voidReason: string | null;
+            /** @description 서명 화면에 보여 줄 동의 문구 */
+            signConsent: string;
+        };
+        SignContractDto: {
+            /** @description 서명자가 직접 입력한 이름 (계약서에 적힌 이름과 같아야 한다) */
+            signedName: string;
+            /**
+             * @description 동의 문구에 동의. 반드시 true
+             * @enum {boolean}
+             */
+            agreed: true;
+        };
+        ContractPreviewDto: {
+            templateVersion: string;
+            title: string;
+            body: string;
+            signConsent: string;
+        };
+        VoidContractDto: {
+            reason: string;
         };
         ScriptRefDto: {
             id: string;
@@ -2169,6 +2571,127 @@ export interface components {
              * @description 생략하면 현재 시각 (UTC)
              */
             occurredAt?: string;
+        };
+        RightsChecklistDto: {
+            /**
+             * @description 쓴 음원은 모두 이용 권한이 있다
+             * @enum {boolean}
+             */
+            musicCleared: true;
+            /**
+             * @description 영상·이미지·폰트 등 소재는 모두 이용 권한이 있다
+             * @enum {boolean}
+             */
+            materialsCleared: true;
+            /**
+             * @description 출연자 전원의 출연·초상 이용 동의를 받았다
+             * @enum {boolean}
+             */
+            performersConsented: true;
+            /**
+             * @description 광고가 있으면 "유료 광고 포함"을 표시했다 (없으면 없음을 확인)
+             * @enum {boolean}
+             */
+            adDisclosureChecked: true;
+            /** @description 영상에 유료 광고(협찬·PPL)가 들어 있는가 */
+            containsPaidPromotion: boolean;
+            /** @description 음원·소재 출처 (곡명·라이선스 등) */
+            sources?: string;
+        };
+        SubmitVideoDto: {
+            title: string;
+            description?: string;
+            /** @description 검수용 영상 위치 (비공개 링크 등, https) */
+            sourceUrl: string;
+            rights: components["schemas"]["RightsChecklistDto"];
+        };
+        ChannelVideoDto: {
+            id: string;
+            dealId: string;
+            producerId: string;
+            title: string;
+            description: string | null;
+            sourceUrl: string;
+            rightsChecklist: components["schemas"]["RightsChecklistDto"];
+            /** @enum {string} */
+            status: "SUBMITTED" | "APPROVED" | "PUBLISHED" | "REJECTED" | "REMOVED";
+            reviewNote: string | null;
+            /** Format: date-time */
+            reviewedAt: string | null;
+            channelName: string | null;
+            youtubeVideoId: string | null;
+            /** Format: date-time */
+            publishedAt: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** @description 딜의 대본 제목 */
+            scriptTitle: string;
+        };
+        PayoutDto: {
+            id: string;
+            /** @enum {string} */
+            role: "WRITER" | "PRODUCER";
+            amountKrw: number;
+            /** Format: date-time */
+            paidAt: string;
+            memo: string | null;
+        };
+        RevenueLineDto: {
+            id: string;
+            videoId: string;
+            videoTitle: string;
+            month: string;
+            /** @description 확정 광고 수익 (원) */
+            amountKrw: number;
+            writerKrw: number;
+            producerKrw: number;
+            /** @description 플랫폼 몫은 언제나 0 (채널 게시 계약 제3조) */
+            platformKrw: number;
+            payouts: components["schemas"]["PayoutDto"][];
+        };
+        SettlementDto: {
+            dealId: string;
+            writerSharePct: number;
+            producerSharePct: number;
+            lines: components["schemas"]["RevenueLineDto"][];
+            totalRevenueKrw: number;
+            writerDueKrw: number;
+            producerDueKrw: number;
+            writerPaidKrw: number;
+            producerPaidKrw: number;
+        };
+        ReviewVideoDto: {
+            /** @enum {string} */
+            decision: "APPROVED" | "REJECTED";
+            /** @description 거절하면 이유 (제작자에게 보인다) */
+            note?: string;
+        };
+        PublishVideoDto: {
+            /** @description 게시한 장르 채널 이름 */
+            channelName: string;
+            /** @description YouTube 영상 번호 (11자, watch?v= 뒤) */
+            youtubeVideoId: string;
+        };
+        RemoveVideoDto: {
+            /** @description 내린 이유 (제작자에게 보인다) */
+            note: string;
+        };
+        RecordRevenueDto: {
+            /**
+             * @description 정산 월 YYYY-MM (끝난 달만)
+             * @example 2026-09
+             */
+            month: string;
+            /** @description YouTube가 확정한 그 달 광고 수익 (원) */
+            amountKrw: number;
+            memo?: string;
+        };
+        RecordPayoutDto: {
+            /** @enum {string} */
+            role: "WRITER" | "PRODUCER";
+            /** @description 지급한 시각 (생략하면 지금) */
+            paidAt?: string;
+            memo?: string;
         };
         VerifyIdentityDto: {
             /**
@@ -2804,6 +3327,25 @@ export interface operations {
             };
         };
     };
+    ConfigController_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicConfigDto"];
+                };
+            };
+        };
+    };
     IdentityController_signup: {
         parameters: {
             query?: never;
@@ -3001,6 +3543,27 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["UpdateProfileDto"];
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ProfilesController_changePassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChangePasswordDto"];
             };
         };
         responses: {
@@ -3566,6 +4129,157 @@ export interface operations {
             };
         };
     };
+    ContractsController_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContractSummaryDto"][];
+                };
+            };
+        };
+    };
+    ContractsController_channel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContractDto"];
+                };
+            };
+        };
+    };
+    ContractsController_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContractDto"];
+                };
+            };
+        };
+    };
+    ContractsController_sign: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SignContractDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContractDto"];
+                };
+            };
+        };
+    };
+    ContractsController_forDeal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContractDto"];
+                };
+            };
+        };
+    };
+    ContractsController_ndaPreview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContractPreviewDto"];
+                };
+            };
+        };
+    };
+    ContractsController_void: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VoidContractDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContractDto"];
+                };
+            };
+        };
+    };
     NegotiationsController_start: {
         parameters: {
             query?: never;
@@ -3871,6 +4585,219 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LedgerEntryDto"];
+                };
+            };
+        };
+    };
+    ChannelController_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChannelVideoDto"][];
+                };
+            };
+        };
+    };
+    ChannelController_submit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SubmitVideoDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChannelVideoDto"];
+                };
+            };
+        };
+    };
+    ChannelController_settlement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettlementDto"];
+                };
+            };
+        };
+    };
+    ChannelController_adminList: {
+        parameters: {
+            query?: {
+                status?: "SUBMITTED" | "APPROVED" | "PUBLISHED" | "REJECTED" | "REMOVED";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChannelVideoDto"][];
+                };
+            };
+        };
+    };
+    ChannelController_review: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReviewVideoDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChannelVideoDto"];
+                };
+            };
+        };
+    };
+    ChannelController_publish: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PublishVideoDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChannelVideoDto"];
+                };
+            };
+        };
+    };
+    ChannelController_remove: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RemoveVideoDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChannelVideoDto"];
+                };
+            };
+        };
+    };
+    ChannelController_revenue: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecordRevenueDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RevenueLineDto"];
+                };
+            };
+        };
+    };
+    ChannelController_payout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecordPayoutDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettlementDto"];
                 };
             };
         };

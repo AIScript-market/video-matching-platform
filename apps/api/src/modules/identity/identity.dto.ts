@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsString, Length, MaxLength } from 'class-validator';
+import { IsBoolean, IsEmail, IsOptional, IsString, Length, MaxLength } from 'class-validator';
 import { Transform } from 'class-transformer';
 
 export const ALL_ROLES = ['WRITER', 'PRODUCER', 'ADMIN'] as const;
@@ -22,6 +22,22 @@ export class SignupDto {
   @IsString()
   @Length(1, 40)
   displayName!: string;
+
+  @ApiProperty({ required: false, description: '베타 초대 코드 (베타에서만 필요)' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  inviteCode?: string;
+
+  @ApiProperty({ required: false, description: '만 19세 이상 확인 (베타에서만 필요. 계약 당사자가 되므로 성인만 받는다)' })
+  @IsOptional()
+  @IsBoolean()
+  adultConfirmed?: boolean;
+
+  @ApiProperty({ required: false, description: '이용약관·개인정보 처리방침 동의 (베타에서는 필수, 동의하면 버전과 시각을 기록)' })
+  @IsOptional()
+  @IsBoolean()
+  termsAccepted?: boolean;
 }
 
 export class LoginDto {
@@ -46,7 +62,7 @@ export class MeDto {
   @ApiProperty({ nullable: true, type: String }) bio!: string | null;
   @ApiProperty() profilePublic!: boolean;
   @ApiProperty() emailPublic!: boolean;
-  @ApiProperty({ description: '대본 제공·영상 제작 가능 (소개 작성 + 프로필·이메일 공개)' })
+  @ApiProperty({ description: '대본 제공·영상 제작 가능 (소개 작성 + 프로필 공개)' })
   creatorReady!: boolean;
   @ApiProperty() coinBalance!: number;
 }
