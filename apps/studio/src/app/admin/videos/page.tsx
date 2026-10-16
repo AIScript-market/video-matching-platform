@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { VideoStatusBadge } from "@/components/deal-channel";
 import { ErrorText, RequireAuth } from "@/components/ui";
 import { api, dateTime, unwrap, type ChannelVideo } from "@/lib/api";
@@ -29,13 +29,16 @@ function AdminVideos() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
-  const load = useCallback(
-    () =>
-      unwrap(api.GET("/admin/videos", { params: { query: { status: tab } } }))
-        .then(setVideos)
-        .catch((err: Error) => setError(err.message)),
-    [tab],
-  );
+  // 탭을 빨리 바꾸면 늦게 온 이전 탭 응답이 새 목록을 덮어쓰므로, 마지막 요청의 응답만 쓴다
+  const latest = useRef(0);
+  const load = useCallback(() => {
+    const id = ++latest.current;
+    return unwrap(api.GET("/admin/videos", { params: { query: { status: tab } } }))
+      .then((rows) => {
+        if (id === latest.current) setVideos(rows);
+      })
+      .catch((err: Error) => setError(err.message));
+  }, [tab]);
   useEffect(() => {
     void load();
   }, [load]);

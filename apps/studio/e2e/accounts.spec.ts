@@ -2,14 +2,14 @@ import { expect, test } from "@playwright/test";
 import { coinBadge, creator, login, makeCreator, requestAccessWithNda, SEED, signup, suffix } from "./helpers";
 
 test("계정 종류는 일반·관리자, 정지된 계정은 로그인할 수 없다", async ({ browser }) => {
-  const nav = (page: import("@playwright/test").Page) => page.getByRole("navigation");
+  const nav = (page: import("@playwright/test").Page) => page.getByRole("navigation", { name: "주 메뉴" });
 
   const admin = await login(browser, SEED.admin.email, SEED.admin.password);
   await expect(nav(admin).getByRole("link", { name: "관리자" })).toBeVisible();
-  await expect(nav(admin).getByRole("link", { name: "내 대본" })).toHaveCount(0);
+  await expect(nav(admin).getByRole("link", { name: "마이페이지" })).toHaveCount(0);
 
   const writer = await login(browser, SEED.writer.email, SEED.writer.password);
-  await expect(nav(writer).getByRole("link", { name: "내 대본" })).toBeVisible();
+  await expect(nav(writer).getByRole("link", { name: "마이페이지" })).toBeVisible();
   await expect(nav(writer).getByRole("link", { name: "관리자" })).toHaveCount(0);
   await expect(coinBadge(writer)).toContainText("🪙");
   await writer.goto("/admin");

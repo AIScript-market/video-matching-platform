@@ -11,6 +11,7 @@
 import { hash } from '@node-rs/argon2';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient, type Role, type UserStatus } from '../src/generated/prisma/client.js';
+import { renderScriptLicense, sha256 } from '../src/modules/contracts/contract-templates.js';
 import { adultOnFrom, POLICY_VERSION, type ContentTag } from '../src/modules/talent/likeness-policy.js';
 import { vaultFromEnv } from '../src/modules/talent/likeness-vault.js';
 
@@ -261,6 +262,46 @@ async function seedCasting(ids: Map<string, string>) {
       scope: '작가 50% / 제작자 50%, 선급금 3,000,000원, 24개월, 독점',
     },
   });
+  // 계약 기능 전에 만든 시드 딜에도 3자 이용허락 계약서를 붙인다 (플랫폼은 서명, 작가·제작자는 서명 대기라 화면에서 서명해 볼 수 있다)
+  const hasLicense = await prisma.contract.findFirst({ where: { dealId: 'seed_deal_last_train', kind: 'SCRIPT_LICENSE' } });
+  if (!hasLicense) {
+    const [w, pr] = await Promise.all([
+      prisma.user.findUniqueOrThrow({ where: { id: writerId }, select: { displayName: true } }),
+      prisma.user.findUniqueOrThrow({ where: { id: producerId }, select: { displayName: true } }),
+    ]);
+    const platform = process.env.PLATFORM_LEGAL_NAME?.trim() || '대본매칭 운영자';
+    const doc = renderScriptLicense({
+      scriptTitle: '마지막 열차',
+      scriptId,
+      parties: [
+        { role: 'WRITER', name: w.displayName, revenueShareBp: 5_000, receivesRemainder: false },
+        { role: 'PRODUCER', name: pr.displayName, revenueShareBp: 5_000, receivesRemainder: true },
+        { role: 'PLATFORM', name: platform, revenueShareBp: null, receivesRemainder: false },
+      ],
+      upfrontFeeKrw: 3_000_000,
+      termMonths: 24,
+      exclusive: true,
+      notes: null,
+      date: new Date(),
+    });
+    await prisma.contract.create({
+      data: {
+        kind: doc.kind,
+        templateVersion: doc.templateVersion,
+        title: doc.title,
+        body: doc.body,
+        bodySha256: sha256(doc.body),
+        dealId: 'seed_deal_last_train',
+        parties: {
+          create: [
+            { role: 'WRITER', userId: writerId, legalName: w.displayName, revenueShareBp: 5_000 },
+            { role: 'PRODUCER', userId: producerId, legalName: pr.displayName, revenueShareBp: 5_000, receivesRemainder: true },
+            { role: 'PLATFORM', userId: null, legalName: platform, signedAt: new Date(), signedName: platform, userAgent: 'platform' },
+          ],
+        },
+      },
+    });
+  }
   await prisma.project.upsert({
     where: { id: 'seed_project_last_train' },
     update: {},

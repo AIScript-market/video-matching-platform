@@ -55,7 +55,8 @@ test("대본가 파일 업로드 → 제작자 검토 후 메시지 → 관리�
 
   // 4. 관리자: 활동 로그에서 메시지·열람·업로드 확인
   const admin = await login(browser, SEED.admin.email, SEED.admin.password);
-  await admin.getByRole("navigation").getByRole("link", { name: "활동 로그" }).click();
+  await admin.getByRole("navigation", { name: "주 메뉴" }).getByRole("link", { name: "관리자" }).click();
+  await admin.getByRole("navigation", { name: "관리자 메뉴" }).getByRole("link", { name: "활동 로그" }).click();
   await admin.getByLabel("로그 검색").fill(title);
   await admin.getByRole("button", { name: "검색" }).click();
   const panel = admin.getByRole("tabpanel");
