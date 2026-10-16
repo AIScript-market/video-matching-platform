@@ -6442,10 +6442,6 @@
           "trainingConsent": {
             "type": "boolean",
             "description": "흥행 판단 모델의 학습 데이터로 이 대본(의 벡터)을 써도 된다는 동의 (선택). 언제든 철회할 수 있다"
-          },
-          "aiSummaryConsent": {
-            "type": "boolean",
-            "description": "AI 요약을 만들어도 된다는 동의 (선택). 공개 소개 글(제목·장르·로그라인·시놉시스)만 국외 AI 서비스(Google Gemini)로 보내진다. 전문은 보내지 않는다. 끄면 만든 요약을 지운다"
           }
         },
         "required": [
@@ -6578,10 +6574,6 @@
               }
             ]
           },
-          "aiSummaryConsent": {
-            "type": "boolean",
-            "description": "작가가 AI 요약 만들기에 동의했는가"
-          },
           "aiSummaryPending": {
             "type": "boolean",
             "description": "내용이 바뀌어 새 AI 요약을 만드는 중"
@@ -6646,7 +6638,6 @@
           "genre",
           "status",
           "aiSummary",
-          "aiSummaryConsent",
           "aiSummaryPending",
           "aiSummaryRequestedAt",
           "contentUpdatedAt",
@@ -6698,10 +6689,6 @@
               }
             ]
           },
-          "aiSummaryConsent": {
-            "type": "boolean",
-            "description": "작가가 AI 요약 만들기에 동의했는가"
-          },
           "aiSummaryPending": {
             "type": "boolean",
             "description": "내용이 바뀌어 새 AI 요약을 만드는 중"
@@ -6737,7 +6724,6 @@
           "genre",
           "status",
           "aiSummary",
-          "aiSummaryConsent",
           "aiSummaryPending",
           "aiSummaryRequestedAt",
           "contentUpdatedAt",
@@ -6804,10 +6790,6 @@
           "trainingConsent": {
             "type": "boolean",
             "description": "흥행 판단 모델의 학습 데이터로 이 대본(의 벡터)을 써도 된다는 동의 (선택). 언제든 철회할 수 있다"
-          },
-          "aiSummaryConsent": {
-            "type": "boolean",
-            "description": "AI 요약을 만들어도 된다는 동의 (선택). 공개 소개 글(제목·장르·로그라인·시놉시스)만 국외 AI 서비스(Google Gemini)로 보내진다. 전문은 보내지 않는다. 끄면 만든 요약을 지운다"
           }
         }
       },

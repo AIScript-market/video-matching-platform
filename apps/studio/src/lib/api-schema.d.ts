@@ -2408,8 +2408,6 @@ export interface components {
             rightsDeclared?: boolean;
             /** @description 흥행 판단 모델의 학습 데이터로 이 대본(의 벡터)을 써도 된다는 동의 (선택). 언제든 철회할 수 있다 */
             trainingConsent?: boolean;
-            /** @description AI 요약을 만들어도 된다는 동의 (선택). 공개 소개 글(제목·장르·로그라인·시놉시스)만 국외 AI 서비스(Google Gemini)로 보내진다. 전문은 보내지 않는다. 끄면 만든 요약을 지운다 */
-            aiSummaryConsent?: boolean;
         };
         AiSummaryDto: {
             summary: string;
@@ -2443,8 +2441,6 @@ export interface components {
             status: "DRAFT" | "PUBLISHED" | "HIDDEN";
             /** @description 공개 소개 글(로그라인·시놉시스)로 만든 요약 */
             aiSummary: components["schemas"]["AiSummaryDto"] | null;
-            /** @description 작가가 AI 요약 만들기에 동의했는가 */
-            aiSummaryConsent: boolean;
             /** @description 내용이 바뀌어 새 AI 요약을 만드는 중 */
             aiSummaryPending: boolean;
             /**
@@ -2485,8 +2481,6 @@ export interface components {
             status: "DRAFT" | "PUBLISHED" | "HIDDEN";
             /** @description 공개 소개 글(로그라인·시놉시스)로 만든 요약 */
             aiSummary: components["schemas"]["AiSummaryDto"] | null;
-            /** @description 작가가 AI 요약 만들기에 동의했는가 */
-            aiSummaryConsent: boolean;
             /** @description 내용이 바뀌어 새 AI 요약을 만드는 중 */
             aiSummaryPending: boolean;
             /**
@@ -2525,8 +2519,6 @@ export interface components {
             rightsDeclared?: boolean;
             /** @description 흥행 판단 모델의 학습 데이터로 이 대본(의 벡터)을 써도 된다는 동의 (선택). 언제든 철회할 수 있다 */
             trainingConsent?: boolean;
-            /** @description AI 요약을 만들어도 된다는 동의 (선택). 공개 소개 글(제목·장르·로그라인·시놉시스)만 국외 AI 서비스(Google Gemini)로 보내진다. 전문은 보내지 않는다. 끄면 만든 요약을 지운다 */
-            aiSummaryConsent?: boolean;
         };
         PublishScriptDto: {
             /** @description 아직 권리 보유를 진술하지 않았다면 여기서 true로 함께 진술할 수 있다 */

@@ -61,12 +61,6 @@ export class CreateScriptDto {
   @IsBoolean()
   trainingConsent?: boolean;
 
-  @ApiPropertyOptional({
-    description: 'AI 요약을 만들어도 된다는 동의 (선택). 공개 소개 글(제목·장르·로그라인·시놉시스)만 국외 AI 서비스(Google Gemini)로 보내진다. 전문은 보내지 않는다. 끄면 만든 요약을 지운다',
-  })
-  @IsOptional()
-  @IsBoolean()
-  aiSummaryConsent?: boolean;
 }
 
 export class UpdateScriptDto extends PartialType(CreateScriptDto) {}
@@ -135,7 +129,6 @@ export class ScriptSummaryDto {
   @ApiProperty() genre!: string;
   @ApiProperty({ enum: SCRIPT_STATUSES }) status!: (typeof SCRIPT_STATUSES)[number];
   @ApiProperty({ type: AiSummaryDto, nullable: true, description: '공개 소개 글(로그라인·시놉시스)로 만든 요약' }) aiSummary!: AiSummaryDto | null;
-  @ApiProperty({ description: '작가가 AI 요약 만들기에 동의했는가' }) aiSummaryConsent!: boolean;
   @ApiProperty({ description: '내용이 바뀌어 새 AI 요약을 만드는 중' }) aiSummaryPending!: boolean;
   @ApiProperty({ type: String, format: 'date-time', nullable: true, description: '마지막 AI 요약 요청 시각' })
   aiSummaryRequestedAt!: Date | null;

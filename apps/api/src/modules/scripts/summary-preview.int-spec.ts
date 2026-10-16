@@ -81,7 +81,7 @@ run('AI 요약·미리보기 (DB)', () => {
 
   it('내용이 바뀔 때마다 요약을 다시 요청하고, 상태 변경은 수정 시각에 넣지 않는다', async () => {
     const s = await scripts.create(writer, {
-      title: '요약 테스트', logline: 'l', synopsis: 's', genre: '드라마', fullText: 'v1', rightsDeclared: true, aiSummaryConsent: true,
+      title: '요약 테스트', logline: 'l', synopsis: 's', genre: '드라마', fullText: 'v1', rightsDeclared: true,
     });
     expect(queued).toContain(s.id);
     expect(s.aiSummaryPending).toBe(true);
@@ -120,7 +120,7 @@ run('AI 요약·미리보기 (DB)', () => {
   it('큐 등록에 실패하면 "생성 중"으로 남지 않는다', async () => {
     queueOk = false;
     const s = await scripts.create(writer, {
-      title: '큐 실패', logline: 'l', synopsis: 's', genre: '드라마', fullText: 'x', aiSummaryConsent: true,
+      title: '큐 실패', logline: 'l', synopsis: 's', genre: '드라마', fullText: 'x',
     });
     expect(s.aiSummaryPending).toBe(false);
     expect(s.aiSummaryRequestedAt).toBeNull();
@@ -128,19 +128,14 @@ run('AI 요약·미리보기 (DB)', () => {
     queueOk = true;
   });
 
-  it('AI 요약은 작가가 동의한 대본만, 공개 소개 글이 바뀔 때만 만들고, 누구나 본다', async () => {
-    const title = `요약 동의 ${suffix}`;
-    // 동의 없이 만들고 공개하면 요약 작업을 보내지 않는다
+  it('AI 요약은 공개 소개 글로만 만들고, 소개 글이 바뀔 때만 다시 만들고, 누구나 본다', async () => {
+    const title = `요약 소개 글 ${suffix}`;
     const before = queued.length;
     const s = await scripts.create(writer, { title, logline: 'l', synopsis: '형제가 사라진 아버지를 찾는다', genre: '스릴러', fullText: '범인은 형이다', rightsDeclared: true });
-    await scripts.publish(s.id, writer, {});
-    expect(queued.length).toBe(before);
-    await expect(scripts.refreshSummary(s.id, writer)).rejects.toThrow(BadRequestException);
-
-    // 동의하면 요약을 요청한다
-    expect((await scripts.update(s.id, writer, { aiSummaryConsent: true })).aiSummaryPending).toBe(true);
     expect(queued.length).toBe(before + 1);
     await fakeWorker(s.id, '형제의 추적');
+    await scripts.publish(s.id, writer, {});
+    expect(queued.length).toBe(before + 1); // 이미 요약이 있으면 공개할 때 다시 만들지 않는다
 
     // 요약은 공개 소개 글로 만들었으므로 시놉시스처럼 누구나 본다
     for (const viewer of [producer, member, null]) expect((await scripts.get(s.id, viewer)).aiSummary?.summary).toBe('형제의 추적');
@@ -153,20 +148,19 @@ run('AI 요약·미리보기 (DB)', () => {
     expect(fullOnly.aiSummaryPending).toBe(false);
     expect((await scripts.update(s.id, writer, { synopsis: '형제가 아버지의 비밀을 쫓는다' })).aiSummaryPending).toBe(true);
     expect(queued.length).toBe(before + 2);
-
-    // 동의를 끄면 요약을 지운다
-    const off = await scripts.update(s.id, writer, { aiSummaryConsent: false });
-    expect(off).toMatchObject({ aiSummary: null, aiSummaryConsent: false, aiSummaryPending: false });
-    expect(queued.length).toBe(before + 2);
   });
 
-  it('요약할 소개 글이 없으면 동의해도 요약하지 않는다 (파일로 만든 빈 초안 등)', async () => {
+  it('요약할 소개 글이 없으면 요약하지 않고, 소개 글을 다 지우면 요약도 지운다', async () => {
     const before = queued.length;
-    const s = await scripts.create(writer, { title: '빈 소개', logline: ' ', synopsis: '', genre: '드라마', fullText: '본문만 있다', aiSummaryConsent: true });
+    const s = await scripts.create(writer, { title: '빈 소개', logline: ' ', synopsis: '', genre: '드라마', fullText: '본문만 있다' });
     expect(queued.length).toBe(before);
     expect(s.aiSummaryPending).toBe(false);
     await expect(scripts.refreshSummary(s.id, writer)).rejects.toThrow(BadRequestException);
     expect((await scripts.update(s.id, writer, { logline: '한 줄 소개' })).aiSummaryPending).toBe(true);
+    await fakeWorker(s.id, '한 줄 요약');
+    const cleared = await scripts.update(s.id, writer, { logline: '' });
+    expect(cleared).toMatchObject({ aiSummary: null, aiSummaryPending: false });
+    expect(queued.length).toBe(before + 1);
   });
 
   it('미리보기는 작가 본인과 코인으로 열람권을 산 사람에게만 보인다', async () => {

@@ -27,8 +27,6 @@ export interface ScriptForSummary {
   logline: string;
   synopsis: string;
   genre: string;
-  /** 작가가 AI 요약(공개 소개 글을 국외 AI 서비스로 전송)에 동의했는가. 아니면 요약기에 보내지 않는다 */
-  aiSummaryConsent: boolean;
 }
 
 export interface Summarizer {
@@ -46,7 +44,7 @@ export function normalizeSummary(s: SummaryContent): SummaryContent {
 
 /**
  * 요약기 공통 지시문. 요약기에는 작가가 공개하려고 쓴 소개 글(제목·장르·로그라인·시놉시스)만 보낸다.
- * 대본 전문과 미리보기는 보내지 않는다 (ScriptRepository.find가 읽지도 않는다). 그래서 요약은 시놉시스처럼 누구나 본다.
+ * 대본 전문과 미리보기는 보내지 않는다 (ScriptRepository.find가 읽지도 않는다). 이미 공개한 글이라 요약도 시놉시스처럼 누구나 본다.
  */
 export const SUMMARY_INSTRUCTIONS = `당신은 영상 제작자가 많은 대본 가운데 볼 만한 것을 빨리 고르도록 돕는 한국어 스크립트 리더입니다.
 작가가 공개한 로그라인과 시놉시스만 받습니다. 이를 바탕으로 제작자가 훑어보기 좋게 정리합니다.

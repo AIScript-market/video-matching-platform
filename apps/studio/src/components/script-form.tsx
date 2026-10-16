@@ -84,9 +84,7 @@ export function ScriptForm({ script, onSaved }: { script?: ScriptDetail; onSaved
   );
   const [rights, setRights] = useState(script?.rightsDeclared ?? false);
   const [trainingConsent, setTrainingConsent] = useState(script?.trainingConsent ?? false);
-  // 공개 소개 글만 요약하므로 새 대본은 켜 두고, 작가가 끌 수 있게 한다
-  const [aiSummaryConsent, setAiSummaryConsent] = useState(script?.aiSummaryConsent ?? true);
-  const consents = { rightsDeclared: rights, aiSummaryConsent, trainingConsent };
+  const consents = { rightsDeclared: rights, trainingConsent };
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -170,6 +168,9 @@ export function ScriptForm({ script, onSaved }: { script?: ScriptDetail; onSaved
           시놉시스 (공개)
           <textarea required maxLength={5000} value={form.synopsis} onChange={set("synopsis")} />
         </label>
+        <p className="small muted" style={{ margin: 0 }}>
+          로그라인과 시놉시스는 누구나 보는 소개입니다. 대본 목록에 함께 보일 짧은 AI 요약과 태그도 이 글로만 만듭니다 (대본 전문은 쓰지 않습니다).
+        </p>
         <label>
           대본 전문 (작가와 열람 승인된 제작자만 볼 수 있음)
           <textarea required value={form.fullText} onChange={set("fullText")} style={{ minHeight: 320, fontFamily: "ui-monospace, monospace" }} />
@@ -261,25 +262,6 @@ export function ScriptForm({ script, onSaved }: { script?: ScriptDetail; onSaved
             </a>
             에 있습니다.
           </p>
-        </ConsentItem>
-        <ConsentItem
-          checked={aiSummaryConsent}
-          onChange={setAiSummaryConsent}
-          label="AI 요약으로 제작자에게 더 빨리 소개하기"
-          points={[
-            { kind: "safe", text: "대본 전문은 AI로 보내지 않습니다. 이미 공개한 로그라인·시놉시스만 쓰므로 새로 드러나는 내용이 없습니다." },
-            { kind: "benefit", text: "짧은 요약과 태그가 대본 목록에 함께 보여, 제작자가 작가님 작품을 더 빨리 알아보고 열어 봅니다." },
-          ]}
-          detailsLabel="AI에 무엇을 보내나요?"
-        >
-          <ul>
-            <li>
-              보내는 것은 <strong>제목·장르·로그라인·시놉시스</strong>뿐입니다. 대본 전문과 미리보기 대본은 보내지 않습니다. 전문은 지금처럼 비밀유지 서약 후 작가님이 승인한 제작자만 봅니다.
-            </li>
-            <li>요약을 만드는 곳은 Google의 AI 서비스(Gemini API, 미국)입니다. 플랫폼은 유료 API를 쓰므로 Google은 보낸 글을 AI 학습 등 자기 제품 개선에 쓰지 않습니다. 다만 악용 방지와 법적 의무를 위해 일정 기간 보관할 수 있습니다.</li>
-            <li>요약은 시놉시스처럼 누구나 봅니다. 시놉시스를 고치면 요약을 새로 만듭니다.</li>
-            <li>마음에 들지 않으면 언제든 끌 수 있고, 끄면 만든 요약을 지웁니다.</li>
-          </ul>
         </ConsentItem>
         <ConsentItem
           checked={trainingConsent}

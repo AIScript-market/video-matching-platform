@@ -38,7 +38,6 @@ const PUBLIC_SELECT = {
   status: true,
   aiSummary: true,
   aiSummaryRequestedAt: true,
-  aiSummaryConsent: true,
   contentUpdatedAt: true,
   createdAt: true,
   updatedAt: true,
@@ -48,14 +47,13 @@ const PUBLIC_SELECT = {
 /** 내용 필드. 바뀌면 최근 수정 시각을 갱신한다 */
 const CONTENT_FIELDS = ['title', 'logline', 'synopsis', 'genre', 'fullText'] as const;
 /**
- * AI 요약에 쓰는 필드: 작가가 공개하려고 쓴 소개 글만. 대본 전문·미리보기는 요약기로 보내지 않는다
- * (apps/worker db.ts가 읽지도 않는다). 그래서 요약은 시놉시스처럼 누구나 본다.
+ * AI 요약에 쓰는 필드: 작가가 대본을 알리려고 공개한 소개 글만. 대본 전문·미리보기는 요약기로 보내지 않는다
+ * (apps/worker db.ts가 읽지도 않는다). 이미 공개한 글이라 따로 동의를 받지 않고, 요약도 시놉시스처럼 누구나 본다.
  */
 const SUMMARY_FIELDS = ['title', 'logline', 'synopsis', 'genre'] as const;
 
-/** 요약할 수 있는가: 작가가 동의했고 요약할 소개 글이 있다 */
-const canSummarize = (s: { aiSummaryConsent: boolean; logline: string; synopsis: string }) =>
-  s.aiSummaryConsent && Boolean(s.logline.trim() || s.synopsis.trim());
+/** 요약할 소개 글(로그라인·시놉시스)이 있는가 */
+const hasIntro = (s: { logline: string; synopsis: string }) => Boolean(s.logline.trim() || s.synopsis.trim());
 
 type Tx = Prisma.TransactionClient;
 
@@ -119,11 +117,9 @@ export class ScriptsService {
         rightsDeclaredAt: declared ? new Date() : null,
         trainingConsent: dto.trainingConsent === true,
         trainingConsentAt: dto.trainingConsent === true ? new Date() : null,
-        aiSummaryConsent: dto.aiSummaryConsent === true,
-        aiSummaryConsentAt: dto.aiSummaryConsent === true ? new Date() : null,
       },
     });
-    if (canSummarize(script)) await this.requestSummary(script.id);
+    if (hasIntro(script)) await this.requestSummary(script.id);
     return this.get(script.id, user);
   }
 
@@ -253,8 +249,9 @@ export class ScriptsService {
     };
     const contentChanged = CONTENT_FIELDS.some((f) => f in next && next[f] !== script[f]);
     const summaryChanged = SUMMARY_FIELDS.some((f) => f in next && next[f] !== script[f]);
-    const consentOn = dto.aiSummaryConsent === true && !script.aiSummaryConsent;
-    const consentOff = dto.aiSummaryConsent === false && script.aiSummaryConsent;
+    const after = { ...script, ...next };
+    // 소개 글을 다 지우면 그 글로 만든 요약도 지운다
+    const clearSummary = summaryChanged && !hasIntro(after) && script.aiSummary !== null;
     const preview = dto.previewText !== undefined ? cleanPreview(dto.previewText) : undefined;
     const previewChanged = preview !== undefined && preview !== script.previewText;
 
@@ -272,26 +269,17 @@ export class ScriptsService {
             trainingConsent: dto.trainingConsent,
             trainingConsentAt: dto.trainingConsent ? new Date() : null,
           }),
-        ...(consentOn && { aiSummaryConsent: true, aiSummaryConsentAt: new Date() }),
-        // 동의를 끄면 만든 요약도 지운다 (진행 중인 작업은 워커가 동의를 다시 보고 버린다)
-        ...(consentOff && {
-          aiSummaryConsent: false,
-          aiSummaryConsentAt: null,
-          aiSummary: Prisma.DbNull,
-          aiSummaryRequestedAt: null,
-        }),
+        ...(clearSummary && { aiSummary: Prisma.DbNull, aiSummaryRequestedAt: null }),
       },
     });
-    const after = { ...script, ...next, aiSummaryConsent: consentOn || (script.aiSummaryConsent && !consentOff) };
-    if (canSummarize(after) && (summaryChanged || (consentOn && !script.aiSummary))) await this.requestSummary(id);
+    if (summaryChanged && hasIntro(after)) await this.requestSummary(id);
     return this.get(id, user);
   }
 
   /** 작성자가 AI 요약을 직접 다시 만든다 */
   async refreshSummary(id: string, user: Viewer): Promise<ScriptDetailDto> {
     const script = await this.findOwned(id, user);
-    if (!script.aiSummaryConsent) throw new BadRequestException('AI 요약 만들기에 동의해야 요약을 만들 수 있습니다');
-    if (!canSummarize(script)) throw new BadRequestException('요약할 로그라인이나 시놉시스를 먼저 써 주세요');
+    if (!hasIntro(script)) throw new BadRequestException('요약할 로그라인이나 시놉시스를 먼저 써 주세요');
     const recent =
       script.aiSummaryRequestedAt &&
       Date.now() - script.aiSummaryRequestedAt.getTime() < SUMMARY_REFRESH_COOLDOWN_MS;
@@ -324,7 +312,7 @@ export class ScriptsService {
       await this.logUpload(tx, created.id, user.id, file, text, 'FULL');
       return created;
     });
-    // 파일로 만든 초안은 시놉시스가 비어 있고 요약 동의도 아직 받지 않았으므로 요약하지 않는다 (편집 화면에서 쓰고 동의하면 만든다)
+    // 파일로 만든 초안은 로그라인·시놉시스가 비어 있어 요약하지 않는다 (편집 화면에서 쓰면 만든다)
     return this.get(script.id, user);
   }
 
@@ -441,7 +429,7 @@ export class ScriptsService {
       },
     });
     // 내용이 바뀔 때마다 요약을 만들어 두므로, 요약이 없거나 실패했을 때만 다시 요청한다
-    if (canSummarize(script) && !script.aiSummary && !isSummaryPending(script)) await this.requestSummary(id);
+    if (hasIntro(script) && !script.aiSummary && !isSummaryPending(script)) await this.requestSummary(id);
     return this.get(id, user);
   }
 
