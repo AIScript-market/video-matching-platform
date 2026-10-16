@@ -92,14 +92,14 @@ model User {
   createdAt    DateTime @default(now())
 
   /// 공개 프로필 소개. 대본 제공·영상 제작을 하려면 프로필과 이메일을 공개해야 한다
-  bio           String?
-  profilePublic Boolean    @default(false)
-  emailPublic   Boolean    @default(false)
-  status        UserStatus @default(ACTIVE)
-  suspendedAt   DateTime?
-  suspendReason String?
-  withdrawnAt   DateTime?
-  coinBalance   Int        @default(0)
+  bio             String?
+  profilePublic   Boolean    @default(false)
+  emailPublic     Boolean    @default(false)
+  status          UserStatus @default(ACTIVE)
+  suspendedAt     DateTime?
+  suspendReason   String?
+  withdrawnAt     DateTime?
+  coinBalance     Int        @default(0)
   /// 가입 때 동의한 이용약관·개인정보 처리방침 버전과 시각 (베타부터 기록)
   termsVersion    String?
   termsAcceptedAt DateTime?
@@ -116,6 +116,9 @@ model User {
   scriptUploads        ScriptUpload[]
   coinTransactions     CoinTransaction[]
   previewUnlocks       ScriptPreviewUnlock[]
+  reportsFiled         AccountReport[]       @relation("ReportsFiled")
+  reportsReceived      AccountReport[]       @relation("ReportsReceived")
+  reportsResolved      AccountReport[]       @relation("ReportsResolved")
 
   identity           IdentityVerification?
   talentProfile      TalentProfile?            @relation("TalentUser")
@@ -165,6 +168,7 @@ model Script {
   licenses       License[]
   uploads        ScriptUpload[]
   previewUnlocks ScriptPreviewUnlock[]
+  reports        AccountReport[]
   embeddings     ScriptEmbedding[]
 }
 
@@ -329,6 +333,45 @@ model ScriptPreviewUnlock {
   createdAt DateTime @default(now())
 
   @@unique([scriptId, userId])
+}
+
+enum ReportReason {
+  SPAM // 스팸·홍보
+  ABUSE // 욕설·괴롭힘
+  FRAUD // 사기·금전 요구
+  COPYRIGHT // 저작권 침해 (타인의 대본 등)
+  INAPPROPRIATE // 부적절한 콘텐츠
+  OTHER
+}
+
+enum ReportStatus {
+  OPEN // 처리 전
+  RESOLVED // 조치함
+  DISMISSED // 문제없음으로 기각
+}
+
+// 계정 신고. 같은 신고자가 같은 계정에 대해 처리 전(OPEN) 신고를 둘 이상 둘 수 없다 (서비스에서 확인)
+model AccountReport {
+  id             String       @id @default(cuid())
+  reporterId     String
+  reporter       User         @relation("ReportsFiled", fields: [reporterId], references: [id])
+  targetId       String
+  target         User         @relation("ReportsReceived", fields: [targetId], references: [id])
+  reason         ReportReason
+  details        String?      @db.Text
+  /// 어느 대본에서 신고했는지 (선택)
+  scriptId       String?
+  script         Script?      @relation(fields: [scriptId], references: [id])
+  status         ReportStatus @default(OPEN)
+  createdAt      DateTime     @default(now())
+  resolvedAt     DateTime?
+  resolvedById   String?
+  resolvedBy     User?        @relation("ReportsResolved", fields: [resolvedById], references: [id])
+  resolutionNote String?
+
+  @@index([targetId, status])
+  @@index([status, createdAt])
+  @@index([reporterId, targetId, status])
 }
 
 // ---------------------------------------------------------------------------

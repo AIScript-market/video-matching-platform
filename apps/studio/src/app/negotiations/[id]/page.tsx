@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { OfferComposer } from "@/components/offer-composer";
+import { ReportButton } from "@/components/report-button";
 import { ErrorText, RequireAuth, StatusBadge } from "@/components/ui";
 import { api, dateTime, unwrap, won, type Message, type NegotiationDetail, type Offer } from "@/lib/api";
 import { useSession } from "@/lib/session";
@@ -108,6 +109,11 @@ function NegotiationRoom() {
           </p>
         </div>
         <div className="row">
+          <ReportButton
+            targetId={iAmWriter ? negotiation.producer.id : negotiation.writer.id}
+            targetName={iAmWriter ? negotiation.producer.displayName : negotiation.writer.displayName}
+            scriptId={negotiation.script.id}
+          />
           <StatusBadge status={negotiation.status} />
           {negotiation.dealId && (
             <Link href={`/deals/${negotiation.dealId}`} className="button">

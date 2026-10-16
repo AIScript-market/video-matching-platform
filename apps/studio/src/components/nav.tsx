@@ -34,6 +34,7 @@ export function Nav() {
           {user && !has("ADMIN") && on("casting") && link("/casting", "캐스팅")}
           {user && !has("ADMIN") && on("talent") && link("/talent", "출연자")}
           {has("ADMIN") && link("/admin", "관리자")}
+          {has("ADMIN") && link("/admin/reports", "신고")}
           {has("ADMIN") && link("/admin/logs", "활동 로그")}
           {has("ADMIN") && link("/admin/videos", "영상 검수")}
           {has("ADMIN") && on("casting") && link("/admin/casting", "출연 관리")}

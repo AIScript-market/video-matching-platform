@@ -19,7 +19,8 @@
 | 협상 | 채팅(3초 폴링), 조건 제안(분배 합 100, 선급금, 기간, 독점), 역제안·수락·거절·철회, 제안 이력 |
 | 매칭 | 제안 수락 시 딜과 라이선스(초안) 생성. 독점이면 같은 대본의 다른 협상 종료 |
 | 장부 | 관리자가 딜별 수익·지급·수수료·조정 기록, 참여자는 조회 |
-| 관리자 | 일반 계정 정지·해제, 코인 지급, 사용자 목록·검색, 대본 숨김·해제, 장부 기록, **활동 로그**(메시지·전문 열람·업로드·코인, `/admin/logs`) |
+| 계정 신고 | 공개 프로필·대본 상세(작성자)·협상방(상대방)에서 사유(스팸, 욕설, 사기, 저작권, 부적절한 콘텐츠, 기타)와 내용으로 신고 |
+| 관리자 | **신고 관리**(신고된 계정을 신고 많은 순으로, 신고 목록, 기각·처리·정지하고 처리, `/admin/reports`), 일반 계정 정지·해제, 코인 지급, 사용자 목록·검색, 대본 숨김·해제, 장부 기록, **활동 로그**(메시지·전문 열람·업로드·코인, `/admin/logs`) |
 | 출연자 | 일반 계정이 출연자(배우·일반인)로 등록: 본인인증, 얼굴 스캔 업로드(파일별 암호화), 실시간 셀카 대조, 민감정보 동의. 미성년자는 보호자 동의와 관리자 확인. 철회하면 7일 숙려 후(진행 중 계약은 제작 기한 후) 원본 삭제 |
 | 캐스팅 | 딜의 작가·제작자가 작품과 배역을 만들고, 공개 오디션 지원이나 직접 제안으로 출연료(고정·회당·수익 배분·혼합)를 협상해 출연 계약. 미성년자 계약은 보호자 승인. 작품은 계약 범위(장면 유형)·출연분 확인·AI 표시를 통과해야 공개. 기준: [docs/policies/likeness-policy.md](docs/policies/likeness-policy.md) |
 | 흥행 판단 | LLM이 아닌 **자체 통계 모델**: 대본을 장면 벡터로 바꾸고, 작품 성과(채널 크기 보정한 조회수·좋아요·긍정 댓글)와 연결해 "상위 20% 성과일 확률"을 학습(`services/ml`, Python). 데이터가 쌓이기 전에는 비슷한 작품을 보여 줌. 영상 제작자에게 대본별 판단과 추천(`/recommendations`), 작가 본인에게는 비공개. 대본별 학습 동의, 작품 성과 기록, 관리자 학습 화면(`/admin/ml`). [docs/hit-model.md](docs/hit-model.md), 가능성 검증 계획 [docs/feasibility-study.md](docs/feasibility-study.md) |
@@ -64,7 +65,7 @@ docker compose -f ops/compose.yaml up --build
 | 출연자 (아역) | `kid1@vmp.dev` | `talent1234!` | 14세. 수아 역 제안이 보호자 승인 대기 |
 | 보호자 | `guardian1@vmp.dev` | `guardian1234!` | 아역 서아의 법정대리인 |
 
-"마지막 열차"(writer1)에는 미리보기 대본이 있어서 다른 계정으로 3코인 열람권 구매를 시험할 수 있다.
+"마지막 열차"(writer1)에는 미리보기 대본이 있어서 다른 계정으로 3코인 열람권 구매를 시험할 수 있다. `member1`에는 처리 전 예시 신고 2건이 있어서 관리자 신고 관리 화면을 바로 볼 수 있다.
 
 **계정별 접속 주소 (개발용)**: http://localhost:3000/dev/accounts 에 계정마다 전용 주소가 있다 (`admin.localhost:3000`, `writer1.localhost:3000`, `producer1.localhost:3000`, `member1.localhost:3000`, `suspended1.localhost:3000` …). 로그인 쿠키는 호스트 이름별로 나뉘므로, 주소가 다르면 한 브라우저의 여러 탭에서 서로 다른 계정을 동시에 쓸 수 있다. "바로 로그인"은 `<계정>.localhost:3000/dev/login?as=<계정>`으로 시드 계정에 자동 로그인한다. `NEXT_PUBLIC_DEV_ACCOUNTS=true`일 때만 나타난다 (ops/compose.yaml에서만 켬). `*.localhost`는 Chrome·Edge·Firefox에서 바로 열린다.
 
@@ -79,6 +80,7 @@ apps/
     src/modules/identity    가입·로그인·내 정보
     src/modules/profiles    공개 프로필, 프로필 편집, 탈퇴
     src/modules/wallet      코인 (가격표, 구매, 차감, 내역)
+    src/modules/reports     계정 신고, 관리자 신고 관리
     src/modules/backoffice  관리자 API (/admin/*: 계정 정지, 코인 지급, 활동 로그)
     src/modules/{scripts,access,negotiations,deals,ledger}  도메인 API
     prisma/                 스키마, 마이그레이션, 시드
