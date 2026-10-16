@@ -64,6 +64,25 @@ docker compose -f ops/prod/compose.yaml --env-file ops/prod/production.env run -
 비용: 저장 용량 월 10GB까지 무료, 넘으면 GB당 월 약 0.015달러이고 내려받기(송신)는 무료다. 검수가 끝나면 지우므로 보통 무료 범위 안이다. 한 파일은 2GB까지 받는다.
 AWS S3 등 다른 S3 호환 저장소도 같은 변수로 쓸 수 있다 (`VIDEO_STORAGE_REGION`을 그 리전으로).
 
+## 4-2. AI 요약 (Gemini)
+
+작가가 대본 편집의 "확인과 동의"에서 AI 요약을 켠 대본만 전문을 Gemini API로 보내 요약한다. 켜지 않은 대본은 어떤 AI 서비스로도 가지 않는다.
+
+1. [Google AI Studio](https://aistudio.google.com/)에서 API 키를 만든다. 키가 속한 Cloud 프로젝트에 **결제 계정이 연결돼 있어야** 한다.
+   결제가 연결된 유료 등급에서만 Google이 보낸 내용을 제품 개선에 쓰지 않는다 ([Gemini API 추가 약관](https://ai.google.dev/gemini-api/terms)). 무료 등급 키는 대본이 학습·사람 검토에 쓰일 수 있으니 쓰지 않는다.
+2. `production.env`에 `GEMINI_API_KEY`를 넣는다. 키는 저장소·채팅에 올리지 않는다.
+3. 워커를 다시 띄우고 로그에서 `summarizer=gemini-3.8-flash`를 확인한다:
+
+   ```bash
+   docker compose -f ops/prod/compose.yaml --env-file ops/prod/production.env up -d worker && docker compose -f ops/prod/compose.yaml logs worker | tail -5
+   ```
+
+보안 규칙 (코드가 지킨다, `apps/api/src/modules/access/access-rules.ts` `canReadAiSummary`):
+- 요약은 전문으로 만들기 때문에 전문과 같은 등급으로 지킨다. 작가 본인과, 비밀유지 서약에 서명하고 작가가 열람을 승인한 제작자만 본다. 관리자도 보지 않는다.
+- 작가가 요약을 읽고 "공개 소개에 보이기"를 누른 경우에만 목록·소개에 보인다. 대본을 고쳐 새 요약이 저장되면 다시 비공개가 된다.
+- 동의를 끄면 요약을 지우고, 이미 등록된 요약 작업은 워커가 동의를 다시 확인해 버린다(저장할 때도 한 번 더 확인).
+- 요약 지시문은 결말·반전·범인 같은 비밀을 쓰지 말라고 한다. 그래도 AI가 실수할 수 있어서 공개는 작가가 직접 고른다.
+
 ## 5. 백업
 
 - 매일 DB를 덤프한다. 서버 crontab 예 (매일 04:00, 14일 보관):
@@ -87,5 +106,6 @@ git pull && docker compose -f ops/prod/compose.yaml --env-file ops/prod/producti
 - 로그인·가입 1분 10회, 서명·열람 요청 1분 20회, 메시지 1분 60회로 IP마다 제한한다 (`apps/api/src/core/rate-limit.ts`). 운영(`NODE_ENV=production`)에서만 기본으로 켜지고, 개발에서는 `RATE_LIMIT=on`일 때만.
 - 운영에서는 API 문서(/docs)를 닫아 둔다. 필요하면 `API_DOCS=on`.
 - 검수용 영상 파일은 R2에 있고 DB 백업에는 들어가지 않는다. 검수 중인 파일만 있으므로 따로 백업하지 않는다.
+- AI 요약 키(`GEMINI_API_KEY`)를 바꾸거나 결제가 끊기면 요약이 실패한다. 워커 로그의 `실패`를 가끔 확인한다.
 - 흥행 판단 모델 서비스(`services/ml`)는 베타에서 띄우지 않는다 (`BETA_MODE=true`면 관련 API와 화면이 꺼진다).
 - 비밀번호 재설정 메일은 아직 없다. 베타 동안은 문의를 받아 본인 확인 뒤 `apps/api/dist/cli/reset-password.js`(USER_EMAIL, NEW_PASSWORD)로 임시 비밀번호를 정해 준다. 메일 발송 서비스를 정하면 붙인다.
