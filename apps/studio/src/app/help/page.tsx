@@ -27,7 +27,7 @@ const SECTIONS: Array<{ title: string; items: Qa[] }> = [
       },
       {
         q: "비밀번호를 잊어버렸어요.",
-        a: "베타 기간에는 비밀번호 재설정 메일이 아직 없습니다. 아래 문의처로 연락해 주시면 본인 확인 뒤 임시 비밀번호를 정해 드립니다. 로그인한 뒤에는 내 계정에서 바로 바꿀 수 있습니다.",
+        a: "베타 기간에는 비밀번호 재설정 메일이 아직 없습니다. 로그인할 수 없으니 아래에 적힌 운영자 이메일로 연락해 주시면 본인 확인 뒤 임시 비밀번호를 정해 드립니다. 로그인한 뒤에는 내 계정에서 바로 바꿀 수 있습니다.",
       },
       {
         q: "탈퇴하면 어떻게 되나요?",
@@ -44,7 +44,7 @@ const SECTIONS: Array<{ title: string; items: Qa[] }> = [
       },
       {
         q: "코인을 살 수 있나요?",
-        a: "베타 기간에는 판매하지 않고, 가입할 때 베타 코인을 드립니다. 더 필요하면 문의해 주세요. 코인은 현금으로 바꿀 수 없습니다.",
+        a: "베타 기간에는 판매하지 않고, 가입할 때 베타 코인을 드립니다. 더 필요하면 문의 게시판에 남겨 주세요. 코인은 현금으로 바꿀 수 없습니다.",
       },
     ],
   },
@@ -57,7 +57,7 @@ const SECTIONS: Array<{ title: string; items: Qa[] }> = [
       },
       {
         q: "제작자가 서약서를 어기면 어떻게 하나요?",
-        a: "플랫폼은 열람 기록, 서약서 본문과 해시, 서명 기록을 증거로 제공하고, 위반한 제작자의 이용을 정지할 수 있습니다. 신고 기능이나 아래 문의처로 알려 주세요.",
+        a: "플랫폼은 열람 기록, 서약서 본문과 해시, 서명 기록을 증거로 제공하고, 위반한 제작자의 이용을 정지할 수 있습니다. 신고 기능이나 문의 게시판(비밀 문의)으로 알려 주세요.",
       },
       {
         q: "AI 요약은 무엇인가요?",
@@ -105,7 +105,7 @@ export default function HelpPage() {
   return (
     <div className="stack">
       <h1>도움말</h1>
-      <p className="muted small">자주 묻는 질문입니다. 여기서 답을 찾지 못하면 아래 문의처로 연락해 주세요.</p>
+      <p className="muted small">자주 묻는 질문입니다. 여기서 답을 찾지 못하면 아래 문의 게시판에 남겨 주세요.</p>
 
       {SECTIONS.map((s) => (
         <section key={s.title} className="card stack" aria-label={s.title}>
@@ -121,16 +121,27 @@ export default function HelpPage() {
 
       <section id="contact" className="card stack" aria-label="문의">
         <h2 style={{ margin: 0 }}>문의하기</h2>
-        {config?.contactEmail ? (
-          <p>
-            운영자 이메일: <strong className="selectable">{config.contactEmail}</strong>
-          </p>
-        ) : (
-          <p className="muted">운영자 문의 이메일이 아직 등록되지 않았습니다. 초대받은 경로로 연락해 주세요.</p>
-        )}
+        <p>
+          여기서 답을 찾지 못하면 <Link href="/help/inquiries">문의 게시판</Link>에 남겨 주세요. 운영자가 답변을 달아 드립니다. 비밀 문의로 쓰면 작성자와 운영자만 봅니다.
+        </p>
+        <div className="row">
+          <Link href="/help/inquiries" className="button">
+            문의 게시판으로 가기
+          </Link>
+        </div>
         <ul className="small">
           <li>다른 이용자의 부적절한 행동은 상대의 공개 프로필·대본·협상방에 있는 <strong>신고</strong> 버튼으로 알려 주시면 더 빨리 처리됩니다.</li>
-          <li>계약·정산 문의는 딜 화면 주소를 함께 보내 주세요.</li>
+          <li>
+            로그인할 수 없을 때(비밀번호 분실 등)만{" "}
+            {config?.contactEmail ? (
+              <>
+                운영자 이메일 <strong className="selectable">{config.contactEmail}</strong>로
+              </>
+            ) : (
+              "초대받은 경로로"
+            )}{" "}
+            연락해 주세요.
+          </li>
         </ul>
         <p className="small muted">
           <Link href="/terms">이용약관</Link> · <Link href="/privacy">개인정보 처리방침</Link>
