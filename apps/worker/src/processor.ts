@@ -38,12 +38,14 @@ export async function processSummarize(
     );
   }
 
+  // 작가가 동의하지 않은 대본은 국외 AI 서비스로 보내지 않는다 (작업이 등록된 뒤 동의를 끊었을 수도 있다)
+  if (!script.aiSummaryConsent) return { status: 'skipped', reason: 'AI 요약 동의 없음' };
   const content = normalizeSummary(await deps.summarizer.summarize(script));
   const summary: AiSummary = {
     ...content,
     model: deps.summarizer.model,
     generatedAt: (deps.now?.() ?? new Date()).toISOString(),
   };
-  await deps.scripts.saveSummary(script.id, summary);
+  if (!(await deps.scripts.saveSummary(script.id, summary))) return { status: 'skipped', reason: '요약하는 동안 동의를 끊음' };
   return { status: 'done', model: summary.model, ...(embedding && { embedding }) };
 }

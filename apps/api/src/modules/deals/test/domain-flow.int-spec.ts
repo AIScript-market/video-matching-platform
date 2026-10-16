@@ -89,6 +89,7 @@ run('도메인 흐름 (DB)', () => {
       synopsis: '1998년 부산. 폐역을 지키는 정수는...',
       genre: '미스터리',
       fullText: 'S#1. 폐역 승강장 (밤)',
+      aiSummaryConsent: true,
     });
     expect(created.status).toBe('DRAFT');
     expect(created.fullText).toBe('S#1. 폐역 승강장 (밤)');
@@ -96,7 +97,7 @@ run('도메인 흐름 (DB)', () => {
     expect((await scripts.list({}, null)).items.find((s) => s.id === created.id)).toBeUndefined();
     expect((await scripts.list({ mine: true }, writer)).items.map((s) => s.id)).toContain(created.id);
 
-    // 2. 권리 진술 없이 공개 불가 → 진술과 함께 공개, 요약 작업 등록
+    // 2. 권리 진술 없이 공개 불가 → 진술과 함께 공개, 요약 작업 등록 (작가가 요약에 동의했다)
     await expect(scripts.publish(created.id, writer, {})).rejects.toThrow(BadRequestException);
     await expect(scripts.publish(created.id, producer, { rightsDeclared: true })).rejects.toThrow(NotFoundException);
     const published = await scripts.publish(created.id, writer, { rightsDeclared: true });

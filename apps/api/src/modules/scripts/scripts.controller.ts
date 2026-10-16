@@ -23,6 +23,7 @@ import {
   PublishScriptDto,
   ScriptDetailDto,
   ScriptListDto,
+  SummaryVisibilityDto,
   UpdateScriptDto,
 } from './dto/script.dto.js';
 import { UPLOAD_EXTENSIONS, UPLOAD_MAX_BYTES } from './script-file.js';
@@ -97,6 +98,16 @@ export class ScriptsController {
   @ApiOkResponse({ type: ScriptDetailDto })
   refreshSummary(@Param('id') id: string, @CurrentUser() user: Viewer) {
     return this.scripts.refreshSummary(id, user);
+  }
+
+  @Post(':id/summary/visibility')
+  @UseGuards(JwtAuthGuard, CreatorGuard)
+  @HttpCode(200)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'AI 요약 공개 여부 (작가 본인). 공개하지 않으면 작가와 열람 승인된 제작자만 본다' })
+  @ApiOkResponse({ type: ScriptDetailDto })
+  setSummaryVisibility(@Param('id') id: string, @CurrentUser() user: Viewer, @Body() dto: SummaryVisibilityDto) {
+    return this.scripts.setSummaryVisibility(id, user, dto.public);
   }
 
   @Post(':id/preview/unlock')

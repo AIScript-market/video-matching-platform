@@ -45,3 +45,17 @@ export function canReadFullText(
   if (script.authorId === viewer.id) return true;
   return script.status === 'PUBLISHED' && accessStatus === 'APPROVED';
 }
+
+/**
+ * AI 요약을 볼 수 있는가. 요약은 전문으로 만들어서 비밀 내용(반전·결말 단서)이 들어갈 수 있으므로 전문과 같은 등급으로 지킨다:
+ * 작가 본인과 열람 승인된(비밀유지 서약에 서명한) 제작자만. 작가가 그 요약을 읽고 공개 소개에 보이기로 했으면
+ * 대본을 볼 수 있는 사람 누구나 (공개 대본일 때만).
+ */
+export function canReadAiSummary(
+  script: { authorId: string; status: ScriptStatus; aiSummaryPublic: boolean },
+  viewer: Viewer | null,
+  accessStatus: AccessStatus | null,
+): boolean {
+  if (script.aiSummaryPublic && script.status === 'PUBLISHED') return true;
+  return canReadFullText(script, viewer, accessStatus);
+}

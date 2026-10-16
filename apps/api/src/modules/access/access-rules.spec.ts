@@ -1,4 +1,4 @@
-import { canReadFullText, canReadPreview, canSeeScript } from './access-rules.js';
+import { canReadAiSummary, canReadFullText, canReadPreview, canSeeScript } from './access-rules.js';
 
 const author = { id: 'w1', roles: ['WRITER'] };
 const producer = { id: 'p1', roles: ['PRODUCER'] };
@@ -55,5 +55,22 @@ describe('정지·탈퇴한 작가의 대본', () => {
     expect(canSeeScript(suspended, author)).toBe(false);
     expect(canSeeScript(suspended, admin)).toBe(true);
     expect(canSeeScript({ ...published, authorStatus: 'ACTIVE' }, null)).toBe(true);
+  });
+});
+
+describe('canReadAiSummary', () => {
+  const priv = { ...published, aiSummaryPublic: false };
+  it('작가가 공개하지 않은 요약은 작가와 열람 승인된 제작자만 (관리자·신청 중·비로그인은 못 봄)', () => {
+    expect(canReadAiSummary(priv, author, null)).toBe(true);
+    expect(canReadAiSummary(priv, producer, 'APPROVED')).toBe(true);
+    expect(canReadAiSummary(priv, producer, 'PENDING')).toBe(false);
+    expect(canReadAiSummary(priv, producer, null)).toBe(false);
+    expect(canReadAiSummary(priv, admin, null)).toBe(false);
+    expect(canReadAiSummary(priv, null, null)).toBe(false);
+  });
+  it('작가가 공개한 요약은 공개 대본일 때만 누구나', () => {
+    expect(canReadAiSummary({ ...published, aiSummaryPublic: true }, null, null)).toBe(true);
+    expect(canReadAiSummary({ ...hidden, aiSummaryPublic: true }, producer, 'APPROVED')).toBe(false);
+    expect(canReadAiSummary({ ...draft, aiSummaryPublic: true }, producer, null)).toBe(false);
   });
 });

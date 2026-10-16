@@ -1,18 +1,21 @@
 import { UnrecoverableError, Worker } from 'bullmq';
 import { Redis } from 'ioredis';
 import pg from 'pg';
-import { ClaudeSummarizer, RefusedError } from './claude-summarizer.js';
+import { ClaudeSummarizer } from './claude-summarizer.js';
 import { ScriptRepository } from './db.js';
+import { GeminiSummarizer } from './gemini-summarizer.js';
 import { createEmbedScript } from './ml-embed.js';
 import { MockSummarizer } from './mock-summarizer.js';
 import { processSummarize, QUEUE_NAME, SUMMARIZE_JOB, type SummarizeJobData } from './processor.js';
-import type { Summarizer } from './summary.js';
+import { RefusedError, type Summarizer } from './summary.js';
 
-/** AI_SUMMARIZER=claude|mock. 지정하지 않으면 API 키가 있을 때만 claude. */
+/** AI_SUMMARIZER=gemini|claude|mock. 지정하지 않으면 GEMINI_API_KEY → Claude 키 순서로, 키가 없으면 mock */
 function createSummarizer(): Summarizer {
   const mode = process.env.AI_SUMMARIZER;
-  const hasKey = Boolean(process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN);
-  if (mode === 'claude' || (mode !== 'mock' && hasKey)) return new ClaudeSummarizer();
+  if (mode === 'mock') return new MockSummarizer();
+  if (mode === 'gemini' || (!mode && process.env.GEMINI_API_KEY)) return new GeminiSummarizer();
+  const hasClaudeKey = Boolean(process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN);
+  if (mode === 'claude' || (!mode && hasClaudeKey)) return new ClaudeSummarizer();
   return new MockSummarizer();
 }
 

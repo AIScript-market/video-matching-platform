@@ -152,6 +152,11 @@ model Script {
   aiSummary            Json?
   /// 마지막으로 AI 요약을 요청한 시각. aiSummary.generatedAt보다 나중이면 새 요약을 만드는 중
   aiSummaryRequestedAt DateTime?
+  /// AI 요약을 만들어도 된다는 작가의 동의 (전문이 국외 AI 서비스로 보내진다). 없으면 요약 작업을 보내지 않는다
+  aiSummaryConsent     Boolean      @default(false)
+  aiSummaryConsentAt   DateTime?
+  /// 작가가 지금 요약을 읽고 공개 소개에 보이기로 했는가. 아니면 작가와 열람 승인된 제작자만 본다. 새 요약이 만들어지면 false로 돌아간다
+  aiSummaryPublic      Boolean      @default(false)
   /// 제작자에게 열람 승인 전에 보여줄 일부분 (선택)
   previewText          String?      @db.Text
   /// 내용(제목·로그라인·시놉시스·장르·전문·미리보기)이 마지막으로 바뀐 시각. 공개·숨김 같은 상태 변경은 포함하지 않는다

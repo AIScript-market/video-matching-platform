@@ -11,6 +11,7 @@ function fakeRepo(script: ScriptForSummary | null) {
       find: async () => script,
       saveSummary: async (_id: string, s: AiSummary) => {
         saved.push(s);
+        return true;
       },
     } as never,
   };
@@ -23,6 +24,7 @@ const script: ScriptForSummary = {
   synopsis: '1998년 부산. 폐역을 지키는 역무원 정수는 매일 밤 오지 않는 열차를 기다린다. 어느 날 정말로 열차가 도착한다.',
   genre: '미스터리',
   fullText: 'S#1. 폐역 승강장 (밤)\n정수: 열차가 온다. 열차가 왔어.\n정수는 승강장 끝으로 달려간다. 총소리가 울린다.',
+  aiSummaryConsent: true,
 };
 
 describe('processSummarize', () => {
@@ -45,6 +47,20 @@ describe('processSummarize', () => {
     expect(
       (await processSummarize({ scriptId: 's1' }, { scripts: fakeRepo({ ...script, fullText: ' ' }).repo, summarizer: new MockSummarizer() })).status,
     ).toBe('skipped');
+  });
+
+  it('작가가 AI 요약에 동의하지 않았으면 요약기에 보내지 않는다', async () => {
+    const { repo, saved } = fakeRepo({ ...script, aiSummaryConsent: false });
+    let called = false;
+    const summarizer = { model: 'test', summarize: async () => ((called = true), { summary: 's', tags: [], contentRating: 'ALL' as const }) };
+    expect(await processSummarize({ scriptId: 's1' }, { scripts: repo, summarizer })).toEqual({ status: 'skipped', reason: 'AI 요약 동의 없음' });
+    expect(called).toBe(false);
+    expect(saved).toHaveLength(0);
+  });
+
+  it('요약하는 동안 동의를 끊었으면 저장하지 않은 것으로 알린다', async () => {
+    const repo = { find: async () => script, saveSummary: async () => false } as never;
+    expect((await processSummarize({ scriptId: 's1' }, { scripts: repo, summarizer: new MockSummarizer() })).status).toBe('skipped');
   });
 
   it('태그는 중복 제거·8개 이하로 정리된다', async () => {

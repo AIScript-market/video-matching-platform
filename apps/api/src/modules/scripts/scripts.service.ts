@@ -6,10 +6,11 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import type { Prisma } from '../../generated/prisma/client.js';
+import { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { WalletService } from '../wallet/wallet.service.js';
 import {
+  canReadAiSummary,
   canReadFullText,
   canReadPreview,
   canSeeScript,
@@ -38,6 +39,8 @@ const PUBLIC_SELECT = {
   status: true,
   aiSummary: true,
   aiSummaryRequestedAt: true,
+  aiSummaryConsent: true,
+  aiSummaryPublic: true,
   contentUpdatedAt: true,
   createdAt: true,
   updatedAt: true,
@@ -72,6 +75,15 @@ export function isSummaryPending({ aiSummary, aiSummaryRequestedAt }: SummarySta
 
 function withPending<T extends SummaryState>(row: T): T & { aiSummaryPending: boolean } {
   return { ...row, aiSummaryPending: isSummaryPending(row) };
+}
+
+/**
+ * 볼 권한이 없으면 AI 요약을 지운다 (전문으로 만든 요약이라 전문과 같이 지킨다, access-rules canReadAiSummary).
+ * aiSummaryHidden은 요약이 있지만 이 사람에게 보이지 않는다는 표시다 (내용은 알리지 않는다).
+ */
+function redactSummary<T extends { aiSummary: unknown }>(row: T, canRead: boolean): T & { aiSummaryHidden: boolean } {
+  if (canRead) return { ...row, aiSummaryHidden: false };
+  return { ...row, aiSummary: null, aiSummaryHidden: row.aiSummary !== null };
 }
 
 /** 응답에서 작가 상태(내부용)를 뺀다 */
@@ -109,9 +121,11 @@ export class ScriptsService {
         rightsDeclaredAt: declared ? new Date() : null,
         trainingConsent: dto.trainingConsent === true,
         trainingConsentAt: dto.trainingConsent === true ? new Date() : null,
+        aiSummaryConsent: dto.aiSummaryConsent === true,
+        aiSummaryConsentAt: dto.aiSummaryConsent === true ? new Date() : null,
       },
     });
-    await this.requestSummary(script.id);
+    if (script.aiSummaryConsent) await this.requestSummary(script.id);
     return this.get(script.id, user);
   }
 
@@ -140,7 +154,10 @@ export class ScriptsService {
       take: take + 1,
       ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}),
     });
-    const items = rows.slice(0, take).map((r) => publicShape(withPending(r))) as unknown as ScriptSummaryDto[];
+    // 목록에서는 작가 본인의 대본과 작가가 공개한 요약만 보여 준다 (열람 승인된 제작자는 상세에서 본다)
+    const items = rows
+      .slice(0, take)
+      .map((r) => publicShape(redactSummary(withPending(r), r.author.id === viewer?.id || (r.aiSummaryPublic && r.status === 'PUBLISHED')))) as unknown as ScriptSummaryDto[];
     return { items, nextCursor: rows.length > take ? items[items.length - 1].id : null };
   }
 
@@ -174,6 +191,7 @@ export class ScriptsService {
     const accessStatus = access?.status ?? null;
     const full = canReadFullText(script, viewer, accessStatus);
     const preview = canReadPreview(script, viewer, Boolean(unlock));
+    const summary = canReadAiSummary(script, viewer, accessStatus);
 
     const texts = await this.prisma.script.findUniqueOrThrow({
       where: { id },
@@ -183,7 +201,7 @@ export class ScriptsService {
 
     const { authorId: _authorId, ...rest } = script;
     return {
-      ...publicShape(withPending(rest)),
+      ...publicShape(redactSummary(withPending(rest), summary)),
       fullText: full ? texts.fullText : null,
       previewText: preview ? (texts.previewText ?? null) : null,
       previewAvailable: Boolean(texts.previewText),
@@ -192,6 +210,7 @@ export class ScriptsService {
         accessRequestStatus: accessStatus,
         canReadFullText: full,
         canReadPreview: preview,
+        canReadAiSummary: summary,
         previewUnlocked: Boolean(unlock),
       },
     } as unknown as ScriptDetailDto;
@@ -240,6 +259,8 @@ export class ScriptsService {
       ...(dto.fullText !== undefined && { fullText: dto.fullText }),
     };
     const summaryChanged = SUMMARY_FIELDS.some((f) => f in next && next[f] !== script[f]);
+    const consentOn = dto.aiSummaryConsent === true && !script.aiSummaryConsent;
+    const consentOff = dto.aiSummaryConsent === false && script.aiSummaryConsent;
     const preview = dto.previewText !== undefined ? cleanPreview(dto.previewText) : undefined;
     const previewChanged = preview !== undefined && preview !== script.previewText;
 
@@ -257,15 +278,26 @@ export class ScriptsService {
             trainingConsent: dto.trainingConsent,
             trainingConsentAt: dto.trainingConsent ? new Date() : null,
           }),
+        ...(consentOn && { aiSummaryConsent: true, aiSummaryConsentAt: new Date() }),
+        // 동의를 끄면 만든 요약도 지운다 (진행 중인 작업은 워커가 동의를 다시 보고 버린다)
+        ...(consentOff && {
+          aiSummaryConsent: false,
+          aiSummaryConsentAt: null,
+          aiSummary: Prisma.DbNull,
+          aiSummaryPublic: false,
+          aiSummaryRequestedAt: null,
+        }),
       },
     });
-    if (summaryChanged) await this.requestSummary(id);
+    const consented = consentOn || (script.aiSummaryConsent && !consentOff);
+    if (consented && (summaryChanged || (consentOn && !script.aiSummary))) await this.requestSummary(id);
     return this.get(id, user);
   }
 
   /** 작성자가 AI 요약을 직접 다시 만든다 */
   async refreshSummary(id: string, user: Viewer): Promise<ScriptDetailDto> {
     const script = await this.findOwned(id, user);
+    if (!script.aiSummaryConsent) throw new BadRequestException('AI 요약 만들기에 동의해야 요약을 만들 수 있습니다');
     const recent =
       script.aiSummaryRequestedAt &&
       Date.now() - script.aiSummaryRequestedAt.getTime() < SUMMARY_REFRESH_COOLDOWN_MS;
@@ -275,6 +307,20 @@ export class ScriptsService {
     if (!(await this.requestSummary(id))) {
       throw new HttpException('요약 작업을 등록하지 못했습니다. 잠시 후 다시 시도하세요', HttpStatus.SERVICE_UNAVAILABLE);
     }
+    return this.get(id, user);
+  }
+
+  /**
+   * 작성자가 지금 AI 요약을 공개 소개에 보일지 정한다. 작가가 읽어 본 요약만 공개할 수 있으므로
+   * 새 요약을 만드는 중이면 받지 않는다 (새 요약이 저장되면 다시 비공개가 된다).
+   */
+  async setSummaryVisibility(id: string, user: Viewer, isPublic: boolean): Promise<ScriptDetailDto> {
+    const script = await this.findOwned(id, user);
+    if (isPublic) {
+      if (!script.aiSummary) throw new BadRequestException('공개할 AI 요약이 없습니다');
+      if (isSummaryPending(script)) throw new BadRequestException('새 요약을 만드는 중입니다. 새 요약을 읽어 본 뒤 공개해 주세요');
+    }
+    await this.prisma.script.update({ where: { id }, data: { aiSummaryPublic: isPublic } });
     return this.get(id, user);
   }
 
@@ -298,7 +344,7 @@ export class ScriptsService {
       await this.logUpload(tx, created.id, user.id, file, text, 'FULL');
       return created;
     });
-    await this.requestSummary(script.id);
+    // 파일로 만든 초안은 아직 AI 요약 동의를 받지 않았으므로 요약하지 않는다 (편집 화면에서 동의하면 만든다)
     return this.get(script.id, user);
   }
 
@@ -315,7 +361,7 @@ export class ScriptsService {
       });
       await this.logUpload(tx, id, user.id, file, text, 'FULL');
     });
-    if (changed) await this.requestSummary(id);
+    if (changed && script.aiSummaryConsent) await this.requestSummary(id);
     return this.get(id, user);
   }
 
@@ -415,7 +461,7 @@ export class ScriptsService {
       },
     });
     // 내용이 바뀔 때마다 요약을 만들어 두므로, 요약이 없거나 실패했을 때만 다시 요청한다
-    if (!script.aiSummary && !isSummaryPending(script)) await this.requestSummary(id);
+    if (script.aiSummaryConsent && !script.aiSummary && !isSummaryPending(script)) await this.requestSummary(id);
     return this.get(id, user);
   }
 
