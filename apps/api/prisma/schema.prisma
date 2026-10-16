@@ -119,6 +119,8 @@ model User {
   reportsFiled         AccountReport[]       @relation("ReportsFiled")
   reportsReceived      AccountReport[]       @relation("ReportsReceived")
   reportsResolved      AccountReport[]       @relation("ReportsResolved")
+  inquiries            Inquiry[]             @relation("InquiryAuthor")
+  inquiryReplies       InquiryReply[]        @relation("InquiryReplyAuthor")
 
   identity           IdentityVerification?
   talentProfile      TalentProfile?            @relation("TalentUser")
@@ -972,4 +974,59 @@ model SettlementPayout {
   createdBy   User              @relation("PayoutCreator", fields: [createdById], references: [id])
 
   @@unique([revenueId, partyId])
+}
+
+// ---------- 문의 게시판 (도움말 > 문의하기) ----------
+
+enum InquiryCategory {
+  ACCOUNT
+  COINS
+  SCRIPTS
+  CONTRACTS
+  VIDEOS
+  OTHER
+}
+
+/// 답변 대기 → (운영자 답변) 답변 완료 → (작성자가 더 물으면) 답변 대기 … → 해결됨
+enum InquiryStatus {
+  OPEN
+  ANSWERED
+  CLOSED
+}
+
+model Inquiry {
+  id             String          @id @default(cuid())
+  authorId       String
+  author         User            @relation("InquiryAuthor", fields: [authorId], references: [id])
+  category       InquiryCategory
+  title          String
+  body           String          @db.Text
+  /// 비밀 문의: 작성자와 운영자만 본다 (다른 사람에게는 제목도 가린다)
+  isPrivate      Boolean         @default(true)
+  status         InquiryStatus   @default(OPEN)
+  /// 운영자가 숨긴 시각 (스팸·부적절한 글). 숨기면 운영자만 본다
+  hiddenAt       DateTime?
+  /// 마지막 글(문의·답글)이 달린 시각. 목록 정렬에 쓴다
+  lastActivityAt DateTime        @default(now())
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  replies InquiryReply[]
+
+  @@index([status, lastActivityAt])
+  @@index([authorId])
+}
+
+model InquiryReply {
+  id        String   @id @default(cuid())
+  inquiryId String
+  inquiry   Inquiry  @relation(fields: [inquiryId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User     @relation("InquiryReplyAuthor", fields: [authorId], references: [id])
+  /// 운영자 답변인가 (아니면 작성자의 추가 질문)
+  fromStaff Boolean
+  body      String   @db.Text
+  createdAt DateTime @default(now())
+
+  @@index([inquiryId, createdAt])
 }

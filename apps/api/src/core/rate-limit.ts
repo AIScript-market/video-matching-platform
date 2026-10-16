@@ -17,6 +17,7 @@ export const RATE_RULES: RateRule[] = [
   { method: 'POST', path: /^\/scripts\/[^/]+\/access-requests$/, limit: 20, windowMs: 60_000 },
   { method: 'POST', path: /^\/negotiations\/[^/]+\/messages$/, limit: 60, windowMs: 60_000 },
   { method: 'POST', path: /^\/scripts(\/[^/]+)?\/upload$/, limit: 10, windowMs: 60_000 },
+  { method: 'POST', path: /^\/inquiries(\/[^/]+\/replies)?$/, limit: 10, windowMs: 60_000 },
 ];
 
 export class FixedWindowLimiter {
