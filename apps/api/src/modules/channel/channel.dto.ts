@@ -131,9 +131,10 @@ export class RecordRevenueDto {
 }
 
 export class RecordPayoutDto {
-  @ApiProperty({ enum: ['WRITER', 'PRODUCER'] })
-  @IsIn(['WRITER', 'PRODUCER'])
-  role!: 'WRITER' | 'PRODUCER';
+  @ApiProperty({ description: '받은 당사자 (그 수익에 적용한 계약의 당사자 id)' })
+  @IsString()
+  @MaxLength(64)
+  partyId!: string;
 
   @ApiPropertyOptional({ description: '지급한 시각 (생략하면 지금)' })
   @IsOptional()
@@ -172,12 +173,24 @@ export class ChannelVideoDto {
   @ApiProperty({ description: '딜의 대본 제목' }) scriptTitle!: string;
 }
 
+export const SHARE_ROLES = ['WRITER', 'PRODUCER', 'PERFORMER', 'OTHER'] as const;
+
 export class PayoutDto {
   @ApiProperty() id!: string;
-  @ApiProperty({ enum: ['WRITER', 'PRODUCER'] }) role!: 'WRITER' | 'PRODUCER';
   @ApiProperty() amountKrw!: number;
   @ApiProperty({ format: 'date-time' }) paidAt!: Date;
   @ApiProperty({ nullable: true, type: String }) memo!: string | null;
+}
+
+/** 수익 한 건에서 당사자 한 명의 몫 */
+export class ShareLineDto {
+  @ApiProperty() partyId!: string;
+  @ApiProperty({ enum: SHARE_ROLES }) role!: (typeof SHARE_ROLES)[number];
+  @ApiProperty() name!: string;
+  @ApiProperty({ nullable: true, type: String }) label!: string | null;
+  @ApiProperty({ description: '배분율 (만분율)' }) revenueShareBp!: number;
+  @ApiProperty() amountKrw!: number;
+  @ApiProperty({ type: PayoutDto, nullable: true }) payout!: PayoutDto | null;
 }
 
 export class RevenueLineDto {
@@ -186,20 +199,23 @@ export class RevenueLineDto {
   @ApiProperty() videoTitle!: string;
   @ApiProperty() month!: string;
   @ApiProperty({ description: '확정 광고 수익 (원)' }) amountKrw!: number;
-  @ApiProperty() writerKrw!: number;
-  @ApiProperty() producerKrw!: number;
+  @ApiProperty({ description: '이 수익에 적용한 계약' }) contractId!: string;
   @ApiProperty({ description: '플랫폼 몫은 언제나 0 (채널 게시 계약 제3조)' }) platformKrw!: number;
-  @ApiProperty({ type: [PayoutDto] }) payouts!: PayoutDto[];
+  @ApiProperty({ type: [ShareLineDto] }) shares!: ShareLineDto[];
+}
+
+/** 당사자별 합계 (같은 사람이 계약이 바뀌어도 한 줄) */
+export class PartyTotalDto {
+  @ApiProperty() userId!: string;
+  @ApiProperty() name!: string;
+  @ApiProperty({ enum: SHARE_ROLES }) role!: (typeof SHARE_ROLES)[number];
+  @ApiProperty() dueKrw!: number;
+  @ApiProperty() paidKrw!: number;
 }
 
 export class SettlementDto {
   @ApiProperty() dealId!: string;
-  @ApiProperty() writerSharePct!: number;
-  @ApiProperty() producerSharePct!: number;
   @ApiProperty({ type: [RevenueLineDto] }) lines!: RevenueLineDto[];
   @ApiProperty() totalRevenueKrw!: number;
-  @ApiProperty() writerDueKrw!: number;
-  @ApiProperty() producerDueKrw!: number;
-  @ApiProperty() writerPaidKrw!: number;
-  @ApiProperty() producerPaidKrw!: number;
+  @ApiProperty({ type: [PartyTotalDto] }) totals!: PartyTotalDto[];
 }

@@ -1806,6 +1806,91 @@
         ]
       }
     },
+    "/deals/{id}/contracts": {
+      "get": {
+        "operationId": "ContractsController_history",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ContractSummaryDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "딜의 이용허락 계약 이력 (처음 계약과 변경 계약, 최신순)",
+        "tags": [
+          "contracts"
+        ]
+      }
+    },
+    "/deals/{id}/contract/amendments": {
+      "post": {
+        "operationId": "ContractsController_amend",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AmendLicenseDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContractDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "변경 계약 제안: 공동 작가·공동 제작자·출연자 추가, 배분율 변경 (모든 당사자가 서명하면 다음 달부터 적용)",
+        "tags": [
+          "contracts"
+        ]
+      }
+    },
     "/scripts/{id}/nda-preview": {
       "get": {
         "operationId": "ContractsController_ndaPreview",
@@ -6727,13 +6812,32 @@
       "ContractPartyDto": {
         "type": "object",
         "properties": {
+          "id": {
+            "type": "string"
+          },
           "role": {
             "type": "string",
             "enum": [
               "WRITER",
               "PRODUCER",
-              "PLATFORM"
+              "PLATFORM",
+              "PERFORMER",
+              "OTHER"
             ]
+          },
+          "label": {
+            "type": "string",
+            "nullable": true,
+            "description": "같은 역할이 여럿일 때 구분 (예: 공동 작가)"
+          },
+          "revenueShareBp": {
+            "type": "number",
+            "nullable": true,
+            "description": "영상 광고 수익 배분율 (만분율, 10000 = 100%)"
+          },
+          "receivesRemainder": {
+            "type": "boolean",
+            "description": "원 단위 내림 차이를 받는 당사자"
           },
           "userId": {
             "type": "string",
@@ -6755,7 +6859,11 @@
           }
         },
         "required": [
+          "id",
           "role",
+          "label",
+          "revenueShareBp",
+          "receivesRemainder",
           "userId",
           "legalName",
           "signedAt",
@@ -6787,12 +6895,23 @@
             "enum": [
               "AWAITING_SIGNATURES",
               "SIGNED",
-              "VOID"
+              "VOID",
+              "SUPERSEDED"
             ]
           },
           "dealId": {
             "type": "string",
             "nullable": true
+          },
+          "supersedesId": {
+            "type": "string",
+            "nullable": true,
+            "description": "이 계약이 바꾸는 이전 계약 (변경 계약)"
+          },
+          "effectiveMonth": {
+            "type": "string",
+            "nullable": true,
+            "description": "수익 배분 적용 시작 달 (YYYY-MM). null이면 처음부터"
           },
           "createdAt": {
             "format": "date-time",
@@ -6821,6 +6940,8 @@
           "title",
           "status",
           "dealId",
+          "supersedesId",
+          "effectiveMonth",
           "createdAt",
           "signedAt",
           "parties",
@@ -6852,12 +6973,23 @@
             "enum": [
               "AWAITING_SIGNATURES",
               "SIGNED",
-              "VOID"
+              "VOID",
+              "SUPERSEDED"
             ]
           },
           "dealId": {
             "type": "string",
             "nullable": true
+          },
+          "supersedesId": {
+            "type": "string",
+            "nullable": true,
+            "description": "이 계약이 바꾸는 이전 계약 (변경 계약)"
+          },
+          "effectiveMonth": {
+            "type": "string",
+            "nullable": true,
+            "description": "수익 배분 적용 시작 달 (YYYY-MM). null이면 처음부터"
           },
           "createdAt": {
             "format": "date-time",
@@ -6907,6 +7039,8 @@
           "title",
           "status",
           "dealId",
+          "supersedesId",
+          "effectiveMonth",
           "createdAt",
           "signedAt",
           "parties",
@@ -6937,6 +7071,64 @@
         "required": [
           "signedName",
           "agreed"
+        ]
+      },
+      "AmendPartyDto": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "WRITER",
+              "PRODUCER",
+              "PERFORMER",
+              "OTHER"
+            ]
+          },
+          "label": {
+            "type": "string",
+            "maxLength": 40,
+            "description": "같은 역할이 여럿일 때 구분 (예: 공동 작가, 주연 배우)"
+          },
+          "revenueShareBp": {
+            "type": "number",
+            "nullable": true,
+            "minimum": 0,
+            "maximum": 10000,
+            "description": "영상 광고 수익 배분율 (만분율). 배분받지 않으면 null"
+          },
+          "receivesRemainder": {
+            "type": "boolean",
+            "description": "원 단위 내림 차이를 받는 당사자 (정확히 한 명)"
+          }
+        },
+        "required": [
+          "userId",
+          "role",
+          "revenueShareBp"
+        ]
+      },
+      "AmendLicenseDto": {
+        "type": "object",
+        "properties": {
+          "parties": {
+            "description": "플랫폼을 뺀 모든 당사자 (지금 계약의 작가·제작자 포함)",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AmendPartyDto"
+            }
+          },
+          "notes": {
+            "type": "string",
+            "maxLength": 1000,
+            "description": "변경 사유나 특약"
+          }
+        },
+        "required": [
+          "parties"
         ]
       },
       "ContractPreviewDto": {
@@ -7753,13 +7945,6 @@
           "id": {
             "type": "string"
           },
-          "role": {
-            "type": "string",
-            "enum": [
-              "WRITER",
-              "PRODUCER"
-            ]
-          },
           "amountKrw": {
             "type": "number"
           },
@@ -7774,10 +7959,58 @@
         },
         "required": [
           "id",
-          "role",
           "amountKrw",
           "paidAt",
           "memo"
+        ]
+      },
+      "ShareLineDto": {
+        "type": "object",
+        "properties": {
+          "partyId": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "WRITER",
+              "PRODUCER",
+              "PERFORMER",
+              "OTHER"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string",
+            "nullable": true
+          },
+          "revenueShareBp": {
+            "type": "number",
+            "description": "배분율 (만분율)"
+          },
+          "amountKrw": {
+            "type": "number"
+          },
+          "payout": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PayoutDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "partyId",
+          "role",
+          "name",
+          "label",
+          "revenueShareBp",
+          "amountKrw",
+          "payout"
         ]
       },
       "RevenueLineDto": {
@@ -7799,20 +8032,18 @@
             "type": "number",
             "description": "확정 광고 수익 (원)"
           },
-          "writerKrw": {
-            "type": "number"
-          },
-          "producerKrw": {
-            "type": "number"
+          "contractId": {
+            "type": "string",
+            "description": "이 수익에 적용한 계약"
           },
           "platformKrw": {
             "type": "number",
             "description": "플랫폼 몫은 언제나 0 (채널 게시 계약 제3조)"
           },
-          "payouts": {
+          "shares": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/PayoutDto"
+              "$ref": "#/components/schemas/ShareLineDto"
             }
           }
         },
@@ -7822,10 +8053,42 @@
           "videoTitle",
           "month",
           "amountKrw",
-          "writerKrw",
-          "producerKrw",
+          "contractId",
           "platformKrw",
-          "payouts"
+          "shares"
+        ]
+      },
+      "PartyTotalDto": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "WRITER",
+              "PRODUCER",
+              "PERFORMER",
+              "OTHER"
+            ]
+          },
+          "dueKrw": {
+            "type": "number"
+          },
+          "paidKrw": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "userId",
+          "name",
+          "role",
+          "dueKrw",
+          "paidKrw"
         ]
       },
       "SettlementDto": {
@@ -7833,12 +8096,6 @@
         "properties": {
           "dealId": {
             "type": "string"
-          },
-          "writerSharePct": {
-            "type": "number"
-          },
-          "producerSharePct": {
-            "type": "number"
           },
           "lines": {
             "type": "array",
@@ -7849,29 +8106,18 @@
           "totalRevenueKrw": {
             "type": "number"
           },
-          "writerDueKrw": {
-            "type": "number"
-          },
-          "producerDueKrw": {
-            "type": "number"
-          },
-          "writerPaidKrw": {
-            "type": "number"
-          },
-          "producerPaidKrw": {
-            "type": "number"
+          "totals": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PartyTotalDto"
+            }
           }
         },
         "required": [
           "dealId",
-          "writerSharePct",
-          "producerSharePct",
           "lines",
           "totalRevenueKrw",
-          "writerDueKrw",
-          "producerDueKrw",
-          "writerPaidKrw",
-          "producerPaidKrw"
+          "totals"
         ]
       },
       "ReviewVideoDto": {
@@ -7951,12 +8197,9 @@
       "RecordPayoutDto": {
         "type": "object",
         "properties": {
-          "role": {
+          "partyId": {
             "type": "string",
-            "enum": [
-              "WRITER",
-              "PRODUCER"
-            ]
+            "description": "받은 당사자 (그 수익에 적용한 계약의 당사자 id)"
           },
           "paidAt": {
             "type": "string",
@@ -7968,7 +8211,7 @@
           }
         },
         "required": [
-          "role"
+          "partyId"
         ]
       },
       "VerifyIdentityDto": {

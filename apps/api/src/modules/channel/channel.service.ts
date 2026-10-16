@@ -3,7 +3,8 @@ import { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { Viewer } from '../access/access-rules.js';
 import { ContractsService } from '../contracts/contracts.service.js';
-import { splitRevenue, validateSettlementMonth } from '../contracts/settlement-rules.js';
+import { splitAmong } from '../contracts/revenue-shares.js';
+import { validateSettlementMonth } from '../contracts/settlement-rules.js';
 import { DealsService } from '../deals/deals.service.js';
 import type {
   ChannelVideoDto,
@@ -13,6 +14,7 @@ import type {
   ReviewVideoDto,
   RevenueLineDto,
   SettlementDto,
+  ShareLineDto,
   SubmitVideoDto,
   VideoStatusName,
 } from './channel.dto.js';
@@ -132,15 +134,17 @@ export class ChannelService {
 
   // ---------- 정산 ----------
 
-  /** 관리자: 끝난 달의 YouTube 확정 수익을 영상마다 기록한다 (게시했거나 게시 후 내린 영상만) */
+  /** 관리자: 끝난 달의 YouTube 확정 수익을 영상마다 기록한다 (게시했거나 게시 후 내린 영상만). 그 달에 적용되는 계약을 함께 고정한다 */
   async recordRevenue(videoId: string, admin: Viewer, dto: RecordRevenueDto): Promise<RevenueLineDto> {
     validateSettlementMonth(dto.month);
     const video = await this.prisma.channelVideo.findUnique({ where: { id: videoId }, select: { status: true, publishedAt: true, dealId: true } });
     if (!video) throw new NotFoundException('영상을 찾을 수 없습니다');
     if (!video.publishedAt) throw new ConflictException('게시한 적 없는 영상에는 수익을 기록할 수 없습니다');
+    const contract = await this.contracts.applicableLicense(video.dealId, dto.month);
+    if (!contract) throw new ConflictException(`${dto.month}에 적용되는 서명된 이용허락 계약이 없습니다`);
     try {
       const r = await this.prisma.videoRevenue.create({
-        data: { videoId, month: dto.month, amountKrw: dto.amountKrw, memo: dto.memo?.trim() || null, createdById: admin.id },
+        data: { videoId, month: dto.month, amountKrw: dto.amountKrw, contractId: contract.id, memo: dto.memo?.trim() || null, createdById: admin.id },
       });
       return (await this.settlement(video.dealId, admin)).lines.find((l) => l.id === r.id)!;
     } catch (e) {
@@ -151,66 +155,92 @@ export class ChannelService {
     }
   }
 
-  /** 딜의 정산서: 영상·월별 확정 수익, 배분율로 나눈 몫(플랫폼 0), 지급 기록 */
+  /** 딜의 정산서: 영상·월별 확정 수익, 그 달 계약의 배분율로 나눈 당사자별 몫(플랫폼 0), 지급 기록, 당사자별 합계 */
   async settlement(dealId: string, user: Viewer): Promise<SettlementDto> {
     await this.deals.assertCanView(dealId, user);
-    const deal = await this.prisma.deal.findUniqueOrThrow({ where: { id: dealId }, select: { acceptedOfferId: true } });
-    const offer = await this.prisma.offer.findUniqueOrThrow({ where: { id: deal.acceptedOfferId }, select: { writerSharePct: true, producerSharePct: true } });
     const revenues = await this.prisma.videoRevenue.findMany({
       where: { video: { dealId } },
-      include: { video: { select: { title: true } }, payouts: { orderBy: { paidAt: 'asc' } } },
+      include: {
+        video: { select: { title: true } },
+        payouts: true,
+        contract: { include: { parties: true } },
+      },
       orderBy: [{ month: 'asc' }, { createdAt: 'asc' }],
     });
-    const lines: RevenueLineDto[] = revenues.map((r) => {
-      const split = splitRevenue(r.amountKrw, offer.writerSharePct);
-      return {
+    const lines: RevenueLineDto[] = [];
+    for (const r of revenues) {
+      const contract = r.contract ?? (await this.contracts.applicableLicense(dealId, r.month));
+      if (!contract) continue;
+      const sharing = contract.parties.filter((p) => p.revenueShareBp !== null && p.role !== 'PLATFORM');
+      const split = splitAmong(
+        r.amountKrw,
+        contract.parties.map((p) => ({ key: p.id, role: p.role, revenueShareBp: p.revenueShareBp, receivesRemainder: p.receivesRemainder })),
+      );
+      lines.push({
         id: r.id,
         videoId: r.videoId,
         videoTitle: r.video.title,
         month: r.month,
         amountKrw: r.amountKrw,
-        writerKrw: split.writerKrw,
-        producerKrw: split.producerKrw,
-        platformKrw: split.platformKrw,
-        payouts: r.payouts.map(({ id, role, amountKrw, paidAt, memo }) => ({ id, role: role as 'WRITER' | 'PRODUCER', amountKrw, paidAt, memo })),
-      };
+        contractId: contract.id,
+        platformKrw: 0,
+        shares: sharing.map((p) => {
+          const paid = r.payouts.find((x) => x.partyId === p.id);
+          return {
+            partyId: p.id,
+            role: p.role as ShareLineDto['role'],
+            name: p.legalName,
+            label: p.label,
+            revenueShareBp: p.revenueShareBp!,
+            amountKrw: split.get(p.id) ?? 0,
+            payout: paid ? { id: paid.id, amountKrw: paid.amountKrw, paidAt: paid.paidAt, memo: paid.memo } : null,
+          };
+        }),
+      });
+    }
+    // 당사자별 합계: 계약이 바뀌어도 같은 사람은 한 줄 (contract party → user)
+    const parties = await this.prisma.contractParty.findMany({
+      where: { id: { in: lines.flatMap((l) => l.shares.map((x) => x.partyId)) } },
+      select: { id: true, userId: true },
     });
-    const sum = (f: (l: RevenueLineDto) => number) => lines.reduce((a, l) => a + f(l), 0);
-    const paid = (role: string) => sum((l) => l.payouts.filter((p) => p.role === role).reduce((a, p) => a + p.amountKrw, 0));
-    return {
-      dealId,
-      writerSharePct: offer.writerSharePct,
-      producerSharePct: offer.producerSharePct,
-      lines,
-      totalRevenueKrw: sum((l) => l.amountKrw),
-      writerDueKrw: sum((l) => l.writerKrw),
-      producerDueKrw: sum((l) => l.producerKrw),
-      writerPaidKrw: paid('WRITER'),
-      producerPaidKrw: paid('PRODUCER'),
-    };
+    const userOf = new Map(parties.map((p) => [p.id, p.userId ?? p.id]));
+    const totals = new Map<string, { userId: string; name: string; role: ShareLineDto['role']; dueKrw: number; paidKrw: number }>();
+    for (const l of lines) {
+      for (const x of l.shares) {
+        const uid = userOf.get(x.partyId)!;
+        const t = totals.get(uid) ?? { userId: uid, name: x.name, role: x.role, dueKrw: 0, paidKrw: 0 };
+        t.dueKrw += x.amountKrw;
+        t.paidKrw += x.payout?.amountKrw ?? 0;
+        totals.set(uid, t);
+      }
+    }
+    return { dealId, lines, totalRevenueKrw: lines.reduce((a, l) => a + l.amountKrw, 0), totals: [...totals.values()] };
   }
 
-  /** 관리자: 플랫폼 밖에서 이체한 뒤 지급을 기록한다. 금액은 정산 규칙으로 정해져 있어 입력받지 않는다 */
+  /** 관리자: 플랫폼 밖에서 이체한 뒤 당사자 한 명에 대한 지급을 기록한다. 금액은 배분 규칙으로 정해져 있어 입력받지 않는다 */
   async recordPayout(revenueId: string, admin: Viewer, dto: RecordPayoutDto): Promise<SettlementDto> {
     const r = await this.prisma.videoRevenue.findUnique({
       where: { id: revenueId },
-      select: {
-        amountKrw: true,
-        video: { select: { dealId: true, deal: { select: { acceptedOfferId: true, negotiation: { select: { writerId: true, producerId: true } } } } } },
-      },
+      include: { video: { select: { dealId: true } }, contract: { include: { parties: true } } },
     });
     if (!r) throw new NotFoundException('수익 기록을 찾을 수 없습니다');
-    const offer = await this.prisma.offer.findUniqueOrThrow({ where: { id: r.video.deal.acceptedOfferId }, select: { writerSharePct: true } });
-    const split = splitRevenue(r.amountKrw, offer.writerSharePct);
-    const amountKrw = dto.role === 'WRITER' ? split.writerKrw : split.producerKrw;
-    const recipientId = dto.role === 'WRITER' ? r.video.deal.negotiation.writerId : r.video.deal.negotiation.producerId;
+    const contract = r.contract ?? (await this.contracts.applicableLicense(r.video.dealId, r.month));
+    const party = contract?.parties.find((p) => p.id === dto.partyId);
+    if (!contract || !party || party.role === 'PLATFORM' || party.revenueShareBp === null || !party.userId) {
+      throw new BadRequestException('이 수익을 배분받는 당사자가 아닙니다');
+    }
+    const split = splitAmong(
+      r.amountKrw,
+      contract.parties.map((p) => ({ key: p.id, role: p.role, revenueShareBp: p.revenueShareBp, receivesRemainder: p.receivesRemainder })),
+    );
     try {
       await this.prisma.settlementPayout.create({
         data: {
           revenueId,
-          role: dto.role,
-          recipientId,
-          amountKrw,
+          partyId: party.id,
+          role: party.role,
+          recipientId: party.userId,
+          amountKrw: split.get(party.id) ?? 0,
           paidAt: dto.paidAt ? new Date(dto.paidAt) : new Date(),
           memo: dto.memo?.trim() || null,
           createdById: admin.id,

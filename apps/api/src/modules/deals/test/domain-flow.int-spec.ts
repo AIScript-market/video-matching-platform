@@ -178,7 +178,9 @@ run('도메인 흐름 (DB)', () => {
     // 7. 대본 이용허락 계약: 양쪽이 서명해야 딜·라이선스가 ACTIVE
     const license = await contracts.forDeal(deal.id, writer);
     expect(license).toMatchObject({ kind: 'SCRIPT_LICENSE', status: 'AWAITING_SIGNATURES', awaitingMySignature: true });
-    expect(license.body).toContain('작가 60% / 제작자 40%');
+    expect(license.body).toContain('작가: writer — 60.00%');
+    expect(license.body).toContain('제작자: producer — 40.00% (원 단위 내림 차이 포함)');
+    expect(license.parties.find((p) => p.role === 'PLATFORM')?.signedAt).not.toBeNull(); // 플랫폼도 당사자, 만들 때 서명
     expect(license.body).toContain('특약: 해외 판권 제외');
     const meta = { ip: '127.0.0.1', userAgent: 'vitest' };
     await expect(contracts.sign(license.id, writer, { signedName: '다른 이름', agreed: true }, meta)).rejects.toThrow(BadRequestException);

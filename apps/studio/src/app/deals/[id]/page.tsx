@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { DealContract, DealSettlement, DealVideos } from "@/components/deal-channel";
+import { DealAmendments, DealContract, DealSettlement, DealVideos } from "@/components/deal-channel";
 import { DealProjectCard } from "@/components/deal-project-card";
 import { LedgerTable } from "@/components/ledger-table";
 import { ErrorText, RequireAuth, StatusBadge } from "@/components/ui";
@@ -79,7 +79,8 @@ function DealDetail() {
         </section>
       </div>
 
-      <DealContract dealId={deal.id} onSigned={() => setVersion((v) => v + 1)} />
+      <DealContract key={`contract-${version}`} dealId={deal.id} onSigned={() => setVersion((v) => v + 1)} />
+      <DealAmendments key={`history-${version}`} deal={deal} onChange={() => setVersion((v) => v + 1)} />
       <DealVideos key={`videos-${deal.status}`} deal={deal} />
       <DealSettlement dealId={deal.id} />
 

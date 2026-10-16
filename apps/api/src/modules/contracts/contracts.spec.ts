@@ -6,6 +6,7 @@ import {
   sha256,
   TEMPLATE_VERSIONS,
 } from './contract-templates.js';
+import { formatBp, splitAmong, twoPartyShares, validateShares } from './revenue-shares.js';
 import { splitRevenue, validateSettlementMonth } from './settlement-rules.js';
 
 const date = new Date('2026-10-15T09:00:00Z');
@@ -15,11 +16,11 @@ describe('contract templates', () => {
     const input = {
       scriptTitle: '마지막 열차',
       scriptId: 's1',
-      writerName: '한작가',
-      producerName: '빛나는 제작소',
-      platformName: '대본매칭',
-      writerSharePct: 30,
-      producerSharePct: 70,
+      parties: [
+        { role: 'WRITER' as const, name: '한작가', revenueShareBp: 3_000, receivesRemainder: false },
+        { role: 'PRODUCER' as const, name: '빛나는 제작소', revenueShareBp: 7_000, receivesRemainder: true },
+        { role: 'PLATFORM' as const, name: '대본매칭', revenueShareBp: null, receivesRemainder: false },
+      ],
       upfrontFeeKrw: 1_500_000,
       termMonths: 24,
       exclusive: true,
@@ -28,7 +29,9 @@ describe('contract templates', () => {
     };
     const a = renderScriptLicense(input);
     expect(a.templateVersion).toBe(TEMPLATE_VERSIONS.SCRIPT_LICENSE);
-    expect(a.body).toContain('작가 30% / 제작자 70%');
+    expect(a.body).toContain('작가: 한작가 — 30.00%');
+    expect(a.body).toContain('플랫폼: 대본매칭 — 배분 없음 (수익 수령·정산·지급 담당)');
+    expect(a.body).toContain('각 당사자에게 몫을 직접 지급한다');
     expect(a.body).toContain('1,500,000원');
     expect(a.body).toContain('24개월');
     expect(a.body).toContain('작가는 기간 동안 같은 대본의 영상화를 다른 사람에게 허락하지 않는다');
@@ -86,5 +89,36 @@ describe('settlement rules', () => {
     expect(() => validateSettlementMonth('2026-10', now)).toThrow();
     expect(() => validateSettlementMonth('2026-13', now)).toThrow();
     expect(() => validateSettlementMonth('2026-9', now)).toThrow();
+  });
+});
+
+describe('multi-party revenue shares', () => {
+  const parties = [
+    { key: 'w1', role: 'WRITER' as const, revenueShareBp: 2_000, receivesRemainder: false },
+    { key: 'w2', role: 'WRITER' as const, revenueShareBp: 1_000, receivesRemainder: false },
+    { key: 'actor', role: 'PERFORMER' as const, revenueShareBp: 1_500, receivesRemainder: false },
+    { key: 'p', role: 'PRODUCER' as const, revenueShareBp: 5_500, receivesRemainder: true },
+    { key: 'platform', role: 'PLATFORM' as const, revenueShareBp: null, receivesRemainder: false },
+  ];
+
+  it('splits among any number of parties and gives the rounding remainder to one party', () => {
+    const m = splitAmong(10_007, parties);
+    expect(Object.fromEntries(m)).toEqual({ w1: 2_001, w2: 1_000, actor: 1_501, p: 5_505 });
+    expect([...m.values()].reduce((a, b) => a + b, 0)).toBe(10_007);
+    expect(m.has('platform')).toBe(false);
+  });
+
+  it('rejects share tables that do not add up, lack a writer or producer, or pay the platform', () => {
+    expect(() => validateShares(parties.map((p) => (p.key === 'p' ? { ...p, revenueShareBp: 5_000 } : p)))).toThrow();
+    expect(() => validateShares(parties.filter((p) => p.role !== 'WRITER').map((p) => (p.key === 'p' ? { ...p, revenueShareBp: 8_500 } : p)))).toThrow();
+    expect(() => validateShares(parties.map((p) => (p.key === 'platform' ? { ...p, revenueShareBp: 0, receivesRemainder: true } : p)))).toThrow();
+    expect(() => validateShares(parties.map((p) => ({ ...p, receivesRemainder: false })))).toThrow();
+  });
+
+  it('matches the old two-party rule', () => {
+    expect(Object.fromEntries(splitAmong(10_001, twoPartyShares(30, 70)))).toEqual({ WRITER: 3_000, PRODUCER: 7_001 });
+    expect(splitRevenue(10_001, 30)).toMatchObject({ writerKrw: 3_000, producerKrw: 7_001 });
+    expect(formatBp(1_250)).toBe('12.50%');
+    expect(formatBp(3_000)).toBe('30%');
   });
 });

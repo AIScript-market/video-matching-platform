@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { ContractPanel } from "@/components/contract-view";
+import { ContractPanel, ContractStatus } from "@/components/contract-view";
 import { ErrorText } from "@/components/ui";
-import { api, dateTime, unwrap, won, type ChannelVideo, type Contract, type Deal, type Settlement } from "@/lib/api";
+import { api, dateTime, unwrap, won, type ChannelVideo, type Contract, type ContractSummary, type Deal, type Settlement } from "@/lib/api";
 import { useSession } from "@/lib/session";
 
 const VIDEO_STATUS: Record<ChannelVideo["status"], [string, string]> = {
@@ -206,7 +206,10 @@ function SubmitVideo({ dealId, onSubmitted }: { dealId: string; onSubmitted: () 
   );
 }
 
-/** 정산서: 영상·월별 확정 수익, 작가·제작자 몫, 지급 기록 (관리자는 지급 기록 버튼) */
+const SHARE_ROLE: Record<string, string> = { WRITER: "작가", PRODUCER: "제작자", PERFORMER: "출연자", OTHER: "참여자" };
+const pct = (bp: number) => `${(bp / 100).toFixed(bp % 100 === 0 ? 0 : 2)}%`;
+
+/** 정산서: 영상·월별 확정 수익을 그 달 계약의 당사자별 몫으로 (관리자는 지급 기록 버튼) */
 export function DealSettlement({ dealId }: { dealId: string }) {
   const { has } = useSession();
   const [s, setS] = useState<Settlement | null>(null);
@@ -217,33 +220,22 @@ export function DealSettlement({ dealId }: { dealId: string }) {
       .catch((err: Error) => setError(err.message));
   }, [dealId]);
 
-  async function pay(revenueId: string, role: "WRITER" | "PRODUCER") {
+  async function pay(revenueId: string, partyId: string) {
     setError(null);
     try {
-      setS(await unwrap(api.POST("/admin/revenues/{id}/payouts", { params: { path: { id: revenueId } }, body: { role } })));
+      setS(await unwrap(api.POST("/admin/revenues/{id}/payouts", { params: { path: { id: revenueId } }, body: { partyId } })));
     } catch (err) {
       setError((err as Error).message);
     }
   }
 
   if (!s) return <ErrorText error={error} />;
-  const paidCell = (line: Settlement["lines"][number], role: "WRITER" | "PRODUCER") => {
-    const p = line.payouts.find((x) => x.role === role);
-    if (p) return <span className="small">지급 {dateTime(p.paidAt)}</span>;
-    return has("ADMIN") ? (
-      <button className="secondary small" onClick={() => pay(line.id, role)}>
-        지급 기록
-      </button>
-    ) : (
-      <span className="badge warn">지급 전</span>
-    );
-  };
 
   return (
     <section className="card stack" aria-label="정산">
       <h2>정산</h2>
       <p className="small muted">
-        YouTube가 확정한 월 광고 수익 기준 · 작가 {s.writerSharePct}% / 제작자 {s.producerSharePct}% · 플랫폼 몫 0원. 구글 지급을 받은 다음 달 말일까지 정산합니다.
+        YouTube가 확정한 월 광고 수익을 그 달에 적용되는 계약의 배분율대로 나눕니다. 플랫폼 몫은 0원이고, 구글 지급을 받은 다음 달 말일까지 정산합니다.
       </p>
       <ErrorText error={error} />
       {s.lines.length === 0 ? (
@@ -256,34 +248,291 @@ export function DealSettlement({ dealId }: { dealId: string }) {
                 <th>월</th>
                 <th>영상</th>
                 <th className="num">확정 수익</th>
-                <th className="num">작가</th>
-                <th>작가 지급</th>
-                <th className="num">제작자</th>
-                <th>제작자 지급</th>
+                <th>당사자</th>
+                <th className="num">배분율</th>
+                <th className="num">몫</th>
+                <th>지급</th>
               </tr>
             </thead>
             <tbody>
-              {s.lines.map((l) => (
-                <tr key={l.id}>
-                  <td>{l.month}</td>
-                  <td>{l.videoTitle}</td>
-                  <td className="num">{won(l.amountKrw)}</td>
-                  <td className="num">{won(l.writerKrw)}</td>
-                  <td>{paidCell(l, "WRITER")}</td>
-                  <td className="num">{won(l.producerKrw)}</td>
-                  <td>{paidCell(l, "PRODUCER")}</td>
-                </tr>
-              ))}
+              {s.lines.flatMap((l) =>
+                l.shares.map((x, i) => (
+                  <tr key={`${l.id}-${x.partyId}`}>
+                    <td>{i === 0 ? l.month : ""}</td>
+                    <td>{i === 0 ? l.videoTitle : ""}</td>
+                    <td className="num">{i === 0 ? won(l.amountKrw) : ""}</td>
+                    <td>
+                      {SHARE_ROLE[x.role]}
+                      {x.label ? `(${x.label})` : ""} {x.name}
+                    </td>
+                    <td className="num">{pct(x.revenueShareBp)}</td>
+                    <td className="num">{won(x.amountKrw)}</td>
+                    <td>
+                      {x.payout ? (
+                        <span className="small">지급 {dateTime(x.payout.paidAt)}</span>
+                      ) : has("ADMIN") ? (
+                        <button className="secondary small" onClick={() => pay(l.id, x.partyId)}>
+                          지급 기록
+                        </button>
+                      ) : (
+                        <span className="badge warn">지급 전</span>
+                      )}
+                    </td>
+                  </tr>
+                )),
+              )}
             </tbody>
           </table>
         </div>
       )}
       <p className="small">
-        합계 {won(s.totalRevenueKrw)} · 작가 {won(s.writerDueKrw)} (지급 {won(s.writerPaidKrw)}) · 제작자 {won(s.producerDueKrw)} (지급 {won(s.producerPaidKrw)})
+        합계 {won(s.totalRevenueKrw)}
+        {s.totals.map((t) => (
+          <span key={t.userId}>
+            {" "}
+            · {SHARE_ROLE[t.role]} {t.name} {won(t.dueKrw)} (지급 {won(t.paidKrw)})
+          </span>
+        ))}
       </p>
       <p className="small muted">
-        베타 기간에는 플랫폼 밖에서 이체한 뒤 기록합니다. 문의는 <Link href="/contracts">계약</Link>의 채널 게시 계약 제4조를 참고하세요.
+        베타 기간에는 플랫폼 밖에서 이체한 뒤 기록합니다. 정산 기준은 <Link href="/contracts">계약</Link>의 대본 이용허락 계약 제6·7조에 있습니다.
       </p>
     </section>
+  );
+}
+
+/** 이용허락 계약 이력과 변경 계약 제안 (공동 작가·공동 제작자 추가, 배분율 변경. 출연자는 배우 기능이 열리면) */
+export function DealAmendments({ deal, onChange }: { deal: Deal; onChange: () => void }) {
+  const { user, config } = useSession();
+  const [history, setHistory] = useState<ContractSummary[]>([]);
+  const [open, setOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const load = useCallback(
+    () =>
+      unwrap(api.GET("/deals/{id}/contracts", { params: { path: { id: deal.id } } }))
+        .then(setHistory)
+        .catch((err: Error) => setError(err.message)),
+    [deal.id],
+  );
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const current = history.find((c) => c.status === "SIGNED");
+  const pending = history.some((c) => c.status === "AWAITING_SIGNATURES");
+  const canPropose = Boolean(current) && !pending && (user?.id === deal.writer.id || user?.id === deal.producer.id);
+  const roles: Array<[AmendRole, string]> = [
+    ["WRITER", "작가"],
+    ["PRODUCER", "제작자"],
+    ["OTHER", "참여자"],
+    ...(config?.features.casting ? ([["PERFORMER", "출연자"]] as Array<[AmendRole, string]>) : []),
+  ];
+
+  return (
+    <section className="card stack" aria-label="계약 이력">
+      <div className="spread">
+        <h2 style={{ margin: 0 }}>계약 이력</h2>
+        {canPropose && !open && (
+          <button className="secondary" onClick={() => setOpen(true)}>
+            당사자 추가·배분 변경
+          </button>
+        )}
+      </div>
+      <ErrorText error={error} />
+      <div className="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>계약</th>
+              <th>상태</th>
+              <th>적용</th>
+              <th>당사자와 배분율</th>
+            </tr>
+          </thead>
+          <tbody>
+            {history.map((c) => (
+              <tr key={c.id}>
+                <td>
+                  <Link href={`/contracts/${c.id}`}>{c.supersedesId ? "변경 계약" : "처음 계약"}</Link>
+                  <span className="small muted"> {dateTime(c.createdAt)}</span>
+                </td>
+                <td>
+                  <ContractStatus status={c.status} />
+                </td>
+                <td className="small">{c.effectiveMonth ? `${c.effectiveMonth}부터` : "처음부터"}</td>
+                <td className="small">
+                  {c.parties
+                    .filter((p) => p.role !== "PLATFORM")
+                    .map((p) => `${SHARE_ROLE[p.role] ?? p.role}${p.label ? `(${p.label})` : ""} ${p.legalName} ${p.revenueShareBp === null ? "-" : pct(p.revenueShareBp)}`)
+                    .join(" · ")}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {open && current && (
+        <AmendForm
+          dealId={deal.id}
+          current={current}
+          roles={roles}
+          onDone={async () => {
+            setOpen(false);
+            await load();
+            onChange();
+          }}
+          onCancel={() => setOpen(false)}
+        />
+      )}
+      <p className="small muted">변경 계약은 모든 당사자가 서명하면 그다음 달 1일부터 발생하는 수익에 적용되고, 그 전 수익은 예전 배분을 따릅니다.</p>
+    </section>
+  );
+}
+
+type AmendRole = "WRITER" | "PRODUCER" | "PERFORMER" | "OTHER";
+interface Row {
+  userId: string;
+  name: string;
+  role: AmendRole;
+  label: string;
+  percent: string;
+  remainder: boolean;
+}
+
+function AmendForm({
+  dealId,
+  current,
+  roles,
+  onDone,
+  onCancel,
+}: {
+  dealId: string;
+  current: ContractSummary;
+  roles: Array<[AmendRole, string]>;
+  onDone: () => Promise<void>;
+  onCancel: () => void;
+}) {
+  const [rows, setRows] = useState<Row[]>(() =>
+    current.parties
+      .filter((p) => p.role !== "PLATFORM" && p.userId)
+      .map((p) => ({
+        userId: p.userId!,
+        name: p.legalName,
+        role: p.role as AmendRole,
+        label: p.label ?? "",
+        percent: p.revenueShareBp === null ? "" : String(p.revenueShareBp / 100),
+        remainder: p.receivesRemainder,
+      })),
+  );
+  const [notes, setNotes] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const total = rows.reduce((a, r) => a + (Number(r.percent) || 0), 0);
+  const set = (i: number, patch: Partial<Row>) => setRows(rows.map((r, j) => (j === i ? { ...r, ...patch } : r)));
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      await unwrap(
+        api.POST("/deals/{id}/contract/amendments", {
+          params: { path: { id: dealId } },
+          body: {
+            notes: notes || undefined,
+            parties: rows.map((r) => ({
+              userId: r.userId.trim(),
+              role: r.role,
+              label: r.label || undefined,
+              revenueShareBp: r.percent === "" ? null : Math.round(Number(r.percent) * 100),
+              receivesRemainder: r.remainder,
+            })),
+          },
+        }),
+      );
+      await onDone();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form className="stack" onSubmit={submit} aria-label="변경 계약 제안">
+      <h3>변경 계약 제안</h3>
+      <p className="small muted">새 당사자는 상대의 공개 프로필 주소(/users/계정ID)에 있는 계정 ID로 넣습니다. 지금 계약의 작가와 제작자는 뺄 수 없습니다.</p>
+      <div className="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>계정 ID</th>
+              <th>역할</th>
+              <th>구분</th>
+              <th className="num">배분율(%)</th>
+              <th>내림 차이</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r, i) => (
+              <tr key={i}>
+                <td>
+                  {r.name ? (
+                    <span className="small">{r.name}</span>
+                  ) : (
+                    <input aria-label={`당사자 ${i + 1} 계정 ID`} value={r.userId} onChange={(e) => set(i, { userId: e.target.value })} />
+                  )}
+                </td>
+                <td>
+                  <select aria-label={`당사자 ${i + 1} 역할`} value={r.role} onChange={(e) => set(i, { role: e.target.value as AmendRole })} disabled={Boolean(r.name)}>
+                    {roles.map(([v, label]) => (
+                      <option key={v} value={v}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                </td>
+                <td>
+                  <input aria-label={`당사자 ${i + 1} 구분`} placeholder="예: 공동 작가" maxLength={40} value={r.label} onChange={(e) => set(i, { label: e.target.value })} />
+                </td>
+                <td className="num">
+                  <input aria-label={`당사자 ${i + 1} 배분율`} inputMode="decimal" value={r.percent} onChange={(e) => set(i, { percent: e.target.value.replace(/[^0-9.]/g, "") })} />
+                </td>
+                <td>
+                  <input
+                    aria-label={`당사자 ${i + 1} 내림 차이`}
+                    type="radio"
+                    name="remainder"
+                    checked={r.remainder}
+                    onChange={() => setRows(rows.map((x, j) => ({ ...x, remainder: j === i })))}
+                  />
+                </td>
+                <td>{!r.name && <button type="button" className="ghost small" onClick={() => setRows(rows.filter((_, j) => j !== i))}>빼기</button>}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="row">
+        <button type="button" className="secondary small" onClick={() => setRows([...rows, { userId: "", name: "", role: "OTHER", label: "", percent: "", remainder: false }])}>
+          + 당사자 추가
+        </button>
+        <span className={`small ${Math.abs(total - 100) < 0.001 ? "muted" : "error"}`}>합계 {total.toFixed(2)}%</span>
+      </div>
+      <label>
+        변경 사유·특약 (선택)
+        <textarea maxLength={1000} value={notes} onChange={(e) => setNotes(e.target.value)} />
+      </label>
+      <ErrorText error={error} />
+      <div className="row">
+        <button type="submit" disabled={busy || Math.abs(total - 100) > 0.001}>
+          변경 계약 만들기
+        </button>
+        <button type="button" className="ghost" onClick={onCancel}>
+          취소
+        </button>
+      </div>
+    </form>
   );
 }

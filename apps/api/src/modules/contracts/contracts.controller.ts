@@ -3,7 +3,7 @@ import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swa
 import { CreatorGuard, CurrentUser, JwtAuthGuard, Roles, RolesGuard } from '../../core/auth/index.js';
 import type { Viewer } from '../access/access-rules.js';
 import { signatureMeta, type RequestLike } from './signature-meta.js';
-import { ContractDto, ContractPreviewDto, ContractSummaryDto, SignContractDto, VoidContractDto } from './contracts.dto.js';
+import { AmendLicenseDto, ContractDto, ContractPreviewDto, ContractSummaryDto, SignContractDto, VoidContractDto } from './contracts.dto.js';
 import { ContractsService } from './contracts.service.js';
 
 @ApiTags('contracts')
@@ -54,6 +54,20 @@ export class ContractsController {
   @ApiOkResponse({ type: ContractDto })
   forDeal(@Param('id') dealId: string, @CurrentUser() user: Viewer) {
     return this.contracts.forDeal(dealId, user);
+  }
+
+  @Get('deals/:id/contracts')
+  @ApiOperation({ summary: '딜의 이용허락 계약 이력 (처음 계약과 변경 계약, 최신순)' })
+  @ApiOkResponse({ type: [ContractSummaryDto] })
+  history(@Param('id') dealId: string, @CurrentUser() user: Viewer) {
+    return this.contracts.historyForDeal(dealId, user);
+  }
+
+  @Post('deals/:id/contract/amendments')
+  @ApiOperation({ summary: '변경 계약 제안: 공동 작가·공동 제작자·출연자 추가, 배분율 변경 (모든 당사자가 서명하면 다음 달부터 적용)' })
+  @ApiOkResponse({ type: ContractDto })
+  amend(@Param('id') dealId: string, @CurrentUser() user: Viewer, @Body() dto: AmendLicenseDto) {
+    return this.contracts.proposeAmendment(dealId, user, dto);
   }
 
   @Get('scripts/:id/nda-preview')
