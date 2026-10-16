@@ -20,10 +20,12 @@ import { WorksModule } from './modules/works/works.module.js';
 import { HitModelModule } from './modules/hit-model/hit-model.module.js';
 import { PerformanceModule } from './modules/performance/performance.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
-import { betaConfig } from './core/beta.js';
+import { featureFlags } from './core/beta.js';
 
-// 베타에서는 출연자·캐스팅·작품·흥행 판단 API를 올리지 않는다 (docs/launch-readiness.md)
-const BETA_HIDDEN = [TalentModule, CastingModule, WorksModule, PerformanceModule, HitModelModule];
+// 꺼진 기능의 API는 올리지 않는다: 출연자·캐스팅·작품은 FEATURE_CASTING=on일 때만, 흥행 판단은 베타가 아닐 때만 (core/beta.ts)
+const features = featureFlags();
+const CASTING_MODULES = [TalentModule, CastingModule, WorksModule];
+const HIT_MODEL_MODULES = [PerformanceModule, HitModelModule];
 
 @Module({
   imports: [
@@ -43,7 +45,8 @@ const BETA_HIDDEN = [TalentModule, CastingModule, WorksModule, PerformanceModule
     ContractsModule,
     ChannelModule,
     SupportModule,
-    ...(betaConfig().enabled ? [] : BETA_HIDDEN),
+    ...(features.casting ? CASTING_MODULES : []),
+    ...(features.hitModel ? HIT_MODEL_MODULES : []),
   ],
 })
 export class AppModule {}
