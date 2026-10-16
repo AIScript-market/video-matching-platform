@@ -1,5 +1,5 @@
 /** AI 요약 새로고침·최근 수정 시각·미리보기 대본 (DATABASE_URL 필요) */
-import { BadRequestException, ForbiddenException, HttpException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, HttpException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { Viewer } from '../access/access-rules.js';
 import type { AiJobsQueue } from './ai-jobs.queue.js';
@@ -49,11 +49,11 @@ run('AI 요약·미리보기 (DB)', () => {
     return { id: u.id, roles };
   }
 
-  /** 워커가 요약을 저장한 것처럼 흉내낸다 (워커는 새 요약을 비공개로 돌린다, apps/worker db.ts) */
+  /** 워커가 요약을 저장한 것처럼 흉내낸다 */
   const fakeWorker = (id: string, summary = 's') =>
     prisma.script.update({
       where: { id },
-      data: { aiSummary: { summary, tags: [], contentRating: 'ALL', model: 'test', generatedAt: new Date().toISOString() }, aiSummaryPublic: false },
+      data: { aiSummary: { summary, tags: [], contentRating: 'ALL', model: 'test', generatedAt: new Date().toISOString() } },
     });
 
   beforeAll(async () => {
@@ -101,8 +101,8 @@ run('AI 요약·미리보기 (DB)', () => {
     await scripts.update(s.id, writer, { logline: 'l' });
     expect(queued.length).toBe(before);
 
-    // 내용 변경 → 수정 시각 갱신 + 새 요약 요청
-    const edited = await scripts.update(s.id, writer, { fullText: 'v2' });
+    // 소개 글 변경 → 수정 시각 갱신 + 새 요약 요청
+    const edited = await scripts.update(s.id, writer, { synopsis: 's2' });
     expect(queued.length).toBe(before + 1);
     expect(edited.aiSummaryPending).toBe(true);
     expect(new Date(edited.contentUpdatedAt).getTime()).toBeGreaterThan(new Date(done.contentUpdatedAt).getTime());
@@ -128,11 +128,11 @@ run('AI 요약·미리보기 (DB)', () => {
     queueOk = true;
   });
 
-  it('AI 요약은 작가가 동의해야 만들고, 작가가 공개하기 전에는 작가와 열람 승인된 제작자만 본다', async () => {
-    const title = `요약 보안 ${suffix}`;
-    // 동의 없이 만들고 공개하면 요약 작업을 보내지 않는다 (전문이 국외 AI로 가지 않는다)
+  it('AI 요약은 작가가 동의한 대본만, 공개 소개 글이 바뀔 때만 만들고, 누구나 본다', async () => {
+    const title = `요약 동의 ${suffix}`;
+    // 동의 없이 만들고 공개하면 요약 작업을 보내지 않는다
     const before = queued.length;
-    const s = await scripts.create(writer, { title, logline: 'l', synopsis: 's', genre: '스릴러', fullText: '범인은 형이다', rightsDeclared: true });
+    const s = await scripts.create(writer, { title, logline: 'l', synopsis: '형제가 사라진 아버지를 찾는다', genre: '스릴러', fullText: '범인은 형이다', rightsDeclared: true });
     await scripts.publish(s.id, writer, {});
     expect(queued.length).toBe(before);
     await expect(scripts.refreshSummary(s.id, writer)).rejects.toThrow(BadRequestException);
@@ -140,42 +140,33 @@ run('AI 요약·미리보기 (DB)', () => {
     // 동의하면 요약을 요청한다
     expect((await scripts.update(s.id, writer, { aiSummaryConsent: true })).aiSummaryPending).toBe(true);
     expect(queued.length).toBe(before + 1);
-    await fakeWorker(s.id, '형제의 비밀');
+    await fakeWorker(s.id, '형제의 추적');
 
-    // 작가는 보고, 열람 승인 전 제작자·비로그인·목록에서는 가려진다
-    expect((await scripts.get(s.id, writer)).aiSummary?.summary).toBe('형제의 비밀');
-    for (const viewer of [producer, member, null]) {
-      const seen = await scripts.get(s.id, viewer);
-      expect(seen).toMatchObject({ aiSummary: null, aiSummaryHidden: true });
-      expect(seen.viewer.canReadAiSummary).toBe(false);
-    }
-    expect((await scripts.list({ q: title }, producer)).items[0]).toMatchObject({ aiSummary: null, aiSummaryHidden: true });
-    expect((await scripts.list({ mine: true, q: title }, writer)).items[0].aiSummary?.summary).toBe('형제의 비밀');
+    // 요약은 공개 소개 글로 만들었으므로 시놉시스처럼 누구나 본다
+    for (const viewer of [producer, member, null]) expect((await scripts.get(s.id, viewer)).aiSummary?.summary).toBe('형제의 추적');
+    expect((await scripts.list({ q: title }, null)).items[0].aiSummary?.summary).toBe('형제의 추적');
 
-    // 비밀유지 서약 뒤 열람 승인된 제작자는 본다 (신청 중이면 못 본다)
-    const req = await prisma.scriptAccessRequest.create({ data: { scriptId: s.id, producerId: producer.id, ndaAcceptedAt: new Date() } });
-    expect((await scripts.get(s.id, producer)).aiSummary).toBeNull();
-    await prisma.scriptAccessRequest.update({ where: { id: req.id }, data: { status: 'APPROVED', decidedAt: new Date() } });
-    expect((await scripts.get(s.id, producer)).aiSummary?.summary).toBe('형제의 비밀');
-
-    // 작가가 읽고 공개하면 누구나 본다. 작가 본인만 정할 수 있다
-    await expect(scripts.setSummaryVisibility(s.id, producer, true)).rejects.toThrow(ForbiddenException);
-    expect((await scripts.setSummaryVisibility(s.id, writer, true)).aiSummaryPublic).toBe(true);
-    expect((await scripts.get(s.id, null)).aiSummary?.summary).toBe('형제의 비밀');
-    expect((await scripts.list({ q: title }, null)).items[0].aiSummary?.summary).toBe('형제의 비밀');
-
-    // 내용이 바뀌면: 새 요약을 만드는 중에는 공개할 수 없고, 새 요약은 비공개로 돌아간다
+    // 전문만 바꾸면 요약을 다시 만들지 않고(전문은 요약에 쓰지 않는다), 시놉시스를 바꾸면 다시 만든다
     await new Promise((r) => setTimeout(r, 5));
-    await scripts.update(s.id, writer, { fullText: '범인은 동생이다' });
-    await expect(scripts.setSummaryVisibility(s.id, writer, true)).rejects.toThrow(BadRequestException);
-    await fakeWorker(s.id, '새 요약');
-    expect((await scripts.get(s.id, member)).aiSummary).toBeNull();
+    const fullOnly = await scripts.update(s.id, writer, { fullText: '범인은 동생이다' });
+    expect(queued.length).toBe(before + 1);
+    expect(fullOnly.aiSummaryPending).toBe(false);
+    expect((await scripts.update(s.id, writer, { synopsis: '형제가 아버지의 비밀을 쫓는다' })).aiSummaryPending).toBe(true);
+    expect(queued.length).toBe(before + 2);
 
     // 동의를 끄면 요약을 지운다
     const off = await scripts.update(s.id, writer, { aiSummaryConsent: false });
-    expect(off).toMatchObject({ aiSummary: null, aiSummaryHidden: false, aiSummaryConsent: false, aiSummaryPublic: false, aiSummaryPending: false });
-    await expect(scripts.setSummaryVisibility(s.id, writer, true)).rejects.toThrow(BadRequestException);
-    await prisma.scriptAccessRequest.delete({ where: { id: req.id } });
+    expect(off).toMatchObject({ aiSummary: null, aiSummaryConsent: false, aiSummaryPending: false });
+    expect(queued.length).toBe(before + 2);
+  });
+
+  it('요약할 소개 글이 없으면 동의해도 요약하지 않는다 (파일로 만든 빈 초안 등)', async () => {
+    const before = queued.length;
+    const s = await scripts.create(writer, { title: '빈 소개', logline: ' ', synopsis: '', genre: '드라마', fullText: '본문만 있다', aiSummaryConsent: true });
+    expect(queued.length).toBe(before);
+    expect(s.aiSummaryPending).toBe(false);
+    await expect(scripts.refreshSummary(s.id, writer)).rejects.toThrow(BadRequestException);
+    expect((await scripts.update(s.id, writer, { logline: '한 줄 소개' })).aiSummaryPending).toBe(true);
   });
 
   it('미리보기는 작가 본인과 코인으로 열람권을 산 사람에게만 보인다', async () => {

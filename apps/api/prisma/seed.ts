@@ -154,10 +154,9 @@ async function main() {
       rightsDeclared: true,
       rightsDeclaredAt: now,
       aiSummary: { ...summary, model: 'seed', generatedAt: now.toISOString() },
-      // 예시 대본은 작가가 요약에 동의하고 읽어 본 뒤 공개한 것으로 둔다
+      // 예시 대본은 작가가 요약에 동의한 것으로 둔다
       aiSummaryConsent: true,
       aiSummaryConsentAt: now,
-      aiSummaryPublic: true,
     };
     await prisma.script.upsert({ where: { id: s.id }, update: data, create: data });
   }

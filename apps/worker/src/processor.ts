@@ -25,7 +25,7 @@ export async function processSummarize(
   if (!data?.scriptId) return { status: 'skipped', reason: 'scriptId 없음' };
   const script = await deps.scripts.find(data.scriptId);
   if (!script) return { status: 'skipped', reason: '대본이 삭제됨' };
-  if (!script.fullText?.trim()) return { status: 'skipped', reason: '본문이 비어 있음' };
+  if (!script.synopsis?.trim() && !script.logline?.trim()) return { status: 'skipped', reason: '시놉시스가 비어 있음' };
 
   let embedding: 'ok' | 'failed' | undefined;
   if (deps.embed) {

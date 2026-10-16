@@ -10,7 +10,8 @@ export class ScriptRepository {
 
   async find(id: string): Promise<ScriptForSummary | null> {
     const { rows } = await this.pool.query<ScriptForSummary>(
-      `SELECT "id", "title", "logline", "synopsis", "genre", "fullText", "aiSummaryConsent"
+      // 요약에는 공개 소개 글만 쓴다. 전문(fullText)·미리보기는 읽지 않는다
+      `SELECT "id", "title", "logline", "synopsis", "genre", "aiSummaryConsent"
          FROM "Script" WHERE "id" = $1`,
       [id],
     );
@@ -19,11 +20,10 @@ export class ScriptRepository {
 
   /**
    * 요약을 저장한다. 요약하는 동안 작가가 동의를 끊었으면 저장하지 않는다 (false).
-   * 새 요약은 작가가 읽어 보기 전이므로 비공개로 돌린다.
    */
   async saveSummary(id: string, summary: AiSummary): Promise<boolean> {
     const { rowCount } = await this.pool.query(
-      `UPDATE "Script" SET "aiSummary" = $2::jsonb, "aiSummaryPublic" = false WHERE "id" = $1 AND "aiSummaryConsent" = true`,
+      `UPDATE "Script" SET "aiSummary" = $2::jsonb WHERE "id" = $1 AND "aiSummaryConsent" = true`,
       [id, JSON.stringify(summary)],
     );
     return (rowCount ?? 0) > 0;

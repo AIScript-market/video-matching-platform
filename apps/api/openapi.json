@@ -1299,52 +1299,6 @@
         ]
       }
     },
-    "/scripts/{id}/summary/visibility": {
-      "post": {
-        "operationId": "ScriptsController_setSummaryVisibility",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SummaryVisibilityDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ScriptDetailDto"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "AI 요약 공개 여부 (작가 본인). 공개하지 않으면 작가와 열람 승인된 제작자만 본다",
-        "tags": [
-          "scripts"
-        ]
-      }
-    },
     "/scripts/{id}/preview/unlock": {
       "post": {
         "operationId": "ScriptsController_unlockPreview",
@@ -6491,7 +6445,7 @@
           },
           "aiSummaryConsent": {
             "type": "boolean",
-            "description": "AI 요약을 만들어도 된다는 동의 (선택). 전문이 국외 AI 서비스(Google Gemini)로 보내진다. 끄면 만든 요약을 지운다"
+            "description": "AI 요약을 만들어도 된다는 동의 (선택). 공개 소개 글(제목·장르·로그라인·시놉시스)만 국외 AI 서비스(Google Gemini)로 보내진다. 전문은 보내지 않는다. 끄면 만든 요약을 지운다"
           }
         },
         "required": [
@@ -6575,10 +6529,6 @@
           "canReadPreview": {
             "type": "boolean"
           },
-          "canReadAiSummary": {
-            "type": "boolean",
-            "description": "AI 요약을 볼 수 있는가 (작가 본인, 열람 승인된 제작자, 또는 작가가 공개한 요약)"
-          },
           "previewUnlocked": {
             "type": "boolean",
             "description": "코인으로 미리보기 열람권을 샀는지"
@@ -6589,7 +6539,6 @@
           "accessRequestStatus",
           "canReadFullText",
           "canReadPreview",
-          "canReadAiSummary",
           "previewUnlocked"
         ]
       },
@@ -6621,7 +6570,7 @@
           },
           "aiSummary": {
             "nullable": true,
-            "description": "볼 권한이 없으면 null (aiSummaryHidden)",
+            "description": "공개 소개 글(로그라인·시놉시스)로 만든 요약",
             "type": "object",
             "allOf": [
               {
@@ -6629,17 +6578,9 @@
               }
             ]
           },
-          "aiSummaryHidden": {
-            "type": "boolean",
-            "description": "요약이 있지만 이 사람에게는 보이지 않는다 (작가가 공개하지 않았고 열람 승인 전)"
-          },
           "aiSummaryConsent": {
             "type": "boolean",
             "description": "작가가 AI 요약 만들기에 동의했는가"
-          },
-          "aiSummaryPublic": {
-            "type": "boolean",
-            "description": "작가가 지금 요약을 공개 소개에 보이기로 했는가"
           },
           "aiSummaryPending": {
             "type": "boolean",
@@ -6705,9 +6646,7 @@
           "genre",
           "status",
           "aiSummary",
-          "aiSummaryHidden",
           "aiSummaryConsent",
-          "aiSummaryPublic",
           "aiSummaryPending",
           "aiSummaryRequestedAt",
           "contentUpdatedAt",
@@ -6721,18 +6660,6 @@
           "previewText",
           "previewAvailable",
           "viewer"
-        ]
-      },
-      "SummaryVisibilityDto": {
-        "type": "object",
-        "properties": {
-          "public": {
-            "type": "boolean",
-            "description": "true면 지금 요약을 공개 소개에 보인다. false면 작가와 열람 승인된 제작자만 본다"
-          }
-        },
-        "required": [
-          "public"
         ]
       },
       "ScriptSummaryDto": {
@@ -6763,7 +6690,7 @@
           },
           "aiSummary": {
             "nullable": true,
-            "description": "볼 권한이 없으면 null (aiSummaryHidden)",
+            "description": "공개 소개 글(로그라인·시놉시스)로 만든 요약",
             "type": "object",
             "allOf": [
               {
@@ -6771,17 +6698,9 @@
               }
             ]
           },
-          "aiSummaryHidden": {
-            "type": "boolean",
-            "description": "요약이 있지만 이 사람에게는 보이지 않는다 (작가가 공개하지 않았고 열람 승인 전)"
-          },
           "aiSummaryConsent": {
             "type": "boolean",
             "description": "작가가 AI 요약 만들기에 동의했는가"
-          },
-          "aiSummaryPublic": {
-            "type": "boolean",
-            "description": "작가가 지금 요약을 공개 소개에 보이기로 했는가"
           },
           "aiSummaryPending": {
             "type": "boolean",
@@ -6818,9 +6737,7 @@
           "genre",
           "status",
           "aiSummary",
-          "aiSummaryHidden",
           "aiSummaryConsent",
-          "aiSummaryPublic",
           "aiSummaryPending",
           "aiSummaryRequestedAt",
           "contentUpdatedAt",
@@ -6890,7 +6807,7 @@
           },
           "aiSummaryConsent": {
             "type": "boolean",
-            "description": "AI 요약을 만들어도 된다는 동의 (선택). 전문이 국외 AI 서비스(Google Gemini)로 보내진다. 끄면 만든 요약을 지운다"
+            "description": "AI 요약을 만들어도 된다는 동의 (선택). 공개 소개 글(제목·장르·로그라인·시놉시스)만 국외 AI 서비스(Google Gemini)로 보내진다. 전문은 보내지 않는다. 끄면 만든 요약을 지운다"
           }
         }
       },

@@ -66,22 +66,18 @@ AWS S3 등 다른 S3 호환 저장소도 같은 변수로 쓸 수 있다 (`VIDEO
 
 ## 4-2. AI 요약 (Gemini)
 
-작가가 대본 편집의 "확인과 동의"에서 AI 요약을 켠 대본만 전문을 Gemini API로 보내 요약한다. 켜지 않은 대본은 어떤 AI 서비스로도 가지 않는다.
+제작자가 많은 대본 가운데 볼 만한 것을 빨리 고르도록, 작가가 공개한 **제목·장르·로그라인·시놉시스만** Gemini로 요약해 목록에 보여 준다.
+대본 전문과 미리보기는 AI로 보내지 않는다 (워커가 DB에서 읽지도 않는다, `apps/worker/src/db.ts`). 그래서 요약은 시놉시스처럼 누구나 본다.
+작가는 대본마다 "시놉시스로 AI 요약 만들기"를 끌 수 있다(새 대본은 켜져 있다). 끄면 요약을 지우고, 이미 등록된 작업은 워커가 동의를 다시 확인해 버린다.
 
 1. [Google AI Studio](https://aistudio.google.com/)에서 API 키를 만든다. 키가 속한 Cloud 프로젝트에 **결제 계정이 연결돼 있어야** 한다.
-   결제가 연결된 유료 등급에서만 Google이 보낸 내용을 제품 개선에 쓰지 않는다 ([Gemini API 추가 약관](https://ai.google.dev/gemini-api/terms)). 무료 등급 키는 대본이 학습·사람 검토에 쓰일 수 있으니 쓰지 않는다.
+   결제가 연결된 유료 등급에서만 Google이 보낸 내용을 제품 개선에 쓰지 않는다 ([Gemini API 추가 약관](https://ai.google.dev/gemini-api/terms)). 무료 등급 키는 보낸 소개 글이 학습·사람 검토에 쓰일 수 있으니 쓰지 않는다.
 2. `production.env`에 `GEMINI_API_KEY`를 넣는다. 키는 저장소·채팅에 올리지 않는다.
 3. 워커를 다시 띄우고 로그에서 `summarizer=gemini-3.8-flash`를 확인한다:
 
    ```bash
    docker compose -f ops/prod/compose.yaml --env-file ops/prod/production.env up -d worker && docker compose -f ops/prod/compose.yaml logs worker | tail -5
    ```
-
-보안 규칙 (코드가 지킨다, `apps/api/src/modules/access/access-rules.ts` `canReadAiSummary`):
-- 요약은 전문으로 만들기 때문에 전문과 같은 등급으로 지킨다. 작가 본인과, 비밀유지 서약에 서명하고 작가가 열람을 승인한 제작자만 본다. 관리자도 보지 않는다.
-- 작가가 요약을 읽고 "공개 소개에 보이기"를 누른 경우에만 목록·소개에 보인다. 대본을 고쳐 새 요약이 저장되면 다시 비공개가 된다.
-- 동의를 끄면 요약을 지우고, 이미 등록된 요약 작업은 워커가 동의를 다시 확인해 버린다(저장할 때도 한 번 더 확인).
-- 요약 지시문은 결말·반전·범인 같은 비밀을 쓰지 말라고 한다. 그래도 AI가 실수할 수 있어서 공개는 작가가 직접 고른다.
 
 ## 5. 백업
 

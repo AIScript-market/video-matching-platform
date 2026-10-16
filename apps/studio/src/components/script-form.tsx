@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { ScriptFileUpload } from "@/components/file-upload";
 import { ErrorText, StatusBadge } from "@/components/ui";
 import { api, unwrap, uploadScriptFile, type ScriptDetail } from "@/lib/api";
@@ -27,15 +27,18 @@ function ConsentItem({
   hint: string;
   children: React.ReactNode;
 }) {
+  const hintId = useId();
   return (
     <div className="consent">
       <label className="check">
-        <input type="checkbox" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
+        <input type="checkbox" checked={checked} disabled={disabled} aria-describedby={hintId} onChange={(e) => onChange(e.target.checked)} />
         <span>
           <strong>{label}</strong> <span className={required ? "badge" : "badge muted"}>{required ? "필수" : "선택"}</span>
-          <span className="small muted consent-hint">{hint}</span>
         </span>
       </label>
+      <p id={hintId} className="small muted consent-hint">
+        {hint}
+      </p>
       <details className="consent-details">
         <summary>자세히 보기</summary>
         <div className="small">{children}</div>
@@ -67,7 +70,8 @@ export function ScriptForm({ script, onSaved }: { script?: ScriptDetail; onSaved
   );
   const [rights, setRights] = useState(script?.rightsDeclared ?? false);
   const [trainingConsent, setTrainingConsent] = useState(script?.trainingConsent ?? false);
-  const [aiSummaryConsent, setAiSummaryConsent] = useState(script?.aiSummaryConsent ?? false);
+  // 공개 소개 글만 요약하므로 새 대본은 켜 두고, 작가가 끌 수 있게 한다
+  const [aiSummaryConsent, setAiSummaryConsent] = useState(script?.aiSummaryConsent ?? true);
   // 흥행 예측 기능이 꺼져 있으면(베타) 학습 동의는 묻지도 보내지도 않는다
   const consents = { rightsDeclared: rights, aiSummaryConsent, ...(trainingOn && { trainingConsent }) };
   const [error, setError] = useState<string | null>(null);
@@ -95,7 +99,7 @@ export function ScriptForm({ script, onSaved }: { script?: ScriptDetail; onSaved
         const saved = await unwrap(
           api.PATCH("/scripts/{id}", { params: { path: { id: script.id } }, body: { ...form, ...consents } }),
         );
-        setNotice(saved.aiSummaryPending ? "저장했습니다. AI 요약을 만들고 있습니다." : "저장했습니다.");
+        setNotice(saved.aiSummaryPending ? "저장했습니다. 바뀐 시놉시스로 AI 요약을 만들고 있습니다." : "저장했습니다.");
         onSaved?.(saved);
       } else {
         const created = await unwrap(api.POST("/scripts", { body: { ...form, ...consents } }));
@@ -171,7 +175,7 @@ export function ScriptForm({ script, onSaved }: { script?: ScriptDetail; onSaved
             upload={(file) => uploadScriptFile(`/scripts/${script.id}/upload`, file)}
             onDone={(updated) => {
               setForm((f) => ({ ...f, fullText: updated.fullText ?? "" }));
-              setNotice(updated.aiSummaryConsent ? "파일 내용으로 본문을 바꿨습니다. AI 요약도 다시 만듭니다." : "파일 내용으로 본문을 바꿨습니다.");
+              setNotice("파일 내용으로 본문을 바꿨습니다.");
               onSaved?.(updated);
               void refresh();
             }}
@@ -247,17 +251,16 @@ export function ScriptForm({ script, onSaved }: { script?: ScriptDetail; onSaved
         <ConsentItem
           checked={aiSummaryConsent}
           onChange={setAiSummaryConsent}
-          label="AI로 대본 요약 만들기"
-          hint="줄거리·태그·예상 등급을 자동으로 만듭니다. 요약은 작가님과 열람을 승인한 제작자만 보고, 공개 여부는 작가님이 읽어 본 뒤 정합니다."
+          label="시놉시스로 AI 요약 만들기"
+          hint="제작자가 대본을 빨리 고를 수 있도록 로그라인·시놉시스로 짧은 요약과 태그, 예상 등급을 만들어 목록에 보여 줍니다. 대본 전문은 쓰지 않습니다."
         >
           <ul>
-            <li>요약을 만들려고 대본 전문을 Google의 AI 서비스(Gemini API, 미국)로 보냅니다. 플랫폼은 유료 API를 쓰므로 Google은 보낸 내용을 AI 학습 등 자기 제품 개선에 쓰지 않습니다. 다만 악용 방지와 법적 의무를 위해 일정 기간 보관할 수 있습니다.</li>
             <li>
-              만든 요약은 처음에는 <strong>작가님과, 비밀유지 서약에 서명하고 작가님이 열람을 승인한 제작자</strong>만 봅니다.
+              AI에 보내는 것은 <strong>제목·장르·로그라인·시놉시스</strong>뿐입니다. 이 글들은 원래 누구나 보는 공개 소개라서, 요약도 시놉시스처럼 누구나 봅니다.
             </li>
-            <li>작가님이 요약을 읽고 &quot;공개 소개에 보이기&quot;를 누르면 대본 목록과 소개에도 보입니다. 대본을 고쳐 요약이 새로 만들어지면 다시 비공개가 됩니다.</li>
-            <li>AI에게 결말·반전을 쓰지 말라고 지시하지만 실수할 수 있습니다. 공개하기 전에 꼭 읽어 보세요.</li>
-            <li>동의하지 않아도 대본을 올리고 공개할 수 있습니다. 언제든 끌 수 있고, 끄면 만든 요약을 지웁니다.</li>
+            <li>대본 전문과 미리보기 대본은 AI로 보내지 않습니다. 전문은 지금처럼 비밀유지 서약 후 작가님이 승인한 제작자만 봅니다.</li>
+            <li>요약을 만드는 곳은 Google의 AI 서비스(Gemini API, 미국)입니다. 플랫폼은 유료 API를 쓰므로 Google은 보낸 내용을 AI 학습 등 자기 제품 개선에 쓰지 않습니다. 다만 악용 방지와 법적 의무를 위해 일정 기간 보관할 수 있습니다.</li>
+            <li>시놉시스를 고치면 요약을 새로 만듭니다. 마음에 들지 않으면 언제든 끌 수 있고, 끄면 만든 요약을 지웁니다.</li>
           </ul>
         </ConsentItem>
         {trainingOn && (

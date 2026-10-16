@@ -62,17 +62,11 @@ export class CreateScriptDto {
   trainingConsent?: boolean;
 
   @ApiPropertyOptional({
-    description: 'AI 요약을 만들어도 된다는 동의 (선택). 전문이 국외 AI 서비스(Google Gemini)로 보내진다. 끄면 만든 요약을 지운다',
+    description: 'AI 요약을 만들어도 된다는 동의 (선택). 공개 소개 글(제목·장르·로그라인·시놉시스)만 국외 AI 서비스(Google Gemini)로 보내진다. 전문은 보내지 않는다. 끄면 만든 요약을 지운다',
   })
   @IsOptional()
   @IsBoolean()
   aiSummaryConsent?: boolean;
-}
-
-export class SummaryVisibilityDto {
-  @ApiProperty({ description: 'true면 지금 요약을 공개 소개에 보인다. false면 작가와 열람 승인된 제작자만 본다' })
-  @IsBoolean()
-  public!: boolean;
 }
 
 export class UpdateScriptDto extends PartialType(CreateScriptDto) {}
@@ -140,10 +134,8 @@ export class ScriptSummaryDto {
   @ApiProperty() synopsis!: string;
   @ApiProperty() genre!: string;
   @ApiProperty({ enum: SCRIPT_STATUSES }) status!: (typeof SCRIPT_STATUSES)[number];
-  @ApiProperty({ type: AiSummaryDto, nullable: true, description: '볼 권한이 없으면 null (aiSummaryHidden)' }) aiSummary!: AiSummaryDto | null;
-  @ApiProperty({ description: '요약이 있지만 이 사람에게는 보이지 않는다 (작가가 공개하지 않았고 열람 승인 전)' }) aiSummaryHidden!: boolean;
+  @ApiProperty({ type: AiSummaryDto, nullable: true, description: '공개 소개 글(로그라인·시놉시스)로 만든 요약' }) aiSummary!: AiSummaryDto | null;
   @ApiProperty({ description: '작가가 AI 요약 만들기에 동의했는가' }) aiSummaryConsent!: boolean;
-  @ApiProperty({ description: '작가가 지금 요약을 공개 소개에 보이기로 했는가' }) aiSummaryPublic!: boolean;
   @ApiProperty({ description: '내용이 바뀌어 새 AI 요약을 만드는 중' }) aiSummaryPending!: boolean;
   @ApiProperty({ type: String, format: 'date-time', nullable: true, description: '마지막 AI 요약 요청 시각' })
   aiSummaryRequestedAt!: Date | null;
@@ -165,7 +157,6 @@ export class ViewerAccessDto {
   accessRequestStatus!: 'PENDING' | 'APPROVED' | 'REJECTED' | null;
   @ApiProperty() canReadFullText!: boolean;
   @ApiProperty() canReadPreview!: boolean;
-  @ApiProperty({ description: 'AI 요약을 볼 수 있는가 (작가 본인, 열람 승인된 제작자, 또는 작가가 공개한 요약)' }) canReadAiSummary!: boolean;
   @ApiProperty({ description: '코인으로 미리보기 열람권을 샀는지' }) previewUnlocked!: boolean;
 }
 

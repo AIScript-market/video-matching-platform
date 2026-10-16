@@ -19,7 +19,6 @@ test("대본 제공자와 제작자가 대본으로 매칭되어 딜이 만들�
   await writer.getByLabel("로그라인 (한 줄 소개)").fill("사라진 동생을 찾는 형사의 마지막 72시간");
   await writer.getByLabel("시놉시스 (공개)").fill("형사 민준은 동생이 사라진 밤의 기록을 다시 쫓는다. 단서는 오래된 지하철역에 남아 있다.");
   await writer.getByLabel(/대본 전문/).fill("S#1. 지하철역 (밤)\n민준: 여기서 마지막으로 봤어.");
-  await writer.getByLabel(/AI로 대본 요약 만들기/).check();
   await writer.getByRole("button", { name: "임시 저장" }).click();
   await expect(writer.getByRole("heading", { name: "대본 편집" })).toBeVisible();
   await writer.getByLabel(/영상으로 만들도록 허락할 권리/).check();

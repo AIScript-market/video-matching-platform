@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { coinBadge, creator, login, SEED, suffix as makeSuffix } from "./helpers";
 
-test("AI 요약은 작가가 동의해야 만들고 고칠 때마다 새로 만든다. 작가가 공개하기 전에는 다른 사람에게 가려지고, 미리보기는 코인으로 열람권을 산 사람만 본다", async ({ browser }) => {
+test("AI 요약은 시놉시스로 만들고 시놉시스를 고칠 때마다 새로 만든다. 미리보기는 코인으로 열람권을 산 사람만 본다", async ({ browser }) => {
   const id = makeSuffix();
   const title = `미리보기 테스트 ${id}`;
   const writerEmail = `pvwriter-${id}@e2e.test`;
@@ -23,7 +23,7 @@ test("AI 요약은 작가가 동의해야 만들고 고칠 때마다 새로 만�
   await consents.getByText("자세히 보기").first().click();
   await expect(consents.getByText("원작자에게 영상화 허락을", { exact: false })).toBeVisible();
   await expect(consents.getByLabel(/흥행 예측 기능 개선/)).toHaveCount(process.env.E2E_BETA ? 0 : 1);
-  await consents.getByLabel(/AI로 대본 요약 만들기/).check();
+  await expect(consents.getByLabel(/시놉시스로 AI 요약 만들기/)).toBeChecked(); // 새 대본은 켜져 있다
   await writer.getByRole("button", { name: "임시 저장" }).click();
   await expect(writer.getByRole("heading", { name: "대본 편집" })).toBeVisible();
 
@@ -43,7 +43,6 @@ test("AI 요약은 작가가 동의해야 만들고 고칠 때마다 새로 만�
   await card.getByRole("button", { name: "AI 요약 새로고침" }).click();
   await expect(card.getByRole("button", { name: "AI 요약 새로고침" })).toBeEnabled({ timeout: 30_000 });
   await expect(card.getByText("두 번째 버전의 시놉시스입니다.", { exact: false })).toBeVisible();
-  await expect(card.getByText("비공개", { exact: true })).toBeVisible();
 
   // 4. 공개
   await writer.getByLabel(/영상으로 만들도록 허락할 권리/).check();
@@ -64,14 +63,8 @@ test("AI 요약은 작가가 동의해야 만들고 고칠 때마다 새로 만�
   await expect(producer.getByRole("region", { name: "미리보기 대본" }).getByText("등대지기: 불을 켜.")).toBeVisible();
   await expect(coinBadge(producer)).toHaveText("🪙 7"); // 다시 볼 때는 차감 없음
 
-  // AI 요약: 작가가 공개하기 전에는 비밀유지 서약·열람 승인 전 제작자에게 가려진다 → 작가가 읽고 공개하면 보인다
+  // AI 요약은 공개 소개 글로 만들었으므로 제작자도 바로 본다
   const producerCard = producer.getByRole("region", { name: "AI 요약" });
-  await expect(producerCard.getByText("비밀유지 서약에 서명하고 작가가 열람을 승인하면", { exact: false })).toBeVisible();
-  // (개발용 mock 요약기는 시놉시스를 그대로 요약으로 쓰고, 시놉시스는 원래 공개라서 카드 안만 본다)
-  await expect(producerCard.getByText("두 번째 버전의 시놉시스입니다.", { exact: false })).toHaveCount(0);
-  await writer.getByRole("region", { name: "AI 요약" }).getByRole("button", { name: "읽어 봤어요, 공개 소개에 보이기" }).click();
-  await expect(writer.getByRole("region", { name: "AI 요약" }).getByText("공개 중", { exact: true })).toBeVisible();
-  await producer.reload();
   await expect(producerCard.getByText("두 번째 버전의 시놉시스입니다.", { exact: false })).toBeVisible();
 
   // 6. 프로필 비공개 계정은 프로필 공개 안내, 비로그인은 로그인 안내 (미리보기 본문은 안 보임)

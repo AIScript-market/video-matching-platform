@@ -515,23 +515,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/scripts/{id}/summary/visibility": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** AI 요약 공개 여부 (작가 본인). 공개하지 않으면 작가와 열람 승인된 제작자만 본다 */
-        post: operations["ScriptsController_setSummaryVisibility"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/scripts/{id}/preview/unlock": {
         parameters: {
             query?: never;
@@ -2425,7 +2408,7 @@ export interface components {
             rightsDeclared?: boolean;
             /** @description 흥행 판단 모델의 학습 데이터로 이 대본(의 벡터)을 써도 된다는 동의 (선택). 언제든 철회할 수 있다 */
             trainingConsent?: boolean;
-            /** @description AI 요약을 만들어도 된다는 동의 (선택). 전문이 국외 AI 서비스(Google Gemini)로 보내진다. 끄면 만든 요약을 지운다 */
+            /** @description AI 요약을 만들어도 된다는 동의 (선택). 공개 소개 글(제목·장르·로그라인·시놉시스)만 국외 AI 서비스(Google Gemini)로 보내진다. 전문은 보내지 않는다. 끄면 만든 요약을 지운다 */
             aiSummaryConsent?: boolean;
         };
         AiSummaryDto: {
@@ -2447,8 +2430,6 @@ export interface components {
             accessRequestStatus: "PENDING" | "APPROVED" | "REJECTED" | null;
             canReadFullText: boolean;
             canReadPreview: boolean;
-            /** @description AI 요약을 볼 수 있는가 (작가 본인, 열람 승인된 제작자, 또는 작가가 공개한 요약) */
-            canReadAiSummary: boolean;
             /** @description 코인으로 미리보기 열람권을 샀는지 */
             previewUnlocked: boolean;
         };
@@ -2460,14 +2441,10 @@ export interface components {
             genre: string;
             /** @enum {string} */
             status: "DRAFT" | "PUBLISHED" | "HIDDEN";
-            /** @description 볼 권한이 없으면 null (aiSummaryHidden) */
+            /** @description 공개 소개 글(로그라인·시놉시스)로 만든 요약 */
             aiSummary: components["schemas"]["AiSummaryDto"] | null;
-            /** @description 요약이 있지만 이 사람에게는 보이지 않는다 (작가가 공개하지 않았고 열람 승인 전) */
-            aiSummaryHidden: boolean;
             /** @description 작가가 AI 요약 만들기에 동의했는가 */
             aiSummaryConsent: boolean;
-            /** @description 작가가 지금 요약을 공개 소개에 보이기로 했는가 */
-            aiSummaryPublic: boolean;
             /** @description 내용이 바뀌어 새 AI 요약을 만드는 중 */
             aiSummaryPending: boolean;
             /**
@@ -2498,10 +2475,6 @@ export interface components {
             previewAvailable: boolean;
             viewer: components["schemas"]["ViewerAccessDto"];
         };
-        SummaryVisibilityDto: {
-            /** @description true면 지금 요약을 공개 소개에 보인다. false면 작가와 열람 승인된 제작자만 본다 */
-            public: boolean;
-        };
         ScriptSummaryDto: {
             id: string;
             title: string;
@@ -2510,14 +2483,10 @@ export interface components {
             genre: string;
             /** @enum {string} */
             status: "DRAFT" | "PUBLISHED" | "HIDDEN";
-            /** @description 볼 권한이 없으면 null (aiSummaryHidden) */
+            /** @description 공개 소개 글(로그라인·시놉시스)로 만든 요약 */
             aiSummary: components["schemas"]["AiSummaryDto"] | null;
-            /** @description 요약이 있지만 이 사람에게는 보이지 않는다 (작가가 공개하지 않았고 열람 승인 전) */
-            aiSummaryHidden: boolean;
             /** @description 작가가 AI 요약 만들기에 동의했는가 */
             aiSummaryConsent: boolean;
-            /** @description 작가가 지금 요약을 공개 소개에 보이기로 했는가 */
-            aiSummaryPublic: boolean;
             /** @description 내용이 바뀌어 새 AI 요약을 만드는 중 */
             aiSummaryPending: boolean;
             /**
@@ -2556,7 +2525,7 @@ export interface components {
             rightsDeclared?: boolean;
             /** @description 흥행 판단 모델의 학습 데이터로 이 대본(의 벡터)을 써도 된다는 동의 (선택). 언제든 철회할 수 있다 */
             trainingConsent?: boolean;
-            /** @description AI 요약을 만들어도 된다는 동의 (선택). 전문이 국외 AI 서비스(Google Gemini)로 보내진다. 끄면 만든 요약을 지운다 */
+            /** @description AI 요약을 만들어도 된다는 동의 (선택). 공개 소개 글(제목·장르·로그라인·시놉시스)만 국외 AI 서비스(Google Gemini)로 보내진다. 전문은 보내지 않는다. 끄면 만든 요약을 지운다 */
             aiSummaryConsent?: boolean;
         };
         PublishScriptDto: {
@@ -4362,31 +4331,6 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ScriptDetailDto"];
-                };
-            };
-        };
-    };
-    ScriptsController_setSummaryVisibility: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SummaryVisibilityDto"];
-            };
-        };
         responses: {
             200: {
                 headers: {
