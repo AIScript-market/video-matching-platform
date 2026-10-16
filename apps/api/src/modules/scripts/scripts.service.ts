@@ -6,7 +6,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import type { Prisma } from '../../generated/prisma/client.js';
+import { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { WalletService } from '../wallet/wallet.service.js';
 import {
@@ -44,8 +44,16 @@ const PUBLIC_SELECT = {
   author: { select: { id: true, displayName: true, status: true } },
 } as const;
 
-/** 요약 대상인 내용 필드. 이 중 하나라도 바뀌면 AI 요약을 다시 만든다 */
-const SUMMARY_FIELDS = ['title', 'logline', 'synopsis', 'genre', 'fullText'] as const;
+/** 내용 필드. 바뀌면 최근 수정 시각을 갱신한다 */
+const CONTENT_FIELDS = ['title', 'logline', 'synopsis', 'genre', 'fullText'] as const;
+/**
+ * AI 요약에 쓰는 필드: 작가가 대본을 알리려고 공개한 소개 글만. 대본 전문·미리보기는 요약기로 보내지 않는다
+ * (apps/worker db.ts가 읽지도 않는다). 이미 공개한 글이라 따로 동의를 받지 않고, 요약도 시놉시스처럼 누구나 본다.
+ */
+const SUMMARY_FIELDS = ['title', 'logline', 'synopsis', 'genre'] as const;
+
+/** 요약할 소개 글(로그라인·시놉시스)이 있는가 */
+const hasIntro = (s: { logline: string; synopsis: string }) => Boolean(s.logline.trim() || s.synopsis.trim());
 
 type Tx = Prisma.TransactionClient;
 
@@ -111,7 +119,7 @@ export class ScriptsService {
         trainingConsentAt: dto.trainingConsent === true ? new Date() : null,
       },
     });
-    await this.requestSummary(script.id);
+    if (hasIntro(script)) await this.requestSummary(script.id);
     return this.get(script.id, user);
   }
 
@@ -239,7 +247,11 @@ export class ScriptsService {
       ...(dto.genre !== undefined && { genre: dto.genre.trim() }),
       ...(dto.fullText !== undefined && { fullText: dto.fullText }),
     };
+    const contentChanged = CONTENT_FIELDS.some((f) => f in next && next[f] !== script[f]);
     const summaryChanged = SUMMARY_FIELDS.some((f) => f in next && next[f] !== script[f]);
+    const after = { ...script, ...next };
+    // 소개 글을 다 지우면 그 글로 만든 요약도 지운다
+    const clearSummary = summaryChanged && !hasIntro(after) && script.aiSummary !== null;
     const preview = dto.previewText !== undefined ? cleanPreview(dto.previewText) : undefined;
     const previewChanged = preview !== undefined && preview !== script.previewText;
 
@@ -248,7 +260,7 @@ export class ScriptsService {
       data: {
         ...next,
         ...(previewChanged && { previewText: preview }),
-        ...((summaryChanged || previewChanged) && { contentUpdatedAt: new Date() }),
+        ...((contentChanged || previewChanged) && { contentUpdatedAt: new Date() }),
         ...(dto.rightsDeclared === true &&
           !script.rightsDeclared && { rightsDeclared: true, rightsDeclaredAt: new Date() }),
         ...(dto.rightsDeclared === false && { rightsDeclared: false, rightsDeclaredAt: null }),
@@ -257,15 +269,17 @@ export class ScriptsService {
             trainingConsent: dto.trainingConsent,
             trainingConsentAt: dto.trainingConsent ? new Date() : null,
           }),
+        ...(clearSummary && { aiSummary: Prisma.DbNull, aiSummaryRequestedAt: null }),
       },
     });
-    if (summaryChanged) await this.requestSummary(id);
+    if (summaryChanged && hasIntro(after)) await this.requestSummary(id);
     return this.get(id, user);
   }
 
   /** 작성자가 AI 요약을 직접 다시 만든다 */
   async refreshSummary(id: string, user: Viewer): Promise<ScriptDetailDto> {
     const script = await this.findOwned(id, user);
+    if (!hasIntro(script)) throw new BadRequestException('요약할 로그라인이나 시놉시스를 먼저 써 주세요');
     const recent =
       script.aiSummaryRequestedAt &&
       Date.now() - script.aiSummaryRequestedAt.getTime() < SUMMARY_REFRESH_COOLDOWN_MS;
@@ -298,7 +312,7 @@ export class ScriptsService {
       await this.logUpload(tx, created.id, user.id, file, text, 'FULL');
       return created;
     });
-    await this.requestSummary(script.id);
+    // 파일로 만든 초안은 로그라인·시놉시스가 비어 있어 요약하지 않는다 (편집 화면에서 쓰면 만든다)
     return this.get(script.id, user);
   }
 
@@ -315,7 +329,7 @@ export class ScriptsService {
       });
       await this.logUpload(tx, id, user.id, file, text, 'FULL');
     });
-    if (changed) await this.requestSummary(id);
+    // 전문은 요약에 쓰지 않으므로 본문을 바꿔도 요약을 다시 만들지 않는다
     return this.get(id, user);
   }
 
@@ -415,7 +429,7 @@ export class ScriptsService {
       },
     });
     // 내용이 바뀔 때마다 요약을 만들어 두므로, 요약이 없거나 실패했을 때만 다시 요청한다
-    if (!script.aiSummary && !isSummaryPending(script)) await this.requestSummary(id);
+    if (hasIntro(script) && !script.aiSummary && !isSummaryPending(script)) await this.requestSummary(id);
     return this.get(id, user);
   }
 

@@ -6566,6 +6566,7 @@
           },
           "aiSummary": {
             "nullable": true,
+            "description": "공개 소개 글(로그라인·시놉시스)로 만든 요약",
             "type": "object",
             "allOf": [
               {
@@ -6680,6 +6681,7 @@
           },
           "aiSummary": {
             "nullable": true,
+            "description": "공개 소개 글(로그라인·시놉시스)로 만든 요약",
             "type": "object",
             "allOf": [
               {

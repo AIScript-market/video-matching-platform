@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { coinBadge, creator, login, SEED, suffix as makeSuffix } from "./helpers";
 
-test("대본을 고칠 때마다 AI 요약이 새로 만들어지고, 미리보기는 코인으로 열람권을 산 사람만 본다", async ({ browser }) => {
+test("AI 요약은 시놉시스로 만들고 시놉시스를 고칠 때마다 새로 만든다. 미리보기는 코인으로 열람권을 산 사람만 본다", async ({ browser }) => {
   const id = makeSuffix();
   const title = `미리보기 테스트 ${id}`;
   const writerEmail = `pvwriter-${id}@e2e.test`;
@@ -17,6 +17,13 @@ test("대본을 고칠 때마다 AI 요약이 새로 만들어지고, 미리보�
   await writer.getByLabel("시놉시스 (공개)").fill("처음 버전의 시놉시스입니다. 주인공은 등대지기다.");
   await writer.getByLabel(/대본 전문/).fill("S#1. 등대 (밤)\n등대지기: 불을 켜.\n\nS#2. 바다 (새벽)\n선장: 보인다.");
   await writer.getByLabel("미리보기 본문").fill("S#1. 등대 (밤)\n등대지기: 불을 켜.");
+  // 동의 항목은 펼쳐서 자세한 내용을 볼 수 있다
+  const consents = writer.getByRole("region", { name: "확인과 동의" });
+  await expect(consents.getByText("원작자에게 영상화 허락을")).toBeHidden();
+  await consents.getByText("자세히 보기").first().click();
+  await expect(consents.getByText("원작자에게 영상화 허락을", { exact: false })).toBeVisible();
+  await expect(consents.getByText("대본 전문은 플랫폼 밖으로 보내지 않고", { exact: false })).toBeVisible(); // 안심 문구는 펼치지 않아도 보인다
+  await expect(consents.getByLabel(/대본 분석 프로그램에 참여하기/)).not.toBeChecked();
   await writer.getByRole("button", { name: "임시 저장" }).click();
   await expect(writer.getByRole("heading", { name: "대본 편집" })).toBeVisible();
 
@@ -38,7 +45,7 @@ test("대본을 고칠 때마다 AI 요약이 새로 만들어지고, 미리보�
   await expect(card.getByText("두 번째 버전의 시놉시스입니다.", { exact: false })).toBeVisible();
 
   // 4. 공개
-  await writer.getByLabel(/권리를 본인이 보유/).check();
+  await writer.getByLabel(/영상으로 만들도록 허락할 권리/).check();
   await writer.getByRole("button", { name: "공개하기" }).click();
   await expect(writer.getByRole("heading", { name: title })).toBeVisible();
   const scriptUrl = writer.url();
@@ -55,7 +62,10 @@ test("대본을 고칠 때마다 AI 요약이 새로 만들어지고, 미리보�
   await producer.reload();
   await expect(producer.getByRole("region", { name: "미리보기 대본" }).getByText("등대지기: 불을 켜.")).toBeVisible();
   await expect(coinBadge(producer)).toHaveText("🪙 7"); // 다시 볼 때는 차감 없음
-  await expect(producer.getByRole("region", { name: "AI 요약" }).getByText("두 번째 버전의 시놉시스입니다.", { exact: false })).toBeVisible();
+
+  // AI 요약은 공개 소개 글로 만들었으므로 제작자도 바로 본다
+  const producerCard = producer.getByRole("region", { name: "AI 요약" });
+  await expect(producerCard.getByText("두 번째 버전의 시놉시스입니다.", { exact: false })).toBeVisible();
 
   // 6. 프로필 비공개 계정은 프로필 공개 안내, 비로그인은 로그인 안내 (미리보기 본문은 안 보임)
   const member = await login(browser, SEED.member.email, SEED.member.password);

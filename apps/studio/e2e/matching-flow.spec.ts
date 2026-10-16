@@ -21,7 +21,7 @@ test("대본 제공자와 제작자가 대본으로 매칭되어 딜이 만들�
   await writer.getByLabel(/대본 전문/).fill("S#1. 지하철역 (밤)\n민준: 여기서 마지막으로 봤어.");
   await writer.getByRole("button", { name: "임시 저장" }).click();
   await expect(writer.getByRole("heading", { name: "대본 편집" })).toBeVisible();
-  await writer.getByLabel(/권리를 본인이 보유/).check();
+  await writer.getByLabel(/영상으로 만들도록 허락할 권리/).check();
   await writer.getByRole("button", { name: "공개하기" }).click();
   await expect(writer.getByRole("heading", { name: title })).toBeVisible();
 

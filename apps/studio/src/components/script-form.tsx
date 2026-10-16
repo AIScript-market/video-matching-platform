@@ -1,13 +1,64 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { ScriptFileUpload } from "@/components/file-upload";
 import { ErrorText, StatusBadge } from "@/components/ui";
 import { api, unwrap, uploadScriptFile, type ScriptDetail } from "@/lib/api";
 import { useSession } from "@/lib/session";
 
 const EMPTY = { title: "", logline: "", synopsis: "", genre: "드라마", fullText: "", previewText: "" };
+
+/** 작가가 먼저 궁금한 것부터: 🔒 대본이 새어 나가는가, ⭐ 나에게 좋은 점. 어디에 어떻게 쓰이는지는 "자세히 보기"에 */
+interface ConsentPoint {
+  kind: "safe" | "benefit" | "why";
+  text: React.ReactNode;
+}
+const POINT_ICON: Record<ConsentPoint["kind"], string> = { safe: "🔒", benefit: "⭐", why: "💡" };
+
+/** 동의 항목 하나: 체크박스, 안심·혜택 몇 줄, 그 아래 펼쳐 보는 자세한 내용 (펼쳐도 체크되지 않게 label 밖에 둔다) */
+function ConsentItem({
+  checked,
+  disabled,
+  onChange,
+  required,
+  label,
+  points,
+  detailsLabel,
+  children,
+}: {
+  checked: boolean;
+  disabled?: boolean;
+  onChange: (v: boolean) => void;
+  required?: boolean;
+  label: string;
+  points: ConsentPoint[];
+  detailsLabel: string;
+  children: React.ReactNode;
+}) {
+  const pointsId = useId();
+  return (
+    <div className="consent">
+      <label className="check">
+        <input type="checkbox" checked={checked} disabled={disabled} aria-describedby={pointsId} onChange={(e) => onChange(e.target.checked)} />
+        <span>
+          <strong>{label}</strong> <span className={required ? "badge" : "badge muted"}>{required ? "필수" : "선택"}</span>
+        </span>
+      </label>
+      <ul id={pointsId} className="consent-points small">
+        {points.map((p, i) => (
+          <li key={i} className={p.kind === "safe" ? "safe" : undefined}>
+            <span aria-hidden="true">{POINT_ICON[p.kind]}</span> {p.text}
+          </li>
+        ))}
+      </ul>
+      <details className="consent-details">
+        <summary>자세히 보기 · {detailsLabel}</summary>
+        <div className="small">{children}</div>
+      </details>
+    </div>
+  );
+}
 const PREVIEW_MAX = 50_000;
 
 /**
@@ -16,7 +67,9 @@ const PREVIEW_MAX = 50_000;
  */
 export function ScriptForm({ script, onSaved }: { script?: ScriptDetail; onSaved?: (s: ScriptDetail) => void }) {
   const router = useRouter();
-  const { refresh } = useSession();
+  const { refresh, config } = useSession();
+  // 흥행 예측이 켜져 있을 때만(베타에서는 꺼짐) 예측 결과가 보인다는 안내를 덧붙인다
+  const predictionsOn = Boolean(config?.features.hitModel);
   const [form, setForm] = useState(
     script
       ? {
@@ -31,6 +84,7 @@ export function ScriptForm({ script, onSaved }: { script?: ScriptDetail; onSaved
   );
   const [rights, setRights] = useState(script?.rightsDeclared ?? false);
   const [trainingConsent, setTrainingConsent] = useState(script?.trainingConsent ?? false);
+  const consents = { rightsDeclared: rights, trainingConsent };
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -54,12 +108,12 @@ export function ScriptForm({ script, onSaved }: { script?: ScriptDetail; onSaved
     run(async () => {
       if (script) {
         const saved = await unwrap(
-          api.PATCH("/scripts/{id}", { params: { path: { id: script.id } }, body: { ...form, rightsDeclared: rights, trainingConsent } }),
+          api.PATCH("/scripts/{id}", { params: { path: { id: script.id } }, body: { ...form, ...consents } }),
         );
-        setNotice(saved.aiSummaryPending ? "저장했습니다. 바뀐 내용으로 AI 요약을 다시 만들고 있습니다." : "저장했습니다.");
+        setNotice(saved.aiSummaryPending ? "저장했습니다. 바뀐 시놉시스로 AI 요약을 만들고 있습니다." : "저장했습니다.");
         onSaved?.(saved);
       } else {
-        const created = await unwrap(api.POST("/scripts", { body: { ...form, rightsDeclared: rights, trainingConsent } }));
+        const created = await unwrap(api.POST("/scripts", { body: { ...form, ...consents } }));
         router.push(`/dashboard/scripts/${created.id}`);
       }
     });
@@ -114,6 +168,9 @@ export function ScriptForm({ script, onSaved }: { script?: ScriptDetail; onSaved
           시놉시스 (공개)
           <textarea required maxLength={5000} value={form.synopsis} onChange={set("synopsis")} />
         </label>
+        <p className="small muted" style={{ margin: 0 }}>
+          로그라인과 시놉시스는 누구나 보는 소개입니다. 대본 목록에 함께 보일 짧은 AI 요약과 태그도 이 글로만 만듭니다 (대본 전문은 쓰지 않습니다).
+        </p>
         <label>
           대본 전문 (작가와 열람 승인된 제작자만 볼 수 있음)
           <textarea required value={form.fullText} onChange={set("fullText")} style={{ minHeight: 320, fontFamily: "ui-monospace, monospace" }} />
@@ -132,7 +189,7 @@ export function ScriptForm({ script, onSaved }: { script?: ScriptDetail; onSaved
             upload={(file) => uploadScriptFile(`/scripts/${script.id}/upload`, file)}
             onDone={(updated) => {
               setForm((f) => ({ ...f, fullText: updated.fullText ?? "" }));
-              setNotice("파일 내용으로 본문을 바꿨습니다. AI 요약도 다시 만듭니다.");
+              setNotice("파일 내용으로 본문을 바꿨습니다.");
               onSaved?.(updated);
               void refresh();
             }}
@@ -180,26 +237,51 @@ export function ScriptForm({ script, onSaved }: { script?: ScriptDetail; onSaved
         )}
       </div>
 
-      <div className="card stack">
-        <label className="check">
-          <input type="checkbox" checked={rights} disabled={locked && rights} onChange={(e) => setRights(e.target.checked)} />
-          <span>
-            이 대본의 저작권 등 영상화에 필요한 권리를 본인이 보유하고 있으며, 타인의 권리를 침해하지 않음을 진술합니다.
-            <span className="muted small"> (공개하려면 필수)</span>
-          </span>
-        </label>
-        <label className="check">
-          <input type="checkbox" checked={trainingConsent} onChange={(e) => setTrainingConsent(e.target.checked)} />
-          <span>
-            이 대본을 흥행 판단 모델의 학습 데이터로 써도 됩니다.
-            <span className="muted small">
-              {" "}
-              (선택. 대본은 플랫폼 안에서 장면 벡터(숫자)로 바뀌고, 학습에는 이 벡터와 영상 성과만 씁니다. 원문은 밖으로 내보내지 않습니다. 공개한
-              대본은 동의와 상관없이 영상 제작자에게 흥행 판단·추천 결과가 보입니다. 언제든 끌 수 있습니다)
-            </span>
-          </span>
-        </label>
-      </div>
+      <section className="card stack" aria-label="확인과 동의">
+        <h2 style={{ margin: 0 }}>확인과 동의</h2>
+        <ConsentItem
+          required
+          checked={rights}
+          disabled={locked && rights}
+          onChange={setRights}
+          label="이 대본을 영상으로 만들도록 허락할 권리가 저에게 있습니다"
+          points={[{ kind: "why", text: "제작자가 안심하고 계약할 수 있도록, 공개 전에 한 번 받는 확인입니다." }]}
+          detailsLabel="어떤 경우를 확인하나요?"
+        >
+          <p>내 대본이라도 아래 경우에는 다른 사람의 허락이 필요할 수 있어서 함께 확인합니다.</p>
+          <ul>
+            <li>함께 쓴 작가가 있다면, 공동 작가 모두에게 이 플랫폼에 올리고 계약해도 된다는 동의를 받았습니다.</li>
+            <li>웹소설·웹툰·소설·실화 기록 같은 원작이 있다면, 원작자에게 영상화 허락을 받았습니다.</li>
+            <li>다른 회사에 이 대본의 영상화 권리를 넘기거나 독점 계약을 맺은 적이 없습니다 (있었다면 이미 끝났습니다).</li>
+            <li>실존 인물이나 단체를 다룬다면, 명예나 사생활을 침해하지 않도록 살폈습니다.</li>
+          </ul>
+          <p>
+            확인한 시각이 기록됩니다. 사실과 다르면 계약한 제작자에게 손해를 배상해야 할 수 있습니다. 공개한 뒤에는 이 확인을 거둘 수 없습니다. 자세한 내용은{" "}
+            <a href="/terms" target="_blank" rel="noreferrer">
+              이용약관
+            </a>
+            에 있습니다.
+          </p>
+        </ConsentItem>
+        <ConsentItem
+          checked={trainingConsent}
+          onChange={setTrainingConsent}
+          label="대본 분석 프로그램에 참여하기"
+          points={[
+            { kind: "safe", text: "대본 전문은 플랫폼 밖으로 보내지 않고, 다른 이용자에게도 보이지 않습니다. 분석에는 대본을 숫자로 바꾼 값만 씁니다." },
+            { kind: "benefit", text: "대본 피드백 기능이 열리면, 참여한 작가님께 먼저 피드백을 드립니다." },
+          ]}
+          detailsLabel="어떻게 분석하나요?"
+        >
+          <ul>
+            <li>대본은 플랫폼 서버 안에서 장면별 숫자(벡터)로 바뀌고, 이 숫자도 서버 안에만 둡니다.</li>
+            <li>이 숫자와 플랫폼 채널에 올라간 영상의 성과(조회수 등)를 함께 보며, 어떤 대본이 시청자에게 통하는지 배우는 데 씁니다. 그 결과로 작가님께 드릴 피드백과 흥행 예측을 만듭니다.</li>
+            <li>대본 원문과 숫자 모두 외부 AI 서비스나 다른 회사에 보내거나 팔지 않습니다.</li>
+            {predictionsOn && <li>참여하지 않아도, 공개한 대본에는 제작자에게 흥행 예측과 추천 결과가 보일 수 있습니다.</li>}
+            <li>언제든 끌 수 있고, 끄면 다음 분석부터 빠집니다.</li>
+          </ul>
+        </ConsentItem>
+      </section>
       <ErrorText error={error} />
       {notice && <p className="notice">{notice}</p>}
       <div className="row">

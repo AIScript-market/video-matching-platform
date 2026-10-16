@@ -2439,6 +2439,7 @@ export interface components {
             genre: string;
             /** @enum {string} */
             status: "DRAFT" | "PUBLISHED" | "HIDDEN";
+            /** @description 공개 소개 글(로그라인·시놉시스)로 만든 요약 */
             aiSummary: components["schemas"]["AiSummaryDto"] | null;
             /** @description 내용이 바뀌어 새 AI 요약을 만드는 중 */
             aiSummaryPending: boolean;
@@ -2478,6 +2479,7 @@ export interface components {
             genre: string;
             /** @enum {string} */
             status: "DRAFT" | "PUBLISHED" | "HIDDEN";
+            /** @description 공개 소개 글(로그라인·시놉시스)로 만든 요약 */
             aiSummary: components["schemas"]["AiSummaryDto"] | null;
             /** @description 내용이 바뀌어 새 AI 요약을 만드는 중 */
             aiSummaryPending: boolean;

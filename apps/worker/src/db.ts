@@ -10,7 +10,8 @@ export class ScriptRepository {
 
   async find(id: string): Promise<ScriptForSummary | null> {
     const { rows } = await this.pool.query<ScriptForSummary>(
-      `SELECT "id", "title", "logline", "synopsis", "genre", "fullText"
+      // 요약에는 공개 소개 글만 쓴다. 전문(fullText)·미리보기는 읽지 않는다
+      `SELECT "id", "title", "logline", "synopsis", "genre"
          FROM "Script" WHERE "id" = $1`,
       [id],
     );
@@ -18,9 +19,6 @@ export class ScriptRepository {
   }
 
   async saveSummary(id: string, summary: AiSummary): Promise<void> {
-    await this.pool.query(`UPDATE "Script" SET "aiSummary" = $2::jsonb WHERE "id" = $1`, [
-      id,
-      JSON.stringify(summary),
-    ]);
+    await this.pool.query(`UPDATE "Script" SET "aiSummary" = $2::jsonb WHERE "id" = $1`, [id, JSON.stringify(summary)]);
   }
 }

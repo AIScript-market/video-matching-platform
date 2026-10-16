@@ -60,6 +60,7 @@ export class CreateScriptDto {
   @IsOptional()
   @IsBoolean()
   trainingConsent?: boolean;
+
 }
 
 export class UpdateScriptDto extends PartialType(CreateScriptDto) {}
@@ -127,7 +128,7 @@ export class ScriptSummaryDto {
   @ApiProperty() synopsis!: string;
   @ApiProperty() genre!: string;
   @ApiProperty({ enum: SCRIPT_STATUSES }) status!: (typeof SCRIPT_STATUSES)[number];
-  @ApiProperty({ type: AiSummaryDto, nullable: true }) aiSummary!: AiSummaryDto | null;
+  @ApiProperty({ type: AiSummaryDto, nullable: true, description: '공개 소개 글(로그라인·시놉시스)로 만든 요약' }) aiSummary!: AiSummaryDto | null;
   @ApiProperty({ description: '내용이 바뀌어 새 AI 요약을 만드는 중' }) aiSummaryPending!: boolean;
   @ApiProperty({ type: String, format: 'date-time', nullable: true, description: '마지막 AI 요약 요청 시각' })
   aiSummaryRequestedAt!: Date | null;

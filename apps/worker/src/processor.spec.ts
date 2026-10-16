@@ -22,7 +22,6 @@ const script: ScriptForSummary = {
   logline: '폐역을 지키는 역무원이 마지막 열차의 비밀을 쫓는다.',
   synopsis: '1998년 부산. 폐역을 지키는 역무원 정수는 매일 밤 오지 않는 열차를 기다린다. 어느 날 정말로 열차가 도착한다.',
   genre: '미스터리',
-  fullText: 'S#1. 폐역 승강장 (밤)\n정수: 열차가 온다. 열차가 왔어.\n정수는 승강장 끝으로 달려간다. 총소리가 울린다.',
 };
 
 describe('processSummarize', () => {
@@ -36,14 +35,14 @@ describe('processSummarize', () => {
     expect(saved).toHaveLength(1);
     expect(saved[0].summary).toContain('1998년 부산');
     expect(saved[0].tags[0]).toBe('미스터리');
-    expect(saved[0].contentRating).toBe('12');
+    expect(saved[0].contentRating).toBe('ALL');
     expect(saved[0].generatedAt).toBe('2026-10-11T00:00:00.000Z');
   });
 
-  it('대본이 없거나 본문이 비면 건너뛴다', async () => {
+  it('대본이 없거나 로그라인·시놉시스가 비면 건너뛴다', async () => {
     expect((await processSummarize({ scriptId: 'x' }, { scripts: fakeRepo(null).repo, summarizer: new MockSummarizer() })).status).toBe('skipped');
     expect(
-      (await processSummarize({ scriptId: 's1' }, { scripts: fakeRepo({ ...script, fullText: ' ' }).repo, summarizer: new MockSummarizer() })).status,
+      (await processSummarize({ scriptId: 's1' }, { scripts: fakeRepo({ ...script, logline: '', synopsis: ' ' }).repo, summarizer: new MockSummarizer() })).status,
     ).toBe('skipped');
   });
 

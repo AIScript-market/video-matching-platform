@@ -1,5 +1,5 @@
 /** AI 요약 새로고침·최근 수정 시각·미리보기 대본 (DATABASE_URL 필요) */
-import { HttpException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, HttpException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { Viewer } from '../access/access-rules.js';
 import type { AiJobsQueue } from './ai-jobs.queue.js';
@@ -50,10 +50,10 @@ run('AI 요약·미리보기 (DB)', () => {
   }
 
   /** 워커가 요약을 저장한 것처럼 흉내낸다 */
-  const fakeWorker = (id: string) =>
+  const fakeWorker = (id: string, summary = 's') =>
     prisma.script.update({
       where: { id },
-      data: { aiSummary: { summary: 's', tags: [], contentRating: 'ALL', model: 'test', generatedAt: new Date().toISOString() } },
+      data: { aiSummary: { summary, tags: [], contentRating: 'ALL', model: 'test', generatedAt: new Date().toISOString() } },
     });
 
   beforeAll(async () => {
@@ -73,6 +73,7 @@ run('AI 요약·미리보기 (DB)', () => {
   afterAll(async () => {
     await prisma.scriptPreviewUnlock.deleteMany({ where: { userId: { in: userIds } } });
     await prisma.coinTransaction.deleteMany({ where: { userId: { in: userIds } } });
+    await prisma.scriptAccessLog.deleteMany({ where: { userId: { in: userIds } } });
     await prisma.script.deleteMany({ where: { authorId: { in: userIds } } });
     await prisma.user.deleteMany({ where: { id: { in: userIds } } });
     await prisma.$disconnect();
@@ -100,8 +101,8 @@ run('AI 요약·미리보기 (DB)', () => {
     await scripts.update(s.id, writer, { logline: 'l' });
     expect(queued.length).toBe(before);
 
-    // 내용 변경 → 수정 시각 갱신 + 새 요약 요청
-    const edited = await scripts.update(s.id, writer, { fullText: 'v2' });
+    // 소개 글 변경 → 수정 시각 갱신 + 새 요약 요청
+    const edited = await scripts.update(s.id, writer, { synopsis: 's2' });
     expect(queued.length).toBe(before + 1);
     expect(edited.aiSummaryPending).toBe(true);
     expect(new Date(edited.contentUpdatedAt).getTime()).toBeGreaterThan(new Date(done.contentUpdatedAt).getTime());
@@ -125,6 +126,41 @@ run('AI 요약·미리보기 (DB)', () => {
     expect(s.aiSummaryRequestedAt).toBeNull();
     await expect(scripts.refreshSummary(s.id, writer)).rejects.toThrow(HttpException);
     queueOk = true;
+  });
+
+  it('AI 요약은 공개 소개 글로만 만들고, 소개 글이 바뀔 때만 다시 만들고, 누구나 본다', async () => {
+    const title = `요약 소개 글 ${suffix}`;
+    const before = queued.length;
+    const s = await scripts.create(writer, { title, logline: 'l', synopsis: '형제가 사라진 아버지를 찾는다', genre: '스릴러', fullText: '범인은 형이다', rightsDeclared: true });
+    expect(queued.length).toBe(before + 1);
+    await fakeWorker(s.id, '형제의 추적');
+    await scripts.publish(s.id, writer, {});
+    expect(queued.length).toBe(before + 1); // 이미 요약이 있으면 공개할 때 다시 만들지 않는다
+
+    // 요약은 공개 소개 글로 만들었으므로 시놉시스처럼 누구나 본다
+    for (const viewer of [producer, member, null]) expect((await scripts.get(s.id, viewer)).aiSummary?.summary).toBe('형제의 추적');
+    expect((await scripts.list({ q: title }, null)).items[0].aiSummary?.summary).toBe('형제의 추적');
+
+    // 전문만 바꾸면 요약을 다시 만들지 않고(전문은 요약에 쓰지 않는다), 시놉시스를 바꾸면 다시 만든다
+    await new Promise((r) => setTimeout(r, 5));
+    const fullOnly = await scripts.update(s.id, writer, { fullText: '범인은 동생이다' });
+    expect(queued.length).toBe(before + 1);
+    expect(fullOnly.aiSummaryPending).toBe(false);
+    expect((await scripts.update(s.id, writer, { synopsis: '형제가 아버지의 비밀을 쫓는다' })).aiSummaryPending).toBe(true);
+    expect(queued.length).toBe(before + 2);
+  });
+
+  it('요약할 소개 글이 없으면 요약하지 않고, 소개 글을 다 지우면 요약도 지운다', async () => {
+    const before = queued.length;
+    const s = await scripts.create(writer, { title: '빈 소개', logline: ' ', synopsis: '', genre: '드라마', fullText: '본문만 있다' });
+    expect(queued.length).toBe(before);
+    expect(s.aiSummaryPending).toBe(false);
+    await expect(scripts.refreshSummary(s.id, writer)).rejects.toThrow(BadRequestException);
+    expect((await scripts.update(s.id, writer, { logline: '한 줄 소개' })).aiSummaryPending).toBe(true);
+    await fakeWorker(s.id, '한 줄 요약');
+    const cleared = await scripts.update(s.id, writer, { logline: '' });
+    expect(cleared).toMatchObject({ aiSummary: null, aiSummaryPending: false });
+    expect(queued.length).toBe(before + 1);
   });
 
   it('미리보기는 작가 본인과 코인으로 열람권을 산 사람에게만 보인다', async () => {

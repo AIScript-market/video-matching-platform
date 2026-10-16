@@ -12,13 +12,13 @@ const RATING_12 = ['싸움', '피', '죽음', '총', '욕설'];
 
 /**
  * API 키 없이 개발·테스트할 때 쓰는 결정적(deterministic) 요약기.
- * 시놉시스 앞부분을 요약으로, 자주 나오는 단어를 태그로 쓴다.
+ * 시놉시스 앞부분을 요약으로, 로그라인·시놉시스에 자주 나오는 단어를 태그로 쓴다.
  */
 export class MockSummarizer implements Summarizer {
   readonly model = 'mock';
 
   async summarize(script: ScriptForSummary): Promise<SummaryContent> {
-    const source = script.synopsis?.trim() || script.logline?.trim() || script.fullText;
+    const source = script.synopsis?.trim() || script.logline?.trim() || '';
     const sentences = source
       .replace(/\s+/g, ' ')
       .split(/(?<=[.!?。])\s+/)
@@ -27,7 +27,8 @@ export class MockSummarizer implements Summarizer {
     const summary = sentences.join(' ').slice(0, 400) || script.logline;
 
     const counts = new Map<string, number>();
-    for (const word of script.fullText.match(/[가-힣]{2,6}/g) ?? []) {
+    const text = `${script.logline}\n${script.synopsis}`;
+    for (const word of text.match(/[가-힣]{2,6}/g) ?? []) {
       if (STOPWORDS.has(word)) continue;
       counts.set(word, (counts.get(word) ?? 0) + 1);
     }
@@ -37,7 +38,6 @@ export class MockSummarizer implements Summarizer {
       .map(([w]) => w);
     const tags = [script.genre, ...frequent].filter(Boolean);
 
-    const text = script.fullText;
     const has = (words: string[]) => words.some((w) => text.includes(w));
     const contentRating = has(RATING_19) ? '19' : has(RATING_15) ? '15' : has(RATING_12) ? '12' : 'ALL';
 
