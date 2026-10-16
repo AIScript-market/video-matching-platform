@@ -1029,6 +1029,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/me/earnings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 내 수익: 참여한 딜 전체의 확정 수익·내 몫·지급을 딜·달·영상별로 */
+        get: operations["ChannelController_earnings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/deals/{id}/settlement": {
         parameters: {
             query?: never;
@@ -2988,6 +3005,69 @@ export interface components {
             createdAt: string;
             /** @description 딜의 대본 제목 */
             scriptTitle: string;
+        };
+        EarningsTotalsDto: {
+            /** @description 내가 참여한 딜 영상들의 확정 광고 수익 합계 (원) */
+            revenueKrw: number;
+            /** @description 그중 내 몫 (계약 배분율대로) */
+            myKrw: number;
+            /** @description 내 몫 가운데 지급받은 금액 */
+            paidKrw: number;
+            /** @description 내 몫 가운데 아직 지급 전인 금액 */
+            unpaidKrw: number;
+            /** @description 게시된 영상 수 */
+            publishedVideos: number;
+        };
+        EarningsMonthDto: {
+            /** @example 2026-09 */
+            month: string;
+            revenueKrw: number;
+            myKrw: number;
+        };
+        EarningsDealDto: {
+            dealId: string;
+            scriptTitle: string;
+            /**
+             * @description 딜 상태
+             * @enum {string}
+             */
+            status: "PENDING_CONTRACT" | "ACTIVE" | "TERMINATED";
+            /**
+             * @description 이번 달 적용 계약에서 내 역할 (계약 전이면 null)
+             * @enum {string|null}
+             */
+            myRole: "WRITER" | "PRODUCER" | "PERFORMER" | "OTHER" | "PLATFORM" | null;
+            /** @description 이번 달 적용 계약에서 내 배분율 (만분율) */
+            myShareBp: number | null;
+            videoCount: number;
+            publishedVideos: number;
+            revenueKrw: number;
+            myKrw: number;
+            paidKrw: number;
+        };
+        EarningsVideoDto: {
+            videoId: string;
+            dealId: string;
+            title: string;
+            scriptTitle: string;
+            /** @enum {string} */
+            status: "SUBMITTED" | "APPROVED" | "PUBLISHED" | "REJECTED" | "REMOVED";
+            channelName: string | null;
+            youtubeVideoId: string | null;
+            /** Format: date-time */
+            publishedAt: string | null;
+            /** @description 확정 광고 수익 합계 */
+            revenueKrw: number;
+            /** @description 그중 내 몫 */
+            myKrw: number;
+        };
+        EarningsDto: {
+            totals: components["schemas"]["EarningsTotalsDto"];
+            /** @description 확정 수익이 있는 달 (오래된 순) */
+            months: components["schemas"]["EarningsMonthDto"][];
+            deals: components["schemas"]["EarningsDealDto"][];
+            /** @description 제출한 영상 (게시된 영상 먼저, 최근 순) */
+            videos: components["schemas"]["EarningsVideoDto"][];
         };
         PayoutDto: {
             id: string;
@@ -5255,6 +5335,25 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ChannelVideoDto"];
+                };
+            };
+        };
+    };
+    ChannelController_earnings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EarningsDto"];
                 };
             };
         };

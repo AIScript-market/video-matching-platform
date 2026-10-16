@@ -25,6 +25,7 @@ const MY_TABS: Tab[] = [
   { href: "/dashboard", label: "내 대본" },
   { href: "/deals", label: "내 딜" },
   { href: "/contracts", label: "계약" },
+  { href: "/earnings", label: "수익" },
   { href: "/talent", label: "출연자", feature: "talent" },
   { href: "/account", label: "내 계정" },
 ];

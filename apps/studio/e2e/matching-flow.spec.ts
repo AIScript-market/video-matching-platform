@@ -144,4 +144,17 @@ test("대본 제공자와 제작자가 대본으로 매칭되어 딜이 만들�
   await expect(settlement.getByText("지급 5,500원")).toBeVisible();
   await writer.goto(dealUrl);
   await expect(writer.getByRole("region", { name: "정산" }).getByText("지급 5,500원")).toBeVisible();
+
+  // 13. 마이페이지 > 수익: 내 몫·지급, 달별·딜별·영상별
+  await writer.getByRole("navigation", { name: "주 메뉴" }).getByRole("link", { name: "마이페이지" }).click();
+  await writer.getByRole("navigation", { name: "마이페이지 메뉴" }).getByRole("link", { name: "수익" }).click();
+  const summary = writer.getByRole("region", { name: "수익 요약" });
+  await expect(summary.getByText("5,500원").first()).toBeVisible();
+  await expect(writer.getByRole("region", { name: "달별 수익" }).getByText(lastMonth)).toBeVisible();
+  const byDeal = writer.getByRole("region", { name: "딜별 수익" });
+  await expect(byDeal.getByRole("link", { name: title })).toBeVisible();
+  await expect(byDeal.getByText("작가 55%")).toBeVisible();
+  await expect(writer.getByRole("region", { name: "영상별 수익" }).getByRole("link", { name: `${title} 1화` })).toBeVisible();
+  await producer.goto("/earnings");
+  await expect(producer.getByRole("region", { name: "수익 요약" }).getByText("4,501원").first()).toBeVisible();
 });

@@ -227,4 +227,27 @@ run('채널 게시·정산 (DB)', () => {
     expect(link.fileAvailable).toBe(false);
     await expect(channel.fileUrl(link.id, false)).rejects.toThrow(BadRequestException);
   });
+
+  it('내 수익: 참여한 딜의 확정 수익과 내 몫·지급을 딜·달·영상별로 모은다', async () => {
+    // 앞 테스트: 2026-09 확정 수익 10,001원 (작가 30% = 3,000원 지급, 제작자 7,001원 미지급)
+    const w = await channel.earnings(writer);
+    expect(w.totals).toMatchObject({ revenueKrw: 10_001, myKrw: 3_000, paidKrw: 3_000, unpaidKrw: 0 });
+    expect(w.months).toEqual([{ month: '2026-09', revenueKrw: 10_001, myKrw: 3_000 }]);
+    const deal = w.deals.find((d) => d.dealId === dealId)!;
+    // 이번 달에는 변경 계약 전(공동 작가 추가 전) 배분이 적용된다
+    expect(deal).toMatchObject({ scriptTitle: '채널 테스트', myRole: 'WRITER', revenueKrw: 10_001, myKrw: 3_000 });
+    const earned = w.videos.find((v) => v.revenueKrw > 0)!;
+    expect(earned).toMatchObject({ title: '1화', myKrw: 3_000 });
+    expect(w.videos[0].publishedAt).not.toBeNull(); // 게시된 영상이 먼저
+
+    const p = await channel.earnings(producer);
+    expect(p.totals).toMatchObject({ myKrw: 7_001, paidKrw: 0, unpaidKrw: 7_001 });
+
+    // 공동 작가는 변경 계약 당사자라 딜은 보이지만 지난 수익의 몫은 없다
+    const c = await channel.earnings(coWriter);
+    expect(c.deals.map((d) => d.dealId)).toContain(dealId);
+    expect(c.totals.myKrw).toBe(0);
+
+    expect((await channel.earnings(outsider)).deals).toEqual([]);
+  });
 });
