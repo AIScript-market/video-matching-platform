@@ -2999,6 +2999,281 @@
         ]
       }
     },
+    "/inquiries": {
+      "get": {
+        "operationId": "SupportController_list",
+        "parameters": [
+          {
+            "name": "mine",
+            "required": false,
+            "in": "query",
+            "description": "true면 내가 쓴 문의만 (로그인 필요)",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "category",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ACCOUNT",
+                "COINS",
+                "SCRIPTS",
+                "CONTRACTS",
+                "VIDEOS",
+                "OTHER"
+              ]
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "OPEN",
+                "ANSWERED",
+                "CLOSED"
+              ]
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "이전 응답의 nextCursor",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "take",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InquiryPageDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "문의 게시판 목록 (비로그인도 볼 수 있다. 비밀 문의는 제목·작성자를 가린다)",
+        "tags": [
+          "support"
+        ]
+      },
+      "post": {
+        "operationId": "SupportController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateInquiryDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InquiryDetailDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "문의 쓰기 (로그인한 사용자, 기본은 비밀 문의)",
+        "tags": [
+          "support"
+        ]
+      }
+    },
+    "/inquiries/{id}": {
+      "get": {
+        "operationId": "SupportController_get",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InquiryDetailDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "문의 보기 (비밀 문의는 작성자·운영자만)",
+        "tags": [
+          "support"
+        ]
+      }
+    },
+    "/inquiries/{id}/replies": {
+      "post": {
+        "operationId": "SupportController_reply",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateInquiryReplyDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InquiryDetailDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "답글 (작성자·운영자). 운영자가 달면 답변 완료, 작성자가 달면 답변 대기",
+        "tags": [
+          "support"
+        ]
+      }
+    },
+    "/inquiries/{id}/close": {
+      "post": {
+        "operationId": "SupportController_close",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InquiryDetailDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "해결됨으로 닫기 (작성자·운영자). 작성자가 다시 답글을 달면 열린다",
+        "tags": [
+          "support"
+        ]
+      }
+    },
+    "/admin/inquiries/{id}/hide": {
+      "post": {
+        "operationId": "AdminSupportController_hide",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HideInquiryDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InquirySummaryDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "관리자: 문의 숨기기·다시 보이기 (스팸·부적절한 글)",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/identity-verification": {
       "post": {
         "operationId": "TalentController_verifyIdentity",
@@ -8397,6 +8672,276 @@
         },
         "required": [
           "partyId"
+        ]
+      },
+      "InquirySummaryDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "ACCOUNT",
+              "COINS",
+              "SCRIPTS",
+              "CONTRACTS",
+              "VIDEOS",
+              "OTHER"
+            ]
+          },
+          "title": {
+            "type": "string",
+            "description": "볼 수 없는 비밀 문의면 \"비밀 문의입니다\""
+          },
+          "isPrivate": {
+            "type": "boolean"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "OPEN",
+              "ANSWERED",
+              "CLOSED"
+            ]
+          },
+          "authorName": {
+            "type": "string",
+            "nullable": true,
+            "description": "작성자 활동명 (볼 수 없는 비밀 문의면 null)"
+          },
+          "mine": {
+            "type": "boolean",
+            "description": "내가 쓴 문의인가"
+          },
+          "replyCount": {
+            "type": "number"
+          },
+          "hidden": {
+            "type": "boolean",
+            "description": "운영자가 숨겼는가 (운영자에게만 true일 수 있다)"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "lastActivityAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "category",
+          "title",
+          "isPrivate",
+          "status",
+          "authorName",
+          "mine",
+          "replyCount",
+          "hidden",
+          "createdAt",
+          "lastActivityAt"
+        ]
+      },
+      "InquiryPageDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InquirySummaryDto"
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ]
+      },
+      "InquiryReplyDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "fromStaff": {
+            "type": "boolean",
+            "description": "운영자 답변인가 (아니면 작성자의 추가 질문)"
+          },
+          "authorName": {
+            "type": "string",
+            "description": "운영자 답변은 \"운영자\""
+          },
+          "body": {
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "fromStaff",
+          "authorName",
+          "body",
+          "createdAt"
+        ]
+      },
+      "InquiryDetailDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "ACCOUNT",
+              "COINS",
+              "SCRIPTS",
+              "CONTRACTS",
+              "VIDEOS",
+              "OTHER"
+            ]
+          },
+          "title": {
+            "type": "string",
+            "description": "볼 수 없는 비밀 문의면 \"비밀 문의입니다\""
+          },
+          "isPrivate": {
+            "type": "boolean"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "OPEN",
+              "ANSWERED",
+              "CLOSED"
+            ]
+          },
+          "authorName": {
+            "type": "string",
+            "nullable": true,
+            "description": "작성자 활동명 (볼 수 없는 비밀 문의면 null)"
+          },
+          "mine": {
+            "type": "boolean",
+            "description": "내가 쓴 문의인가"
+          },
+          "replyCount": {
+            "type": "number"
+          },
+          "hidden": {
+            "type": "boolean",
+            "description": "운영자가 숨겼는가 (운영자에게만 true일 수 있다)"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "lastActivityAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          },
+          "replies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InquiryReplyDto"
+            }
+          },
+          "canReply": {
+            "type": "boolean",
+            "description": "답글을 달 수 있는가 (작성자·운영자)"
+          },
+          "canClose": {
+            "type": "boolean",
+            "description": "해결됨으로 닫을 수 있는가 (작성자·운영자, 아직 닫히지 않았을 때)"
+          }
+        },
+        "required": [
+          "id",
+          "category",
+          "title",
+          "isPrivate",
+          "status",
+          "authorName",
+          "mine",
+          "replyCount",
+          "hidden",
+          "createdAt",
+          "lastActivityAt",
+          "body",
+          "replies",
+          "canReply",
+          "canClose"
+        ]
+      },
+      "CreateInquiryDto": {
+        "type": "object",
+        "properties": {
+          "category": {
+            "type": "string",
+            "enum": [
+              "ACCOUNT",
+              "COINS",
+              "SCRIPTS",
+              "CONTRACTS",
+              "VIDEOS",
+              "OTHER"
+            ]
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "body": {
+            "type": "string",
+            "maxLength": 5000
+          },
+          "isPrivate": {
+            "type": "boolean",
+            "description": "비밀 문의 (작성자와 운영자만 본다). 생략하면 비밀",
+            "default": true
+          }
+        },
+        "required": [
+          "category",
+          "title",
+          "body"
+        ]
+      },
+      "CreateInquiryReplyDto": {
+        "type": "object",
+        "properties": {
+          "body": {
+            "type": "string",
+            "maxLength": 5000
+          }
+        },
+        "required": [
+          "body"
+        ]
+      },
+      "HideInquiryDto": {
+        "type": "object",
+        "properties": {
+          "hidden": {
+            "type": "boolean",
+            "description": "true면 숨김 (운영자만 본다), false면 다시 보임"
+          }
+        },
+        "required": [
+          "hidden"
         ]
       },
       "VerifyIdentityDto": {

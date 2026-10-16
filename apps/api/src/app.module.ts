@@ -11,6 +11,7 @@ import { WalletModule } from './modules/wallet/wallet.module.js';
 import { LedgerModule } from './modules/ledger/ledger.module.js';
 import { NegotiationsModule } from './modules/negotiations/negotiations.module.js';
 import { ScriptsModule } from './modules/scripts/scripts.module.js';
+import { SupportModule } from './modules/support/support.module.js';
 import { CastingModule } from './modules/casting/casting.module.js';
 import { ChannelModule } from './modules/channel/channel.module.js';
 import { ContractsModule } from './modules/contracts/contracts.module.js';
@@ -43,6 +44,7 @@ const HIT_MODEL_MODULES = [PerformanceModule, HitModelModule];
     LedgerModule,
     ContractsModule,
     ChannelModule,
+    SupportModule,
     ...(features.casting ? CASTING_MODULES : []),
     ...(features.hitModel ? HIT_MODEL_MODULES : []),
   ],

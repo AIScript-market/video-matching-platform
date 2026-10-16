@@ -1165,6 +1165,92 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/inquiries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 문의 게시판 목록 (비로그인도 볼 수 있다. 비밀 문의는 제목·작성자를 가린다) */
+        get: operations["SupportController_list"];
+        put?: never;
+        /** 문의 쓰기 (로그인한 사용자, 기본은 비밀 문의) */
+        post: operations["SupportController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/inquiries/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 문의 보기 (비밀 문의는 작성자·운영자만) */
+        get: operations["SupportController_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/inquiries/{id}/replies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 답글 (작성자·운영자). 운영자가 달면 답변 완료, 작성자가 달면 답변 대기 */
+        post: operations["SupportController_reply"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/inquiries/{id}/close": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 해결됨으로 닫기 (작성자·운영자). 작성자가 다시 답글을 달면 열린다 */
+        post: operations["SupportController_close"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/inquiries/{id}/hide": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 관리자: 문의 숨기기·다시 보이기 (스팸·부적절한 글) */
+        post: operations["AdminSupportController_hide"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/identity-verification": {
         parameters: {
             query?: never;
@@ -2985,6 +3071,86 @@ export interface components {
             /** @description 지급한 시각 (생략하면 지금) */
             paidAt?: string;
             memo?: string;
+        };
+        InquirySummaryDto: {
+            id: string;
+            /** @enum {string} */
+            category: "ACCOUNT" | "COINS" | "SCRIPTS" | "CONTRACTS" | "VIDEOS" | "OTHER";
+            /** @description 볼 수 없는 비밀 문의면 "비밀 문의입니다" */
+            title: string;
+            isPrivate: boolean;
+            /** @enum {string} */
+            status: "OPEN" | "ANSWERED" | "CLOSED";
+            /** @description 작성자 활동명 (볼 수 없는 비밀 문의면 null) */
+            authorName: string | null;
+            /** @description 내가 쓴 문의인가 */
+            mine: boolean;
+            replyCount: number;
+            /** @description 운영자가 숨겼는가 (운영자에게만 true일 수 있다) */
+            hidden: boolean;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            lastActivityAt: string;
+        };
+        InquiryPageDto: {
+            items: components["schemas"]["InquirySummaryDto"][];
+            nextCursor: string | null;
+        };
+        InquiryReplyDto: {
+            id: string;
+            /** @description 운영자 답변인가 (아니면 작성자의 추가 질문) */
+            fromStaff: boolean;
+            /** @description 운영자 답변은 "운영자" */
+            authorName: string;
+            body: string;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        InquiryDetailDto: {
+            id: string;
+            /** @enum {string} */
+            category: "ACCOUNT" | "COINS" | "SCRIPTS" | "CONTRACTS" | "VIDEOS" | "OTHER";
+            /** @description 볼 수 없는 비밀 문의면 "비밀 문의입니다" */
+            title: string;
+            isPrivate: boolean;
+            /** @enum {string} */
+            status: "OPEN" | "ANSWERED" | "CLOSED";
+            /** @description 작성자 활동명 (볼 수 없는 비밀 문의면 null) */
+            authorName: string | null;
+            /** @description 내가 쓴 문의인가 */
+            mine: boolean;
+            replyCount: number;
+            /** @description 운영자가 숨겼는가 (운영자에게만 true일 수 있다) */
+            hidden: boolean;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            lastActivityAt: string;
+            body: string;
+            replies: components["schemas"]["InquiryReplyDto"][];
+            /** @description 답글을 달 수 있는가 (작성자·운영자) */
+            canReply: boolean;
+            /** @description 해결됨으로 닫을 수 있는가 (작성자·운영자, 아직 닫히지 않았을 때) */
+            canClose: boolean;
+        };
+        CreateInquiryDto: {
+            /** @enum {string} */
+            category: "ACCOUNT" | "COINS" | "SCRIPTS" | "CONTRACTS" | "VIDEOS" | "OTHER";
+            title: string;
+            body: string;
+            /**
+             * @description 비밀 문의 (작성자와 운영자만 본다). 생략하면 비밀
+             * @default true
+             */
+            isPrivate: boolean;
+        };
+        CreateInquiryReplyDto: {
+            body: string;
+        };
+        HideInquiryDto: {
+            /** @description true면 숨김 (운영자만 본다), false면 다시 보임 */
+            hidden: boolean;
         };
         VerifyIdentityDto: {
             /**
@@ -5280,6 +5446,148 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SettlementDto"];
+                };
+            };
+        };
+    };
+    SupportController_list: {
+        parameters: {
+            query?: {
+                /** @description true면 내가 쓴 문의만 (로그인 필요) */
+                mine?: boolean;
+                category?: "ACCOUNT" | "COINS" | "SCRIPTS" | "CONTRACTS" | "VIDEOS" | "OTHER";
+                status?: "OPEN" | "ANSWERED" | "CLOSED";
+                /** @description 이전 응답의 nextCursor */
+                cursor?: string;
+                take?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InquiryPageDto"];
+                };
+            };
+        };
+    };
+    SupportController_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateInquiryDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InquiryDetailDto"];
+                };
+            };
+        };
+    };
+    SupportController_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InquiryDetailDto"];
+                };
+            };
+        };
+    };
+    SupportController_reply: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateInquiryReplyDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InquiryDetailDto"];
+                };
+            };
+        };
+    };
+    SupportController_close: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InquiryDetailDto"];
+                };
+            };
+        };
+    };
+    AdminSupportController_hide: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HideInquiryDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InquirySummaryDto"];
                 };
             };
         };

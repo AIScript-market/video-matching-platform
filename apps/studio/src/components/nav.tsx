@@ -33,6 +33,7 @@ const MY_TABS: Tab[] = [
 const ADMIN_TABS: Tab[] = [
   { href: "/admin", label: "회원" },
   { href: "/admin/reports", label: "신고" },
+  { href: "/admin/inquiries", label: "문의" },
   { href: "/admin/logs", label: "활동 로그" },
   { href: "/admin/videos", label: "영상 검수" },
   { href: "/admin/casting", label: "출연 관리", feature: "casting" },
