@@ -49,6 +49,7 @@ run('API e2e', () => {
     await prisma.scriptPreviewUnlock.deleteMany({ where: { OR: [{ scriptId: { in: scripts } }, { userId: { in: ids } }] } });
     await prisma.scriptUpload.deleteMany({ where: { OR: [{ scriptId: { in: scripts } }, { uploaderId: { in: ids } }] } });
     await prisma.script.deleteMany({ where: { id: { in: scripts } } });
+    await prisma.accountReport.deleteMany({ where: { OR: [{ reporterId: { in: ids } }, { targetId: { in: ids } }] } });
     await prisma.coinTransaction.deleteMany({ where: { userId: { in: ids } } });
     await prisma.user.deleteMany({ where: { id: { in: ids } } });
     await app.close();
@@ -239,5 +240,69 @@ run('API e2e', () => {
     createdUserIds.add(again.body.user.id);
     expect(again.body.user).toMatchObject({ coinBalance: 10, creatorReady: false });
     expect(again.body.user.id).not.toBe(writer.id);
+  });
+
+  it('계정 신고 → 관리자: 신고된 계정·신고 목록 → 기각·정지하고 처리', async () => {
+    const http = request(app.getHttpServer());
+    const ADMIN = await adminAuth();
+    const bad = await signup('reported', { creator: true });
+    const r1 = await signup('reporter1');
+    const r2 = await signup('reporter2');
+    const admin = await prisma.user.findUniqueOrThrow({ where: { email: 'admin@vmp.dev' } });
+
+    // 신고 접수와 제한
+    await http.post(`/users/${bad.id}/reports`).send({ reason: 'SPAM' }).expect(401);
+    const first = await http.post(`/users/${bad.id}/reports`).set(r1.auth).send({ reason: 'SPAM', details: '홍보 메시지를 반복해서 보냄' }).expect(201);
+    expect(first.body).toMatchObject({ reason: 'SPAM', status: 'OPEN' });
+    await http.post(`/users/${bad.id}/reports`).set(r1.auth).send({ reason: 'ABUSE' }).expect(409);
+    await http.post(`/users/${r1.id}/reports`).set(r1.auth).send({ reason: 'SPAM' }).expect(400);
+    await http.post(`/users/${admin.id}/reports`).set(r1.auth).send({ reason: 'SPAM' }).expect(400);
+    await http.post(`/users/${bad.id}/reports`).set(r2.auth).send({ reason: 'OTHER' }).expect(400);
+    await http.post(`/users/${bad.id}/reports`).set(r2.auth).send({ reason: 'NOPE' }).expect(400);
+    await http.post('/users/does-not-exist/reports').set(r2.auth).send({ reason: 'SPAM' }).expect(404);
+    await http.post(`/users/${bad.id}/reports`).set(r2.auth).send({ reason: 'FRAUD', details: '선급금을 먼저 보내라고 함' }).expect(201);
+    // 다른 계정도 한 건 신고 받음 (정렬 확인용)
+    await http.post(`/users/${r2.id}/reports`).set(r1.auth).send({ reason: 'ABUSE', details: '욕설' }).expect(201);
+
+    // 관리자만
+    await http.get('/admin/reported-users').set(r1.auth).expect(403);
+    await http.get('/admin/reports').set(r1.auth).expect(403);
+
+    // 신고된 계정: 많이 신고된 순
+    const reported = (await http.get('/admin/reported-users').set(ADMIN).expect(200)).body as Array<{
+      user: { id: string }; openCount: number; openReporters: number; reasons: string[];
+    }>;
+    const mine = reported.filter((r) => [bad.id, r2.id].includes(r.user.id));
+    expect(mine.map((r) => r.user.id)).toEqual([bad.id, r2.id]);
+    expect(mine[0]).toMatchObject({ openCount: 2, openReporters: 2 });
+    expect(mine[0].reasons.sort()).toEqual(['FRAUD', 'SPAM']);
+
+    // 신고 목록 (대상으로 거르기)
+    const list = (await http.get(`/admin/reports?targetId=${bad.id}&status=OPEN`).set(ADMIN).expect(200)).body.items;
+    expect(list).toHaveLength(2);
+    expect(list.map((r: { reporter: { email: string } }) => r.reporter.email).sort()).toEqual([email('reporter1'), email('reporter2')].sort());
+    const users = (await http.get(`/admin/users?q=${encodeURIComponent(email('reported'))}`).set(ADMIN).expect(200)).body;
+    expect(users[0].openReportCount).toBe(2);
+
+    // 처리: 기각 → 다시 처리 409, 기각하면서 정지는 400
+    const [spam, fraud] = [list.find((r: { reason: string }) => r.reason === 'SPAM'), list.find((r: { reason: string }) => r.reason === 'FRAUD')];
+    const dismissed = await http.patch(`/admin/reports/${spam.id}`).set(ADMIN).send({ status: 'DISMISSED', note: '일반 홍보 수준' }).expect(200);
+    expect(dismissed.body).toMatchObject({ status: 'DISMISSED', resolutionNote: '일반 홍보 수준' });
+    expect(dismissed.body.resolvedBy.email).toBe('admin@vmp.dev');
+    await http.patch(`/admin/reports/${spam.id}`).set(ADMIN).send({ status: 'RESOLVED' }).expect(409);
+    await http.patch(`/admin/reports/${fraud.id}`).set(ADMIN).send({ status: 'DISMISSED', suspend: true }).expect(400);
+
+    // 정지하고 처리 → 계정 정지, 신고된 계정 목록에서 빠짐
+    const resolved = await http.patch(`/admin/reports/${fraud.id}`).set(ADMIN).send({ status: 'RESOLVED', suspend: true, note: '사기 시도' }).expect(200);
+    expect(resolved.body).toMatchObject({ status: 'RESOLVED', target: { status: 'SUSPENDED' } });
+    expect((await http.get('/me').set(bad.auth).expect(403)).body.error).toBe('ACCOUNT_SUSPENDED');
+    const after = (await http.get('/admin/reported-users').set(ADMIN)).body as Array<{ user: { id: string } }>;
+    expect(after.map((r) => r.user.id)).not.toContain(bad.id);
+    expect((await http.get(`/admin/users?q=${encodeURIComponent(email('reported'))}`).set(ADMIN)).body[0]).toMatchObject({
+      status: 'SUSPENDED', suspendReason: '사기 시도', openReportCount: 0,
+    });
+
+    // 처리된 뒤에는 다시 신고할 수 있다
+    await http.post(`/users/${bad.id}/reports`).set(r1.auth).send({ reason: 'ABUSE', details: '재신고' }).expect(201);
   });
 });

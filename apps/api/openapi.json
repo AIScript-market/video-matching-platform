@@ -811,6 +811,197 @@
         ]
       }
     },
+    "/users/{id}/reports": {
+      "post": {
+        "operationId": "ReportsController_report",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateReportDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportReceiptDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "계정 신고 (로그인한 사용자). 같은 계정을 처리 전에 다시 신고할 수 없다",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/admin/reported-users": {
+      "get": {
+        "operationId": "AdminReportsController_reportedUsers",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ReportedUserDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "신고된 계정 (처리 전 신고가 있는 계정, 많이 신고된 순)",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/reports": {
+      "get": {
+        "operationId": "AdminReportsController_list",
+        "parameters": [
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "OPEN",
+                "RESOLVED",
+                "DISMISSED"
+              ]
+            }
+          },
+          {
+            "name": "targetId",
+            "required": false,
+            "in": "query",
+            "description": "신고된 계정 id로 거르기",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "take",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 200,
+              "default": 50,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminReportPageDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "신고 목록 (최신순). 상태·대상 계정으로 거르기",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/reports/{id}": {
+      "patch": {
+        "operationId": "AdminReportsController_resolve",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolveReportDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminReportDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "신고 처리: 조치함(RESOLVED) / 기각(DISMISSED). suspend=true면 계정 정지 후 처리",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/scripts": {
       "post": {
         "operationId": "ScriptsController_create",
@@ -5407,6 +5598,10 @@
           "scriptCount": {
             "type": "number",
             "description": "작성한 대본 수"
+          },
+          "openReportCount": {
+            "type": "number",
+            "description": "처리 전 신고 수"
           }
         },
         "required": [
@@ -5421,7 +5616,8 @@
           "emailPublic",
           "coinBalance",
           "createdAt",
-          "scriptCount"
+          "scriptCount",
+          "openReportCount"
         ]
       },
       "SetUserStatusDto": {
@@ -5829,6 +6025,287 @@
             "description": "false면 숨김 해제 (권리 진술이 있으면 PUBLISHED, 없으면 DRAFT)"
           }
         }
+      },
+      "CreateReportDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "enum": [
+              "SPAM",
+              "ABUSE",
+              "FRAUD",
+              "COPYRIGHT",
+              "INAPPROPRIATE",
+              "OTHER"
+            ],
+            "description": "SPAM 스팸·홍보 / ABUSE 욕설·괴롭힘 / FRAUD 사기·금전 요구 / COPYRIGHT 저작권 침해 / INAPPROPRIATE 부적절한 콘텐츠 / OTHER 기타"
+          },
+          "details": {
+            "type": "string",
+            "maxLength": 2000,
+            "description": "구체적인 내용 (기타 사유면 필수)"
+          },
+          "scriptId": {
+            "type": "string",
+            "description": "신고한 위치의 대본 id (선택)"
+          }
+        },
+        "required": [
+          "reason"
+        ]
+      },
+      "ReportReceiptDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string",
+            "enum": [
+              "SPAM",
+              "ABUSE",
+              "FRAUD",
+              "COPYRIGHT",
+              "INAPPROPRIATE",
+              "OTHER"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "OPEN",
+              "RESOLVED",
+              "DISMISSED"
+            ]
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "reason",
+          "status",
+          "createdAt"
+        ]
+      },
+      "ReportUserDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "SUSPENDED",
+              "WITHDRAWN"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "displayName",
+          "email",
+          "status"
+        ]
+      },
+      "ReportedUserDto": {
+        "type": "object",
+        "properties": {
+          "user": {
+            "$ref": "#/components/schemas/ReportUserDto"
+          },
+          "openCount": {
+            "type": "number",
+            "description": "처리 전 신고 수"
+          },
+          "totalCount": {
+            "type": "number",
+            "description": "전체 신고 수"
+          },
+          "openReporters": {
+            "type": "number",
+            "description": "신고한 서로 다른 사람 수 (처리 전)"
+          },
+          "reasons": {
+            "type": "array",
+            "description": "처리 전 신고 사유 (많은 순)",
+            "items": {
+              "type": "string",
+              "enum": [
+                "SPAM",
+                "ABUSE",
+                "FRAUD",
+                "COPYRIGHT",
+                "INAPPROPRIATE",
+                "OTHER"
+              ]
+            }
+          },
+          "lastReportedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user",
+          "openCount",
+          "totalCount",
+          "openReporters",
+          "reasons",
+          "lastReportedAt"
+        ]
+      },
+      "ReportScriptDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title"
+        ]
+      },
+      "AdminReportDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string",
+            "enum": [
+              "SPAM",
+              "ABUSE",
+              "FRAUD",
+              "COPYRIGHT",
+              "INAPPROPRIATE",
+              "OTHER"
+            ]
+          },
+          "details": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "OPEN",
+              "RESOLVED",
+              "DISMISSED"
+            ]
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "resolvedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "resolutionNote": {
+            "type": "string",
+            "nullable": true
+          },
+          "reporter": {
+            "$ref": "#/components/schemas/ReportUserDto"
+          },
+          "target": {
+            "$ref": "#/components/schemas/ReportUserDto"
+          },
+          "script": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ReportScriptDto"
+              }
+            ]
+          },
+          "resolvedBy": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ReportUserDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "reason",
+          "details",
+          "status",
+          "createdAt",
+          "resolvedAt",
+          "resolutionNote",
+          "reporter",
+          "target",
+          "script",
+          "resolvedBy"
+        ]
+      },
+      "AdminReportPageDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminReportDto"
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ]
+      },
+      "ResolveReportDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "RESOLVED",
+              "DISMISSED"
+            ],
+            "description": "RESOLVED = 조치함, DISMISSED = 문제없음(기각)"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 500,
+            "description": "처리 메모"
+          },
+          "suspend": {
+            "type": "boolean",
+            "description": "true면 신고된 계정을 정지하고 처리 (status=RESOLVED일 때만)"
+          }
+        },
+        "required": [
+          "status"
+        ]
       },
       "CreateScriptDto": {
         "type": "object",

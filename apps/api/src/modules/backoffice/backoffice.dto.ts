@@ -50,6 +50,7 @@ export class AdminUserDto {
   @ApiProperty() coinBalance!: number;
   @ApiProperty({ format: 'date-time' }) createdAt!: Date;
   @ApiProperty({ description: '작성한 대본 수' }) scriptCount!: number;
+  @ApiProperty({ description: '처리 전 신고 수' }) openReportCount!: number;
 }
 
 export class AdminScriptDto {

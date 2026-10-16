@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { ReportButton } from "@/components/report-button";
 import { ErrorText } from "@/components/ui";
 import { api, dateTime, unwrap, type PublicProfile } from "@/lib/api";
 
@@ -24,7 +25,10 @@ export default function ProfilePage() {
       <section className="card stack" aria-label="공개 프로필">
         <div className="spread">
           <h1 style={{ margin: 0 }}>{profile.displayName}</h1>
-          {profile.creatorReady && <span className="badge ok">대본 제공·영상 제작 활동 중</span>}
+          <div className="row">
+            {profile.creatorReady && <span className="badge ok">대본 제공·영상 제작 활동 중</span>}
+            <ReportButton targetId={profile.id} targetName={profile.displayName} />
+          </div>
         </div>
         {profile.email && (
           <p>

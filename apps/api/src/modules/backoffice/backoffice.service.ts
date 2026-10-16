@@ -46,7 +46,13 @@ export class BackofficeService {
       orderBy: { createdAt: 'desc' },
       take: 500,
     });
-    return users.map(({ _count, ...u }) => ({ ...u, scriptCount: _count.scripts }));
+    const reports = await this.prisma.accountReport.groupBy({
+      by: ['targetId'],
+      where: { targetId: { in: users.map((u) => u.id) }, status: 'OPEN' },
+      _count: { _all: true },
+    });
+    const openReports = new Map(reports.map((r) => [r.targetId, r._count._all]));
+    return users.map(({ _count, ...u }) => ({ ...u, scriptCount: _count.scripts, openReportCount: openReports.get(u.id) ?? 0 }));
   }
 
   /**
@@ -66,7 +72,8 @@ export class BackofficeService {
         : { status: 'ACTIVE', suspendedAt: null, suspendReason: null },
       select: USER_SELECT,
     });
-    return { ...updated, scriptCount: _count.scripts };
+    const openReportCount = await this.prisma.accountReport.count({ where: { targetId: id, status: 'OPEN' } });
+    return { ...updated, scriptCount: _count.scripts, openReportCount };
   }
 
   /** 관리자 화면용: 숨김 포함 공개·숨김 대본 (작성 중 DRAFT는 제외) */

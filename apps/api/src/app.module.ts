@@ -6,6 +6,7 @@ import { BackofficeModule } from './modules/backoffice/backoffice.module.js';
 import { DealsModule } from './modules/deals/deals.module.js';
 import { IdentityModule } from './modules/identity/identity.module.js';
 import { ProfilesModule } from './modules/profiles/profiles.module.js';
+import { ReportsModule } from './modules/reports/reports.module.js';
 import { WalletModule } from './modules/wallet/wallet.module.js';
 import { LedgerModule } from './modules/ledger/ledger.module.js';
 import { NegotiationsModule } from './modules/negotiations/negotiations.module.js';
@@ -32,6 +33,7 @@ const BETA_HIDDEN = [TalentModule, CastingModule, WorksModule, PerformanceModule
     WalletModule,
     ProfilesModule,
     BackofficeModule,
+    ReportsModule,
     ScriptsModule,
     AccessModule,
     NegotiationsModule,
