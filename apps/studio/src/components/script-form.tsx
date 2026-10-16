@@ -9,14 +9,22 @@ import { useSession } from "@/lib/session";
 
 const EMPTY = { title: "", logline: "", synopsis: "", genre: "드라마", fullText: "", previewText: "" };
 
-/** 동의 항목 하나: 체크박스와 한 줄 설명, 그 아래 펼쳐 보는 자세한 내용 (펼쳐도 체크되지 않게 label 밖에 둔다) */
+/** 작가가 먼저 궁금한 것부터: 🔒 대본이 새어 나가는가, ⭐ 나에게 좋은 점. 어디에 어떻게 쓰이는지는 "자세히 보기"에 */
+interface ConsentPoint {
+  kind: "safe" | "benefit" | "why";
+  text: React.ReactNode;
+}
+const POINT_ICON: Record<ConsentPoint["kind"], string> = { safe: "🔒", benefit: "⭐", why: "💡" };
+
+/** 동의 항목 하나: 체크박스, 안심·혜택 몇 줄, 그 아래 펼쳐 보는 자세한 내용 (펼쳐도 체크되지 않게 label 밖에 둔다) */
 function ConsentItem({
   checked,
   disabled,
   onChange,
   required,
   label,
-  hint,
+  points,
+  detailsLabel,
   children,
 }: {
   checked: boolean;
@@ -24,23 +32,28 @@ function ConsentItem({
   onChange: (v: boolean) => void;
   required?: boolean;
   label: string;
-  hint: string;
+  points: ConsentPoint[];
+  detailsLabel: string;
   children: React.ReactNode;
 }) {
-  const hintId = useId();
+  const pointsId = useId();
   return (
     <div className="consent">
       <label className="check">
-        <input type="checkbox" checked={checked} disabled={disabled} aria-describedby={hintId} onChange={(e) => onChange(e.target.checked)} />
+        <input type="checkbox" checked={checked} disabled={disabled} aria-describedby={pointsId} onChange={(e) => onChange(e.target.checked)} />
         <span>
           <strong>{label}</strong> <span className={required ? "badge" : "badge muted"}>{required ? "필수" : "선택"}</span>
         </span>
       </label>
-      <p id={hintId} className="small muted consent-hint">
-        {hint}
-      </p>
+      <ul id={pointsId} className="consent-points small">
+        {points.map((p, i) => (
+          <li key={i} className={p.kind === "safe" ? "safe" : undefined}>
+            <span aria-hidden="true">{POINT_ICON[p.kind]}</span> {p.text}
+          </li>
+        ))}
+      </ul>
       <details className="consent-details">
-        <summary>자세히 보기</summary>
+        <summary>자세히 보기 · {detailsLabel}</summary>
         <div className="small">{children}</div>
       </details>
     </div>
@@ -55,7 +68,8 @@ const PREVIEW_MAX = 50_000;
 export function ScriptForm({ script, onSaved }: { script?: ScriptDetail; onSaved?: (s: ScriptDetail) => void }) {
   const router = useRouter();
   const { refresh, config } = useSession();
-  const trainingOn = Boolean(config?.features.hitModel);
+  // 흥행 예측이 켜져 있을 때만(베타에서는 꺼짐) 예측 결과가 보인다는 안내를 덧붙인다
+  const predictionsOn = Boolean(config?.features.hitModel);
   const [form, setForm] = useState(
     script
       ? {
@@ -72,8 +86,7 @@ export function ScriptForm({ script, onSaved }: { script?: ScriptDetail; onSaved
   const [trainingConsent, setTrainingConsent] = useState(script?.trainingConsent ?? false);
   // 공개 소개 글만 요약하므로 새 대본은 켜 두고, 작가가 끌 수 있게 한다
   const [aiSummaryConsent, setAiSummaryConsent] = useState(script?.aiSummaryConsent ?? true);
-  // 흥행 예측 기능이 꺼져 있으면(베타) 학습 동의는 묻지도 보내지도 않는다
-  const consents = { rightsDeclared: rights, aiSummaryConsent, ...(trainingOn && { trainingConsent }) };
+  const consents = { rightsDeclared: rights, aiSummaryConsent, trainingConsent };
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -231,7 +244,8 @@ export function ScriptForm({ script, onSaved }: { script?: ScriptDetail; onSaved
           disabled={locked && rights}
           onChange={setRights}
           label="이 대본을 영상으로 만들도록 허락할 권리가 저에게 있습니다"
-          hint="대본을 공개하려면 확인해 주세요. 제작자가 안심하고 계약할 수 있도록 받는 확인입니다."
+          points={[{ kind: "why", text: "제작자가 안심하고 계약할 수 있도록, 공개 전에 한 번 받는 확인입니다." }]}
+          detailsLabel="어떤 경우를 확인하나요?"
         >
           <p>내 대본이라도 아래 경우에는 다른 사람의 허락이 필요할 수 있어서 함께 확인합니다.</p>
           <ul>
@@ -251,32 +265,40 @@ export function ScriptForm({ script, onSaved }: { script?: ScriptDetail; onSaved
         <ConsentItem
           checked={aiSummaryConsent}
           onChange={setAiSummaryConsent}
-          label="시놉시스로 AI 요약 만들기"
-          hint="제작자가 대본을 빨리 고를 수 있도록 로그라인·시놉시스로 짧은 요약과 태그, 예상 등급을 만들어 목록에 보여 줍니다. 대본 전문은 쓰지 않습니다."
+          label="AI 요약으로 제작자에게 더 빨리 소개하기"
+          points={[
+            { kind: "safe", text: "대본 전문은 AI로 보내지 않습니다. 이미 공개한 로그라인·시놉시스만 쓰므로 새로 드러나는 내용이 없습니다." },
+            { kind: "benefit", text: "짧은 요약과 태그가 대본 목록에 함께 보여, 제작자가 작가님 작품을 더 빨리 알아보고 열어 봅니다." },
+          ]}
+          detailsLabel="AI에 무엇을 보내나요?"
         >
           <ul>
             <li>
-              AI에 보내는 것은 <strong>제목·장르·로그라인·시놉시스</strong>뿐입니다. 이 글들은 원래 누구나 보는 공개 소개라서, 요약도 시놉시스처럼 누구나 봅니다.
+              보내는 것은 <strong>제목·장르·로그라인·시놉시스</strong>뿐입니다. 대본 전문과 미리보기 대본은 보내지 않습니다. 전문은 지금처럼 비밀유지 서약 후 작가님이 승인한 제작자만 봅니다.
             </li>
-            <li>대본 전문과 미리보기 대본은 AI로 보내지 않습니다. 전문은 지금처럼 비밀유지 서약 후 작가님이 승인한 제작자만 봅니다.</li>
-            <li>요약을 만드는 곳은 Google의 AI 서비스(Gemini API, 미국)입니다. 플랫폼은 유료 API를 쓰므로 Google은 보낸 내용을 AI 학습 등 자기 제품 개선에 쓰지 않습니다. 다만 악용 방지와 법적 의무를 위해 일정 기간 보관할 수 있습니다.</li>
-            <li>시놉시스를 고치면 요약을 새로 만듭니다. 마음에 들지 않으면 언제든 끌 수 있고, 끄면 만든 요약을 지웁니다.</li>
+            <li>요약을 만드는 곳은 Google의 AI 서비스(Gemini API, 미국)입니다. 플랫폼은 유료 API를 쓰므로 Google은 보낸 글을 AI 학습 등 자기 제품 개선에 쓰지 않습니다. 다만 악용 방지와 법적 의무를 위해 일정 기간 보관할 수 있습니다.</li>
+            <li>요약은 시놉시스처럼 누구나 봅니다. 시놉시스를 고치면 요약을 새로 만듭니다.</li>
+            <li>마음에 들지 않으면 언제든 끌 수 있고, 끄면 만든 요약을 지웁니다.</li>
           </ul>
         </ConsentItem>
-        {trainingOn && (
-          <ConsentItem
-            checked={trainingConsent}
-            onChange={setTrainingConsent}
-            label="흥행 예측 기능 개선에 참여하기"
-            hint="이 대본과 영상 성과를 플랫폼의 흥행 예측을 더 정확하게 만드는 데 씁니다."
-          >
-            <ul>
-              <li>대본은 플랫폼 안에서 장면별 숫자(벡터)로 바뀌고, 개선에는 이 숫자와 영상 성과만 씁니다. 원문은 밖으로 보내지 않습니다.</li>
-              <li>참여하지 않아도 공개한 대본에는 제작자에게 흥행 예측과 추천 결과가 보일 수 있습니다.</li>
-              <li>언제든 끌 수 있고, 끄면 다음 개선부터 빠집니다.</li>
-            </ul>
-          </ConsentItem>
-        )}
+        <ConsentItem
+          checked={trainingConsent}
+          onChange={setTrainingConsent}
+          label="대본 분석 프로그램에 참여하기"
+          points={[
+            { kind: "safe", text: "대본 전문은 플랫폼 밖으로 보내지 않고, 다른 이용자에게도 보이지 않습니다. 분석에는 대본을 숫자로 바꾼 값만 씁니다." },
+            { kind: "benefit", text: "대본 피드백 기능이 열리면, 참여한 작가님께 먼저 피드백을 드립니다." },
+          ]}
+          detailsLabel="어떻게 분석하나요?"
+        >
+          <ul>
+            <li>대본은 플랫폼 서버 안에서 장면별 숫자(벡터)로 바뀌고, 이 숫자도 서버 안에만 둡니다.</li>
+            <li>이 숫자와 플랫폼 채널에 올라간 영상의 성과(조회수 등)를 함께 보며, 어떤 대본이 시청자에게 통하는지 배우는 데 씁니다. 그 결과로 작가님께 드릴 피드백과 흥행 예측을 만듭니다.</li>
+            <li>대본 원문과 숫자 모두 외부 AI 서비스나 다른 회사에 보내거나 팔지 않습니다.</li>
+            {predictionsOn && <li>참여하지 않아도, 공개한 대본에는 제작자에게 흥행 예측과 추천 결과가 보일 수 있습니다.</li>}
+            <li>언제든 끌 수 있고, 끄면 다음 분석부터 빠집니다.</li>
+          </ul>
+        </ConsentItem>
       </section>
       <ErrorText error={error} />
       {notice && <p className="notice">{notice}</p>}

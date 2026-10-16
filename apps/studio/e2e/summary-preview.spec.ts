@@ -22,8 +22,9 @@ test("AI 요약은 시놉시스로 만들고 시놉시스를 고칠 때마다 �
   await expect(consents.getByText("원작자에게 영상화 허락을")).toBeHidden();
   await consents.getByText("자세히 보기").first().click();
   await expect(consents.getByText("원작자에게 영상화 허락을", { exact: false })).toBeVisible();
-  await expect(consents.getByLabel(/흥행 예측 기능 개선/)).toHaveCount(process.env.E2E_BETA ? 0 : 1);
-  await expect(consents.getByLabel(/시놉시스로 AI 요약 만들기/)).toBeChecked(); // 새 대본은 켜져 있다
+  await expect(consents.getByText("대본 전문은 AI로 보내지 않습니다", { exact: false })).toBeVisible(); // 안심 문구는 펼치지 않아도 보인다
+  await expect(consents.getByLabel(/대본 분석 프로그램에 참여하기/)).not.toBeChecked();
+  await expect(consents.getByLabel(/AI 요약으로 제작자에게 더 빨리 소개하기/)).toBeChecked(); // 새 대본은 켜져 있다
   await writer.getByRole("button", { name: "임시 저장" }).click();
   await expect(writer.getByRole("heading", { name: "대본 편집" })).toBeVisible();
 

@@ -164,7 +164,9 @@ th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--bord
 
 /* 대본 동의 항목: 한 줄 설명 + 펼쳐 보는 자세한 내용 */
 .consent + .consent { border-top: 1px solid var(--border, #e5e5e5); padding-top: 12px; }
-.consent-hint { margin: 2px 0 0 28px; }
+.consent-points { list-style: none; margin: 4px 0 0 28px; padding: 0; }
+.consent-points li + li { margin-top: 2px; }
+.consent-points li.safe { font-weight: 600; }
 .consent-details { margin: 4px 0 0 28px; }
 .consent-details > summary { cursor: pointer; font-size: 0.875rem; color: var(--accent, #4f46e5); width: fit-content; }
 .consent-details ul { margin: 6px 0; padding-left: 18px; }
