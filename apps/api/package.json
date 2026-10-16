@@ -18,9 +18,12 @@
     "db:migrate": "prisma migrate dev",
     "db:seed": "prisma generate && prisma db seed",
     "db:seed:ml-demo": "tsx prisma/seed-ml-demo.ts",
+    "storage:check": "tsx src/cli/check-video-storage.ts",
     "db:check": "prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1152.0",
+    "@aws-sdk/s3-request-presigner": "^3.1152.0",
     "@nestjs/common": "^12.0.1",
     "@nestjs/core": "^12.0.1",
     "@nestjs/jwt": "^12.0.2",

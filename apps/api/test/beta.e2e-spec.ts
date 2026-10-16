@@ -70,7 +70,7 @@ run('API e2e (베타 모드)', () => {
       inviteRequired: true,
       purchaseEnabled: false,
       signupCoins: 50,
-      features: { talent: false, casting: false, hitModel: false },
+      features: { talent: false, casting: false, hitModel: false, videoUpload: expect.any(Boolean) },
     });
     // 기능이 살아 있으면 인증 오류(401)가 나고, 모듈을 올리지 않았으면 404
     await http.get('/talent').expect(404);
